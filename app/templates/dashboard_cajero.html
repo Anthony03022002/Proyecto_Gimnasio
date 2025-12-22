@@ -1,0 +1,86 @@
+{% extends "base.html" %}
+{% block title %}Cajero - Horarios{% endblock %}
+
+{% block content %}
+<div class="row g-3">
+  <div class="col-12">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <h3 class="mb-0">Panel Cajero</h3>
+    </div>
+    <p class="text-muted mb-2">
+      Resumen de tus ventas.
+    </p>
+  </div>
+
+  <div class="col-6 col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Ventas de hoy</h6>
+        <h3 class="card-title">{{ resumen_hoy.conteo or 0 }}</h3>
+        <p class="mb-0 small text-muted">Total de comprobantes</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-md-4">
+    <div class="card shadow-sm h-100">
+      <div class="card-body">
+        <h6 class="card-subtitle mb-2 text-muted">Última venta</h6>
+        {% if ultima_venta %}
+          <h6 class="mb-1">{{ ultima_venta.cliente_nombre }}</h6>
+          <p class="mb-1 small text-muted">
+            {{ ultima_venta.fecha.strftime('%d/%m/%Y') }}
+          </p>
+        {% else %}
+          <p class="mb-0 small text-muted">Sin registros todavía</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Últimas ventas</span>
+        <a href="{{ url_for('web.facturacion_nueva') }}" class="btn btn-outline-primary btn-sm">
+          <i class="bi bi-plus-lg"></i> Nueva venta
+        </a>
+      </div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Fecha Emitida</th>
+                <th>Cliente</th>
+                <th>Desde</th>
+                <th>Hasta</th>
+                <th>Meses</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% if ventas %}
+                {% for v in ventas %}
+                <tr>
+                  <td>{{ v.fecha.strftime('%d/%m/%Y') }}</td>
+                  <td>{{ v.cliente_nombre }}</td>
+                  <td>{{ v.membresia.fecha_desde.strftime('%d/%m/%Y') if v.membresia else '-' }}</td>
+                  <td>{{ v.membresia.fecha_hasta.strftime('%d/%m/%Y') if v.membresia else '-' }}</td>
+                  <td>{{ v.membresia.meses if v.membresia else '-' }}</td>
+                </tr>
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="3" class="text-center text-muted py-3">
+                    Aún no hay ventas registradas.
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

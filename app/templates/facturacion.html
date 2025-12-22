@@ -1,0 +1,96 @@
+{% extends "base.html" %} {% block title %}Nueva venta{% endblock %} {% block
+content %}
+<h4 class="mb-3">Nueva venta</h4>
+
+<form method="post" action="{{ url_for('web.facturacion_nueva_post') }}">
+  <!-- DATOS DEL CLIENTE -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header">Datos del cliente</div>
+    <div class="card-body row g-3">
+      <div class="col-12 col-md-4">
+        <label class="form-label">Identificación (Cédula/RUC)</label>
+        <input
+          type="text"
+          name="identificacion"
+          class="form-control"
+          required
+        />
+      </div>
+      <div class="col-12 col-md-8">
+        <label class="form-label">Nombre completo</label>
+        <input type="text" name="nombre" class="form-control" required />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label">Email</label>
+        <input type="email" name="email" class="form-control" />
+      </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label">Teléfono</label>
+        <input type="text" name="telefono" class="form-control" />
+      </div>
+    </div>
+  </div>
+
+  <!-- DETALLE DE LA VENTA (simple: un ítem) -->
+  <div class="card mb-3 shadow-sm">
+    <div class="card-header">Detalle</div>
+    <div class="card-body row g-3">
+      <div class="col-12">
+        <label class="form-label">Descripción</label>
+        <input
+          type="text"
+          name="descripcion"
+          class="form-control"
+          placeholder="Ej: Mensualidad gimnasio"
+          required
+        />
+      </div>
+      <div class="card mb-3 shadow-sm">
+        <div class="card-header">Membresía</div>
+        <div class="card-body row g-3">
+          <div class="col-12 col-md-4">
+            <label class="form-label">Meses</label>
+            <select name="meses" id="meses" class="form-select" required>
+              {% for m in range(1, 13) %}
+              <option value="{{ m }}">{{ m }}</option>
+              {% endfor %}
+            </select>
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Fecha desde</label>
+            <input
+              type="date"
+              name="fecha_desde"
+              id="fecha_desde"
+              class="form-control"
+              required
+            />
+          </div>
+
+          <div class="col-12 col-md-4">
+            <label class="form-label">Fecha hasta</label>
+            <input
+              type="date"
+              name="fecha_hasta"
+              id="fecha_hasta"
+              class="form-control"
+              readonly
+            />
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="d-flex justify-content-end">
+    <a
+      href="{{ url_for('web.admin_dashboard') }}"
+      class="btn btn-outline-secondary me-2"
+      >Cancelar</a
+    >
+    <button type="submit" class="btn btn-primary">Guardar venta</button>
+  </div>
+</form>
+{% endblock %}

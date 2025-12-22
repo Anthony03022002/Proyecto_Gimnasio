@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% block title %}Venta registrada{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm">
+  <div class="card-body">
+    <h4 class="mb-2">✅ Venta registrada</h4>
+    <p class="text-muted mb-3">
+      Cliente: <strong>{{ venta.cliente_nombre }}</strong>
+      — Total: <strong>${{ '%.2f'|format(venta.total or 0) }}</strong>
+    </p>
+
+    {% if credenciales.password %}
+      <div class="alert alert-warning">
+        <div class="fw-semibold mb-1">Credenciales del cliente (mostrar UNA sola vez)</div>
+        <div>Usuario: <strong>{{ credenciales.username }}</strong></div>
+        <div>Contraseña: <strong>{{ credenciales.password }}</strong></div>
+      </div>
+    {% else %}
+      <div class="alert alert-info">
+        El cliente ya existía. No se generaron nuevas credenciales.
+      </div>
+    {% endif %}
+
+    <div class="d-flex justify-content-end gap-2">
+      <a href="{{ url_for('web.facturacion_nueva') }}" class="btn btn-outline-primary">Nueva venta</a>
+      <a href="{{ url_for('web.cajero_dashboard') }}" class="btn btn-primary">Volver</a>
+    </div>
+  </div>
+</div>
+{% endblock %}

@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Horarios{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="d-flex justify-content-between align-items-center mb-2">
+  <h4 class="mb-0">Horarios</h4>
+
+  {% if session.get("user_role") == "admin" %}
+    <a href="{{ url_for('web.admin_horarios_semana')}}"
+       class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-plus-lg"></i> Ingresar horarios
+    </a>
+  {% endif %}
+</div>
+  <form method="get" action="{{ url_for('web.horarios_publico') }}" class="d-flex gap-2">
+    <input type="date" name="fecha" class="form-control form-control-sm" value="{{ fecha.isoformat() }}">
+    <button class="btn btn-outline-primary btn-sm" type="submit">Ver</button>
+  </form>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header">
+    Día: {{ fecha.strftime('%d/%m/%Y') }}
+  </div>
+
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Inicio</th>
+            <th>Fin</th>
+            <th>Cupo</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if slots %}
+            {% for s in slots %}
+              <tr>
+                <td>{{ s.inicio.strftime('%H:%M') }}</td>
+                <td>{{ s.fin.strftime('%H:%M') }}</td>
+                <td>{{ s.cupo_usado or 0 }} / {{ s.cupo_maximo }}</td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="3" class="text-center text-muted py-3">
+                No hay horarios generados para este día.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

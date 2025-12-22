@@ -1,0 +1,168 @@
+{% extends "base.html" %}
+{% block title %}Cajeros - Admin{% endblock %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12 col-lg-7 mb-3">
+    <h4 class="mb-3">Cajeros</h4>
+
+    <div class="card shadow-sm">
+      <div class="card-header">Lista de cajeros</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th>Usuario</th>
+                <th>Nombre</th>
+                <th style="width: 220px;">Acciones</th>
+              </tr>
+            </thead>
+
+            <tbody>
+              {% if cajeros %}
+                {% for c in cajeros %}
+                <tr>
+                  <td>{{ c.username }}</td>
+                  <td>{{ c.nombre or '-' }}</td>
+                  <td class="text-end">
+                    <div class="btn-group btn-group-sm" role="group">
+
+                      <!-- Editar -->
+                      <button type="button"
+                              class="btn btn-light border"
+                              data-bs-toggle="modal"
+                              data-bs-target="#editModal{{ c._id }}"
+                              title="Editar cajero">
+                        <i class="bi bi-pencil"></i>
+                      </button>
+
+                      <!-- Reset password -->
+                      <button type="button"
+                              class="btn btn-light border"
+                              data-bs-toggle="modal"
+                              data-bs-target="#pwdModal{{ c._id }}"
+                              title="Reset contraseña">
+                        <i class="bi bi-key"></i>
+                      </button>
+
+                      <!-- Eliminar -->
+                      <form method="post"
+                            action="{{ url_for('web.admin_cajeros_delete', cajero_id=c._id) }}"
+                            onsubmit="return confirm('¿Eliminar este cajero?');">
+                        <button type="submit"
+                                class="btn btn-light border text-danger"
+                                title="Eliminar cajero">
+                          <i class="bi bi-trash"></i>
+                        </button>
+                      </form>
+
+                    </div>
+                  </td>
+
+                </tr>
+
+                <!-- ✅ MODAL EDITAR (DENTRO DEL LOOP) -->
+                <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <form method="post" action="{{ url_for('web.admin_cajeros_edit', cajero_id=c._id) }}">
+                        <div class="modal-header">
+                          <h5 class="modal-title">Editar cajero</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+
+                        <div class="modal-body">
+                          <div class="mb-3">
+                            <label class="form-label">Usuario</label>
+                            <input type="text" name="username" class="form-control" value="{{ c.username }}" required>
+                          </div>
+                          <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="nombre" class="form-control" value="{{ c.nombre or '' }}">
+                          </div>
+                        </div>
+
+                        <div class="modal-footer">
+                          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                          <button class="btn btn-primary" type="submit">Guardar</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                <!-- ✅ MODAL RESET PASSWORD (DENTRO DEL LOOP) -->
+                <div class="modal fade" id="pwdModal{{ c._id }}" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog">
+                    <div class="modal-content">
+                      <form method="post" action="{{ url_for('web.admin_cajeros_reset_password', cajero_id=c._id) }}">
+                        <div class="modal-header">
+                          <h5 class="modal-title">Reset contraseña</h5>
+                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+
+                        <div class="modal-body">
+                          <div class="mb-3">
+                            <label class="form-label">Nueva contraseña</label>
+                            <input type="password" name="new_password" class="form-control" required>
+                          </div>
+                          <div class="form-text text-muted">
+                            Esto reemplaza la contraseña actual.
+                          </div>
+                        </div>
+
+                        <div class="modal-footer">
+                          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                          <button class="btn btn-warning" type="submit">Actualizar</button>
+                        </div>
+                      </form>
+                    </div>
+                  </div>
+                </div>
+
+                {% endfor %}
+              {% else %}
+                <tr>
+                  <td colspan="3" class="text-center text-muted py-3">
+                    No hay cajeros registrados.
+                  </td>
+                </tr>
+              {% endif %}
+            </tbody>
+
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Formulario crear -->
+  <div class="col-12 col-lg-5">
+    <h4 class="mb-3">Crear Nuevo cajero</h4>
+
+    <div class="card shadow-sm">
+      <div class="card-body">
+        <form method="post" action="{{ url_for('web.admin_cajeros_post') }}">
+          <div class="mb-3">
+            <label class="form-label">Usuario</label>
+            <input type="text" name="username" class="form-control" required>
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Nombre</label>
+            <input type="text" name="nombre" class="form-control">
+          </div>
+          <div class="mb-3">
+            <label class="form-label">Contraseña</label>
+            <input type="password" name="password" class="form-control" required>
+          </div>
+          <div class="d-flex justify-content-end">
+            <button type="submit" class="btn btn-primary">Crear cajero</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

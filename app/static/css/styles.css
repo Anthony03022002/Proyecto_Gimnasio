@@ -1,0 +1,26 @@
+/* Custom styles */
+body {
+    padding-bottom: 40px;
+}
+.admin-sidebar {
+    border-radius: 0.75rem;
+}
+
+.admin-sidebar .list-group-item {
+    cursor: pointer;
+}
+.btn-group .btn {
+  padding: 0.35rem 0.55rem;
+}
+
+.btn-group .btn i {
+  font-size: 0.95rem;
+}
+
+.btn-group .btn:hover {
+  background-color: #f8f9fa;
+}
+
+.btn-group .btn.text-danger:hover {
+  background-color: #fbeaea;
+}
