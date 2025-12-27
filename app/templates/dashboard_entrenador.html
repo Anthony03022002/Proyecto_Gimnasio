@@ -1,7 +1,155 @@
 {% extends "base.html" %}
-{% block title %}Entrenador - Horarios{% endblock %}
+{% block title %}Entrenador - Clases{% endblock %}
 
 {% block content %}
-<h3>Panel Entrenador</h3>
-<p>Aquí el entrenador verá sus clases, horarios y asistencias.</p>
+<div class="container-fluid">
+  <div class="row g-3">
+
+    <!-- CONTENIDO (IZQUIERDA) -->
+    <div class="col-12 col-lg-9 col-xl-10 order-2 order-lg-1">
+
+      <div class="d-flex justify-content-between align-items-center mb-3">
+        <div>
+          <h3 class="mb-0">Panel Entrenador</h3>
+          <small class="text-muted">
+            {{ entrenador.nombre or entrenador.username }} ·
+            Hoy: {{ ahora_local.strftime('%d/%m/%Y') }} · Hora: {{ ahora_local.strftime('%H:%M') }}
+          </small>
+        </div>
+        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('web.horarios_publico') }}">
+          <i class="bi bi-calendar-week"></i> Ver horarios
+        </a>
+      </div>
+
+      <div class="row g-3">
+
+        <!-- Clase actual -->
+        <div class="col-12 col-lg-5">
+          <div class="card shadow-sm h-100">
+            <div class="card-header">
+              <i class="bi bi-play-circle"></i> Clase en curso (ahora)
+            </div>
+            <div class="card-body">
+              {% if clase_actual %}
+                <h5 class="mb-2">{{ clase_actual.titulo or 'Clase' }}</h5>
+                <div class="text-muted mb-2">
+                  {{ clase_actual.inicio.astimezone(tz).strftime('%H:%M') }}
+                  -
+                  {{ clase_actual.fin.astimezone(tz).strftime('%H:%M') }}
+                </div>
+
+                <div class="small">
+                  <div><b>Sala:</b> {{ clase_actual.sala or '-' }}</div>
+                  <div><b>Cupo:</b> {{ clase_actual.cupo_usado or 0 }}/{{ clase_actual.cupo_maximo or '-' }}</div>
+                </div>
+
+                <hr>
+                <div class="alert alert-success mb-0">
+                  <i class="bi bi-check2-circle me-1"></i>
+                  Esta es tu clase actual.
+                </div>
+              {% else %}
+                <div class="text-muted">
+                  No tienes una clase en curso en este momento.
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- Próximas clases -->
+        <div class="col-12 col-lg-7">
+          <div class="card shadow-sm h-100">
+            <div class="card-header">
+              <i class="bi bi-clock"></i> Próximas clases de hoy
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Hora</th>
+                    <th>Título</th>
+                    <th>Sala</th>
+                    <th class="text-end">Cupo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if proximas %}
+                    {% for c in proximas %}
+                      <tr>
+                        <td class="text-nowrap">
+                          {{ c.inicio.astimezone(tz).strftime('%H:%M') }} - {{ c.fin.astimezone(tz).strftime('%H:%M') }}
+                        </td>
+                        <td>{{ c.titulo or 'Clase' }}</td>
+                        <td>{{ c.sala or '-' }}</td>
+                        <td class="text-end">
+                          {{ c.cupo_usado or 0 }}/{{ c.cupo_maximo or '-' }}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="4" class="text-center text-muted py-3">
+                        No tienes más clases programadas para hoy.
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- Todas hoy -->
+        <div class="col-12">
+          <div class="card shadow-sm">
+            <div class="card-header">
+              <i class="bi bi-list-task"></i> Todas tus clases de hoy
+            </div>
+            <div class="card-body p-0">
+              <table class="table table-sm mb-0 align-middle">
+                <thead class="table-light">
+                  <tr>
+                    <th>Hora</th>
+                    <th>Título</th>
+                    <th>Estado</th>
+                    <th>Sala</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% if clases_hoy %}
+                    {% for c in clases_hoy %}
+                      <tr>
+                        <td class="text-nowrap">
+                          {{ c.inicio.astimezone(tz).strftime('%H:%M') }} - {{ c.fin.astimezone(tz).strftime('%H:%M') }}
+                        </td>
+                        <td>{{ c.titulo or 'Clase' }}</td>
+                        <td>{{ c.estado or 'programada' }}</td>
+                        <td>{{ c.sala or '-' }}</td>
+                      </tr>
+                    {% endfor %}
+                  {% else %}
+                    <tr>
+                      <td colspan="4" class="text-center text-muted py-3">
+                        No tienes clases registradas para hoy.
+                      </td>
+                    </tr>
+                  {% endif %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+      </div><!-- /row g-3 -->
+
+    </div><!-- /col contenido -->
+
+    <!-- SIDEBAR (DERECHA) -->
+    <div class="col-12 col-lg-3 col-xl-2 order-1 order-lg-2">
+      {% include "partials/sidebar_admin.html" with context %}
+    </div>
+
+  </div><!-- /row -->
+</div><!-- /container-fluid -->
 {% endblock %}

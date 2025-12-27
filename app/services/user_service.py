@@ -25,7 +25,8 @@ def create_default_admin():
     users.insert_one({
         "username": "admin",
         "password": password_hash,
-        "role": "admin"
+        "role": "admin",
+        "activo": True,
     })
 
     print("✅ Usuario administrador creado por defecto: admin / admin123")
@@ -46,6 +47,7 @@ def create_cajero(username, password, nombre=None):
         "password": password_hash,
         "role": "cajero",
         "nombre": nombre,
+        "activo": True,
     }
 
     users.insert_one(doc)
@@ -156,6 +158,7 @@ def find_or_create_cliente(identificacion, nombre, email=None, telefono=None):
         "role": "cliente",
         "must_change_password": True,
         "created_at": datetime.utcnow(),
+        "activo": True,
     }
 
     users.insert_one(user_doc)
@@ -218,6 +221,9 @@ def actualizar_usuario_completo(user_id, data):
             raise ValueError("La contraseña debe tener al menos 6 caracteres.")
         password_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
         update["password"] = password_hash
+        
+        if "activo" in data:
+            update["activo"] = bool(data.get("activo"))
 
     update["actualizado_en"] = datetime.utcnow()
 
@@ -240,6 +246,7 @@ def create_entrenador(username, password, nombre=None):
         "password": password_hash,
         "role": "entrenador",
         "nombre": nombre,
+        "activo": True,
     }
 
     users.insert_one(doc)

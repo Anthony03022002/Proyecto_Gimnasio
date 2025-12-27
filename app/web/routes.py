@@ -23,6 +23,23 @@ from app.services.horarios_semanales import (
     
 )
 
+from app.services.admin_config_service import (
+     obtener_admin_por_username,
+    actualizar_perfil_admin,
+    cambiar_password_admin,
+    obtener_configuracion_app,
+    actualizar_configuracion_app,
+    )
+
+from app.services.clases_service import obtener_clases_hoy_entrenador
+
+from app.services.entrenador_config_service import (
+    obtener_entrenador_por_username,
+    actualizar_perfil_entrenador,
+    cambiar_password_entrenador,
+)
+
+
 
 def login_required(role=None):
     def decorator(view_func):
@@ -55,7 +72,7 @@ def login_post():
     username = request.form.get("username")
     password = request.form.get("password")
 
-    user = get_users_collection().find_one({"username": username})
+    user = get_users_collection().find_one({"username": username, "activo": True})
 
     if not user:
         flash("Usuario no encontrado", "danger")
@@ -134,6 +151,91 @@ def admin_dashboard():
         ventas_hoy=ventas_hoy,
         ultimas_ventas=ultimas_ventas,
     )
+
+#ADMIN CONFIGURACION
+@web_bp.get("/admin/configuracion")
+@login_required(role="admin")
+def admin_configuracion():
+    admin = obtener_admin_por_username(session.get("username"))
+    if not admin:
+        flash("No se encontró el administrador en la base.", "danger")
+        return redirect(url_for("web.logout"))
+
+    configuracion = obtener_configuracion_app()
+    return render_template("admin_configuracion.html", admin=admin, settings=configuracion)
+
+
+@web_bp.post("/admin/configuracion/perfil")
+@login_required(role="admin")
+def admin_configuracion_perfil():
+    admin = obtener_admin_por_username(session.get("username"))
+    if not admin:
+        flash("No se encontró el administrador.", "danger")
+        return redirect(url_for("web.logout"))
+
+    username = request.form.get("username", "").strip()
+    nombre = request.form.get("nombre", "").strip()
+    email = request.form.get("email", "").strip()
+    telefono = request.form.get("telefono", "").strip()
+
+    try:
+        actualizado = actualizar_perfil_admin(
+            str(admin["_id"]),
+            username=username,
+            nombre=nombre,
+            email=email,
+            telefono=telefono,
+        )
+        session["username"] = actualizado["username"]
+        flash("Perfil actualizado correctamente.", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+
+    return redirect(url_for("web.admin_configuracion"))
+
+
+@web_bp.post("/admin/configuracion/password")
+@login_required(role="admin")
+def admin_configuracion_password():
+    admin = obtener_admin_por_username(session.get("username"))
+    if not admin:
+        flash("No se encontró el administrador.", "danger")
+        return redirect(url_for("web.logout"))
+
+    password_actual = request.form.get("current_password", "")
+    password_nuevo = request.form.get("new_password", "")
+    password_confirmar = request.form.get("confirm_password", "")
+
+    if password_nuevo != password_confirmar:
+        flash("La confirmación no coincide.", "danger")
+        return redirect(url_for("web.admin_configuracion"))
+
+    try:
+        cambiar_password_admin(str(admin["_id"]), password_actual, password_nuevo)
+        flash("Contraseña actualizada correctamente.", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+
+    return redirect(url_for("web.admin_configuracion"))
+
+
+@web_bp.post("/admin/configuracion/sistema")
+@login_required(role="admin")
+def admin_configuracion_sistema():
+    gym_nombre = request.form.get("gym_nombre", "").strip()
+    gym_direccion = request.form.get("gym_direccion", "").strip()
+    gym_telefono = request.form.get("gym_telefono", "").strip()
+    moneda = request.form.get("moneda", "USD").strip()
+
+    actualizar_configuracion_app(
+        gym_nombre=gym_nombre,
+        gym_direccion=gym_direccion,
+        gym_telefono=gym_telefono,
+        moneda=moneda
+    )
+    flash("Configuración del sistema actualizada.", "success")
+    return redirect(url_for("web.admin_configuracion"))
+
 
 
 
@@ -1177,8 +1279,94 @@ def cajero_cliente_estado(cliente_id):
 @web_bp.get("/entrenador")
 @login_required(role="entrenador")
 def entrenador_dashboard():
-    return render_template("dashboard_entrenador.html")
+    users = get_users_collection()
+    entrenador = users.find_one({"username": session.get("username"), "role": "entrenador"})
+    if not entrenador:
+        flash("Entrenador no encontrado.", "danger")
+        return redirect(url_for("web.logout"))
 
+    ahora_local, clase_actual, proximas, clases_hoy, tz = obtener_clases_hoy_entrenador(entrenador["_id"])
+
+    return render_template(
+        "dashboard_entrenador.html",
+        entrenador=entrenador,
+        ahora_local=ahora_local,
+        clase_actual=clase_actual,
+        proximas=proximas,
+        clases_hoy=clases_hoy,
+        tz=tz,
+        activate = "entrenador_dashboard"
+    )
+
+
+@web_bp.get("/entrenador/configuracion")
+@login_required(role="entrenador")
+def entrenador_configuracion():
+    ent = obtener_entrenador_por_username(session.get("username"))
+    if not ent:
+        flash("Entrenador no encontrado.", "danger")
+        return redirect(url_for("web.logout"))
+
+    return render_template(
+        "entrenador_config.html",
+        entrenador=ent,
+        active="entrenador_configuracion",
+    )
+
+
+@web_bp.post("/entrenador/configuracion/perfil")
+@login_required(role="entrenador")
+def entrenador_configuracion_perfil():
+    ent = obtener_entrenador_por_username(session.get("username"))
+    if not ent:
+        flash("Entrenador no encontrado.", "danger")
+        return redirect(url_for("web.logout"))
+
+    username = request.form.get("username", "").strip()
+    nombre = request.form.get("nombre", "").strip()
+    email = request.form.get("email", "").strip()
+    telefono = request.form.get("telefono", "").strip()
+
+    try:
+        actualizado = actualizar_perfil_entrenador(
+            ent["_id"],
+            username=username,
+            nombre=nombre,
+            email=email,
+            telefono=telefono,
+        )
+        # Si cambió username => actualiza sesión
+        session["username"] = actualizado["username"]
+        flash("Perfil actualizado correctamente.", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+
+    return redirect(url_for("web.entrenador_configuracion"))
+
+
+@web_bp.post("/entrenador/configuracion/password")
+@login_required(role="entrenador")
+def entrenador_configuracion_password():
+    ent = obtener_entrenador_por_username(session.get("username"))
+    if not ent:
+        flash("Entrenador no encontrado.", "danger")
+        return redirect(url_for("web.logout"))
+
+    password_actual = request.form.get("current_password", "")
+    password_nuevo = request.form.get("new_password", "")
+    password_confirmar = request.form.get("confirm_password", "")
+
+    if password_nuevo != password_confirmar:
+        flash("La confirmación no coincide.", "danger")
+        return redirect(url_for("web.entrenador_configuracion"))
+
+    try:
+        cambiar_password_entrenador(ent["_id"], password_actual, password_nuevo)
+        flash("Contraseña actualizada correctamente.", "success")
+    except ValueError as e:
+        flash(str(e), "danger")
+
+    return redirect(url_for("web.entrenador_configuracion"))
 
 # Cliente
 

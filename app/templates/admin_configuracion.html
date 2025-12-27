@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+{% block title %}Configuración - Admin{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+
+  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+    <div>
+      <h3 class="mb-0">Configuración</h3>
+      <small class="text-muted">Administra tu perfil, seguridad y configuración del sistema.</small>
+    </div>
+    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('web.admin_dashboard') }}">
+      <i class="bi bi-arrow-left"></i> Volver
+    </a>
+  </div>
+
+  {# mensajes flash #}
+  {% include "partials/_flash.html" %}
+
+  <div class="card shadow-sm border-0">
+    <div class="card-body">
+
+      <ul class="nav nav-tabs" id="tabsConfig" role="tablist">
+        <li class="nav-item" role="presentation">
+          <button class="nav-link active" id="tab-perfil-btn" data-bs-toggle="tab" data-bs-target="#tab-perfil"
+                  type="button" role="tab" aria-controls="tab-perfil" aria-selected="true">
+            <i class="bi bi-person"></i> Perfil
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-seguridad-btn" data-bs-toggle="tab" data-bs-target="#tab-seguridad"
+                  type="button" role="tab" aria-controls="tab-seguridad" aria-selected="false">
+            <i class="bi bi-shield-lock"></i> Seguridad
+          </button>
+        </li>
+        <li class="nav-item" role="presentation">
+          <button class="nav-link" id="tab-sistema-btn" data-bs-toggle="tab" data-bs-target="#tab-sistema"
+                  type="button" role="tab" aria-controls="tab-sistema" aria-selected="false">
+            <i class="bi bi-gear"></i> Sistema
+          </button>
+        </li>
+      </ul>
+
+      <div class="tab-content pt-3" id="tabsConfigContent">
+
+        <!-- =========================
+             PERFIL
+        ========================== -->
+        <div class="tab-pane fade show active" id="tab-perfil" role="tabpanel" aria-labelledby="tab-perfil-btn">
+
+          <form method="POST" action="{{ url_for('web.admin_configuracion_perfil') }}" class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Username</label>
+              <input class="form-control" name="username" value="{{ admin.username }}" required>
+              <div class="form-text">Este username se usa para iniciar sesión.</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Nombre</label>
+              <input class="form-control" name="nombre" value="{{ admin.nombre or '' }}">
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Teléfono</label>
+              <input class="form-control" name="telefono" value="{{ admin.telefono or '' }}">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Email</label>
+              <input class="form-control" type="email" name="email" value="{{ admin.email or '' }}">
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-primary">
+                <i class="bi bi-save"></i> Guardar perfil
+              </button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('web.admin_configuracion') }}">
+                <i class="bi bi-arrow-clockwise"></i> Reset
+              </a>
+            </div>
+          </form>
+
+          <hr class="my-4">
+
+          <div class="alert alert-info mb-0">
+            <i class="bi bi-info-circle me-1"></i>
+            Si cambias el <b>username</b>, la sesión se actualizará automáticamente.
+          </div>
+        </div>
+
+        <!-- =========================
+             SEGURIDAD
+        ========================== -->
+        <div class="tab-pane fade" id="tab-seguridad" role="tabpanel" aria-labelledby="tab-seguridad-btn">
+
+          <form method="POST" action="{{ url_for('web.admin_configuracion_password') }}" class="row g-3">
+            <div class="col-12 col-md-4">
+              <label class="form-label">Contraseña actual</label>
+              <input class="form-control" type="password" name="current_password" required>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Nueva contraseña</label>
+              <input class="form-control" type="password" name="new_password" minlength="6" required>
+              <div class="form-text">Mínimo 6 caracteres.</div>
+            </div>
+
+            <div class="col-12 col-md-4">
+              <label class="form-label">Confirmar nueva contraseña</label>
+              <input class="form-control" type="password" name="confirm_password" minlength="6" required>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-warning">
+                <i class="bi bi-key"></i> Cambiar contraseña
+              </button>
+              <button type="button" class="btn btn-outline-secondary" id="btnTogglePwd">
+                <i class="bi bi-eye"></i> Mostrar/Ocultar
+              </button>
+            </div>
+          </form>
+
+          <hr class="my-4">
+
+          <div class="alert alert-warning mb-0">
+            <i class="bi bi-exclamation-triangle me-1"></i>
+            Usa una contraseña segura. Evita usar la misma que en otras plataformas.
+          </div>
+
+        </div>
+
+        <!-- =========================
+             SISTEMA
+        ========================== -->
+        <div class="tab-pane fade" id="tab-sistema" role="tabpanel" aria-labelledby="tab-sistema-btn">
+
+          <form method="POST" action="{{ url_for('web.admin_configuracion_sistema') }}" class="row g-3">
+            <div class="col-12 col-md-6">
+              <label class="form-label">Nombre del gimnasio</label>
+              <input class="form-control" name="gym_nombre" value="{{ settings.gym_nombre or '' }}">
+            </div>
+
+            <div class="col-12 col-md-6">
+              <label class="form-label">Teléfono del gimnasio</label>
+              <input class="form-control" name="gym_telefono" value="{{ settings.gym_telefono or '' }}">
+            </div>
+
+            <div class="col-12">
+              <label class="form-label">Dirección</label>
+              <input class="form-control" name="gym_direccion" value="{{ settings.gym_direccion or '' }}">
+            </div>
+
+            <div class="col-12 col-md-3">
+              <label class="form-label">Moneda</label>
+              <select class="form-select" name="moneda">
+                <option value="USD" {% if (settings.moneda or 'USD') == "USD" %}selected{% endif %}>USD</option>
+                <option value="EUR" {% if (settings.moneda or '') == "EUR" %}selected{% endif %}>EUR</option>
+              </select>
+            </div>
+
+            <div class="col-12 d-flex gap-2">
+              <button class="btn btn-success">
+                <i class="bi bi-save2"></i> Guardar sistema
+              </button>
+              <a class="btn btn-outline-secondary" href="{{ url_for('web.admin_configuracion') }}">
+                <i class="bi bi-arrow-clockwise"></i> Reset
+              </a>
+            </div>
+          </form>
+
+          <hr class="my-4">
+
+          <div class="alert alert-secondary mb-0">
+            <i class="bi bi-gear me-1"></i>
+            Esta configuración es global para todo el sistema (se guarda en <code>settings</code> con <code>_id: "app"</code>).
+          </div>
+
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+  // Mostrar/ocultar contraseña (sin depender de librerías)
+  (function() {
+    const btn = document.getElementById("btnTogglePwd");
+    if (!btn) return;
+
+    btn.addEventListener("click", function() {
+      const inputs = document.querySelectorAll('#tab-seguridad input[type="password"], #tab-seguridad input[type="text"]');
+      inputs.forEach(inp => {
+        inp.type = (inp.type === "password") ? "text" : "password";
+      });
+    });
+  })();
+</script>
+{% endblock %}

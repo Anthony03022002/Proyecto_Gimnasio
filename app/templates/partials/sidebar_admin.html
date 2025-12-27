@@ -150,7 +150,7 @@ session.get("username") or "Usuario" %} {% set initials = (username[:1] or
     </a>
 
     <a
-      href="#"
+      href="{{ url_for('web.admin_configuracion') }}"
       class="list-group-item list-group-item-action app-sideitem danger"
     >
       <i class="bi bi-gear"></i> Configuración
@@ -164,12 +164,6 @@ session.get("username") or "Usuario" %} {% set initials = (username[:1] or
       <i class="bi bi-speedometer2"></i> Panel
     </a>
 
-    <a
-      href="{{ url_for('web.facturacion_nueva') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='facturacion_nueva' %}active{% endif %}"
-    >
-      <i class="bi bi-plus-lg"></i> Nueva venta
-    </a>
     <a
       href="{{ url_for('web.cajero_renovar') }}"
       class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_renovar' %}active{% endif %}"
@@ -218,7 +212,7 @@ session.get("username") or "Usuario" %} {% set initials = (username[:1] or
     </a>
 
     <a
-      href="#"
+      href="{{ url_for('web.entrenador_configuracion') }}"
       class="list-group-item list-group-item-action app-sideitem danger"
     >
       <i class="bi bi-gear"></i> Configuración
