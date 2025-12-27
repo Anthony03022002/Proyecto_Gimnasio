@@ -1,0 +1,21 @@
+<div class="list-group list-group-flush">
+  <a href="#" class="list-group-item list-group-item-action d-flex justify-content-between align-items-center">
+    <span><i class="bi bi-people me-2"></i> Usuarios</span>
+    <span class="badge bg-secondary rounded-pill">+</span>
+  </a>
+  <a href="{{ url_for('web.admin_entrenadores') }}class="list-group-item list-group-item-action">
+    <i class="bi bi-person-workspace me-2"></i> Entrenadores
+  </a>
+  <a href="{{ url_for('web.admin_cajeros') }}" class="list-group-item list-group-item-action">
+    <i class="bi bi-receipt me-2"></i> Cajeros
+  </a>
+  <a href="#" class="list-group-item list-group-item-action">
+    <i class="bi bi-person-badge me-2"></i> Clientes
+  </a>
+  <a href="{{ url_for('web.horarios_publico') }}" class="list-group-item list-group-item-action">
+    <i class="bi bi-calendar-week me-2"></i> Horarios / Clases
+  </a>
+  <a href="#" class="list-group-item list-group-item-action text-danger">
+    <i class="bi bi-gear me-2"></i> Configuración
+  </a>
+</div>

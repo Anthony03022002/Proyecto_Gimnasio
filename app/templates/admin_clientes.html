@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+{% block title %}Clientes - Admin{% endblock %}
+{% block content %}
+
+<div class="row">
+  <div class="col-12 mb-3">
+    <div class="d-flex justify-content-between align-items-center">
+      <div>
+        <h4 class="mb-0">Clientes</h4>
+        <div class="text-muted small">Ver / editar / activar o desactivar</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12">
+    <form method="get" class="row g-2 mb-3">
+      <div class="col-12 col-md-8">
+        <input name="q" value="{{ q }}" class="form-control" placeholder="Buscar por nombre, identificación, email o teléfono...">
+      </div>
+      <div class="col-12 col-md-4 d-grid">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-search"></i> Buscar
+        </button>
+      </div>
+    </form>
+
+    <div class="card shadow-sm">
+      <div class="card-header">Lista de clientes</div>
+      <div class="card-body p-0">
+        <div class="table-responsive">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+                <tr>
+                <th>Nombre</th>
+                <th>Identificación</th>
+                <th>Estado</th>
+                <th class="text-end" style="width: 180px;">Acciones</th>
+                </tr>
+            </thead>
+
+            <tbody>
+                {% if clientes %}
+                {% for c in clientes %}
+                <tr>
+                    <td class="fw-semibold">{{ c.nombre }}</td>
+                    <td class="text-muted">{{ c.identificacion }}</td>
+
+                    <td>
+                    {% if c.activo %}
+                        <span class="badge text-bg-success">Activo</span>
+                    {% else %}
+                        <span class="badge text-bg-secondary">Inactivo</span>
+                    {% endif %}
+                    </td>
+
+                    <td class="text-end">
+                    <div class="btn-group btn-group-sm" role="group">
+
+                        <!-- Editar -->
+                        <button type="button"
+                                class="btn btn-light border"
+                                data-bs-toggle="modal"
+                                data-bs-target="#editModal{{ c._id }}"
+                                title="Editar cliente">
+                        <i class="bi bi-pencil"></i>
+                        </button>
+
+                        <!-- Activar/Desactivar -->
+                        {% if c.activo %}
+                        <form method="post" action="{{ url_for('web.admin_clientes_estado', cliente_id=c._id) }}">
+                            <input type="hidden" name="activo" value="0">
+                            <button type="submit" class="btn btn-light border text-danger" title="Desactivar">
+                            <i class="bi bi-person-dash"></i>
+                            </button>
+                        </form>
+                        {% else %}
+                        <form method="post" action="{{ url_for('web.admin_clientes_estado', cliente_id=c._id) }}">
+                            <input type="hidden" name="activo" value="1">
+                            <button type="submit" class="btn btn-light border text-success" title="Activar">
+                            <i class="bi bi-person-check"></i>
+                            </button>
+                        </form>
+                        {% endif %}
+
+                    </div>
+                    </td>
+                </tr>
+
+                <!-- MODAL EDITAR -->
+                <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog">
+                    <div class="modal-content">
+                        <form method="post" action="{{ url_for('web.admin_clientes_editar', cliente_id=c._id) }}">
+                        <div class="modal-header">
+                            <h5 class="modal-title">Editar cliente</h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        </div>
+
+                        <div class="modal-body">
+                            <div class="mb-3">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="nombre" class="form-control" value="{{ c.nombre }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                            <label class="form-label">Identificación</label>
+                            <input type="text" name="identificacion" class="form-control" value="{{ c.identificacion }}" required>
+                            </div>
+
+                            <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" value="{{ c.email or '' }}">
+                            </div>
+
+                            <div class="mb-3">
+                            <label class="form-label">Teléfono</label>
+                            <input type="text" name="telefono" class="form-control" value="{{ c.telefono or '' }}">
+                            </div>
+                        </div>
+
+                        <div class="modal-footer">
+                            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                            <button class="btn btn-primary" type="submit">Guardar</button>
+                        </div>
+                        </form>
+                    </div>
+                    </div>
+                </div>
+
+                {% endfor %}
+                {% else %}
+                <tr>
+                    <td colspan="4" class="text-center text-muted py-3">
+                    No hay clientes registrados.
+                    </td>
+                </tr>
+                {% endif %}
+            </tbody>
+            </table>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+{% endblock %}

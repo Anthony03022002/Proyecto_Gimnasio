@@ -1,10 +1,14 @@
-{% extends "base.html" %} {% block title %}Admin - Horarios{% endblock %} {%
-block content %}
-<div class="row">
+{% extends "base.html" %}
+{% block title %}Admin - Horarios{% endblock %}
+{% block content %}
+
+{% set active = "admin_dashboard" %}
+
+<div class="row g-3">
+
+  {# CONTENIDO PRINCIPAL #}
   <div class="col-12 col-lg-9 mb-3">
-    <div
-      class="d-lg-none mb-3 d-flex justify-content-between align-items-center"
-    >
+    <div class="d-lg-none mb-3 d-flex justify-content-between align-items-center">
       <h3 class="mb-0">Panel Administrador</h3>
       <button
         class="btn btn-outline-primary btn-sm"
@@ -53,6 +57,7 @@ block content %}
           </div>
         </div>
       </div>
+
       <div class="col-12 col-md-4">
         <div class="card shadow-sm h-100">
           <div class="card-body">
@@ -77,27 +82,29 @@ block content %}
             </tr>
           </thead>
           <tbody>
-            {% if ultimas_ventas %} {% for v in ultimas_ventas %}
-            <tr>
-              <td>{{ v.cliente_nombre or '-' }}</td>
-              <td>{{ v.membresia.meses or '-' }}</td>
-              <td>
-                {% if v.membresia and v.membresia.fecha_desde %} {{
-                v.membresia.fecha_desde.strftime('%d/%m/%Y') }} {% else %}-{%
-                endif %}
-              </td>
-              <td>
-                {% if v.membresia and v.membresia.fecha_hasta %} {{
-                v.membresia.fecha_hasta.strftime('%d/%m/%Y') }} {% else %}-{%
-                endif %}
-              </td>
-            </tr>
-            {% endfor %} {% else %}
-            <tr>
-              <td colspan="4" class="text-center text-muted py-3">
-                Aún no hay ventas registradas.
-              </td>
-            </tr>
+            {% if ultimas_ventas %}
+              {% for v in ultimas_ventas %}
+              <tr>
+                <td>{{ v.cliente_nombre or '-' }}</td>
+                <td>{{ v.membresia.meses or '-' }}</td>
+                <td>
+                  {% if v.membresia and v.membresia.fecha_desde %}
+                    {{ v.membresia.fecha_desde.strftime('%d/%m/%Y') }}
+                  {% else %}-{% endif %}
+                </td>
+                <td>
+                  {% if v.membresia and v.membresia.fecha_hasta %}
+                    {{ v.membresia.fecha_hasta.strftime('%d/%m/%Y') }}
+                  {% else %}-{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="4" class="text-center text-muted py-3">
+                  Aún no hay ventas registradas.
+                </td>
+              </tr>
             {% endif %}
           </tbody>
         </table>
@@ -105,44 +112,14 @@ block content %}
     </div>
   </div>
 
+  {# SIDEBAR (DESKTOP) #}
   <div class="d-none d-lg-block col-lg-3">
-    <div class="card shadow-sm admin-sidebar sticky-top" style="top: 80px">
-      <div class="card-header">Menú administrador</div>
-      <div class="list-group list-group-flush">
-        <a
-          href="#"
-          class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-        >
-          <span><i class="bi bi-people me-2"></i> Usuarios</span>
-        </a>
-        <a href="#" class="list-group-item list-group-item-action">
-          <i class="bi bi-person-workspace me-2"></i> Entrenadores
-        </a>
-        <a
-          href="{{ url_for('web.admin_cajeros') }}"
-          class="list-group-item list-group-item-action"
-        >
-          <i class="bi bi-receipt me-2"></i> Cajeros
-        </a>
-        <a href="#" class="list-group-item list-group-item-action">
-          <i class="bi bi-person-badge me-2"></i> Clientes
-        </a>
-        <a href="{{ url_for('web.horarios_publico') }}"
-        class="list-group-item list-group-item-action">
-        <i class="bi bi-calendar-week me-2"></i> Horarios / Clases
-      </a>
-
-        <a href="#" class="list-group-item list-group-item-action">
-          <i class="bi bi-clipboard-data me-2"></i> Reportes
-        </a>
-        <a href="#" class="list-group-item list-group-item-action text-danger">
-          <i class="bi bi-gear me-2"></i> Configuración
-        </a>
-      </div>
-    </div>
+    {% include "partials/sidebar_admin.html" %}
   </div>
+
 </div>
 
+{# OFFCANVAS (MÓVIL) - por ahora lo dejamos simple, si quieres lo estilizamos igual #}
 <div
   class="offcanvas offcanvas-end"
   tabindex="-1"
@@ -150,41 +127,13 @@ block content %}
   aria-labelledby="adminMenuOffcanvasLabel"
 >
   <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="adminMenuOffcanvasLabel">
-      Menú administrador
-    </h5>
-    <button
-      type="button"
-      class="btn-close"
-      data-bs-dismiss="offcanvas"
-      aria-label="Cerrar"
-    ></button>
+    <h5 class="offcanvas-title" id="adminMenuOffcanvasLabel">Menú</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
   </div>
-  <div class="offcanvas-body p-0">
-    <div class="list-group list-group-flush">
-      <a
-        href="#"
-        class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
-      >
-        <span><i class="bi bi-people me-2"></i> Usuarios</span>
-        <span class="badge bg-secondary rounded-pill">+</span>
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="bi bi-person-workspace me-2"></i> Entrenadores
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="bi bi-person-badge me-2"></i> Clientes
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="bi bi-calendar-week me-2"></i> Horarios / Clases
-      </a>
-      <a href="#" class="list-group-item list-group-item-action">
-        <i class="bi bi-clipboard-data me-2"></i> Reportes
-      </a>
-      <a href="#" class="list-group-item list-group-item-action text-danger">
-        <i class="bi bi-gear me-2"></i> Configuración
-      </a>
-    </div>
+  <div class="offcanvas-body">
+    {# En móvil podemos reutilizar el mismo menú pero sin sticky. #}
+    {% include "partials/sidebar_admin.html" %}
   </div>
 </div>
+
 {% endblock %}

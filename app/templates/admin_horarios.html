@@ -3,124 +3,160 @@
 {% block content %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
-  <h4 class="mb-0">Configurar horarios por día</h4>
-  <a href="{{ url_for('web.horarios_publico') }}" class="btn btn-sm btn-outline-secondary">
-    Ver horarios públicos
-  </a>
-</div>
-
-<div class="card shadow-sm">
-  <div class="card-body">
-    <form method="post" action="{{ url_for('web.admin_horarios_semana_post') }}">
-
-      <div class="row g-3 mb-3">
-        <div class="col-6 col-md-3">
-          <label class="form-label">Intervalo</label>
-          <select name="slot_minutes" class="form-select">
-            <option value="60" {% if cfg.slot_minutes==60 %}selected{% endif %}>60 min</option>
-            <option value="30" {% if cfg.slot_minutes==30 %}selected{% endif %}>30 min</option>
-          </select>
-        </div>
-
-        <div class="col-6 col-md-3">
-          <label class="form-label">Cupo máximo</label>
-          <input type="number" min="1" name="cupo_maximo" class="form-control" value="{{ cfg.cupo_maximo or 10 }}" required>
-        </div>
-      </div>
-
-      <hr class="my-3"/>
-
-      {% set days = [
-        ("mon","Lunes"),("tue","Martes"),("wed","Miércoles"),
-        ("thu","Jueves"),("fri","Viernes"),("sat","Sábado"),("sun","Domingo")
-      ] %}
-
-      <div class="row g-3">
-        {% for key, label in days %}
-          {% set d = cfg.days.get(key, {}) %}
-          {% set enabled = d.get("enabled", False) %}
-          {% set b0 = (d.get("bloques") or [{}]) %}
-          {% set b1 = (d.get("bloques") or [{},{}]) %}
-          {% set bloque1 = (d.get("bloques")[0] if d.get("bloques") and d.get("bloques")|length > 0 else {"ini":"05:00","fin":"12:00"}) %}
-          {% set bloque2 = (d.get("bloques")[1] if d.get("bloques") and d.get("bloques")|length > 1 else {"ini":"15:00","fin":"22:00"}) %}
-
-          <div class="col-12">
-            <div class="border rounded-3 p-3">
-              <div class="d-flex justify-content-between align-items-center">
-                <div class="form-check">
-                  <input class="form-check-input day-toggle"
-                         type="checkbox"
-                         id="day_{{ key }}"
-                         name="day_enabled_{{ key }}"
-                         {% if enabled %}checked{% endif %}>
-                  <label class="form-check-label fw-semibold" for="day_{{ key }}">
-                    {{ label }}
-                  </label>
-                </div>
-
-                <span class="small text-muted">2 bloques</span>
-              </div>
-
-              <div class="day-panel mt-3 {% if not enabled %}d-none{% endif %}" data-day="{{ key }}">
-                <div class="row g-2">
-                  <div class="col-12 col-md-6">
-                    <div class="small text-muted mb-1">Bloque 1</div>
-                    <div class="row g-2">
-                      <div class="col-6">
-                        <input type="time" class="form-control"
-                               name="{{ key }}_b1_ini" value="{{ bloque1.ini or '05:00' }}">
-                      </div>
-                      <div class="col-6">
-                        <input type="time" class="form-control"
-                               name="{{ key }}_b1_fin" value="{{ bloque1.fin or '12:00' }}">
-                      </div>
-                    </div>
-                  </div>
-
-                  <div class="col-12 col-md-6">
-                    <div class="small text-muted mb-1">Bloque 2</div>
-                    <div class="row g-2">
-                      <div class="col-6">
-                        <input type="time" class="form-control"
-                               name="{{ key }}_b2_ini" value="{{ bloque2.ini or '15:00' }}">
-                      </div>
-                      <div class="col-6">
-                        <input type="time" class="form-control"
-                               name="{{ key }}_b2_fin" value="{{ bloque2.fin or '22:00' }}">
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="form-text mt-2">
-                  Si no quieres un bloque, déjalo vacío (luego validamos).
-                </div>
-              </div>
-            </div>
-          </div>
-        {% endfor %}
-      </div>
-
-      <div class="d-flex justify-content-end mt-3">
-        <button type="submit" class="btn btn-primary">
-          Guardar configuración semanal
-        </button>
-      </div>
-    </form>
+  <div>
+    <h4 class="mb-0">Horarios</h4>
+    <div class="text-muted small">Selecciona días → selecciona un horario creado → Guardar</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('web.admin_horarios_crear') }}" class="btn btn-sm btn-primary">
+      <i class="bi bi-plus-lg"></i> Crear horario
+    </a>
+    <a href="{{ url_for('web.horarios_publico') }}" class="btn btn-sm btn-outline-secondary">
+      Ver horarios públicos
+    </a>
   </div>
 </div>
 
-<script>
-(function () {
-  document.querySelectorAll(".day-toggle").forEach(cb => {
-    cb.addEventListener("change", () => {
-      const key = cb.id.replace("day_", "");
-      const panel = document.querySelector(`.day-panel[data-day="${key}"]`);
-      if (!panel) return;
-      panel.classList.toggle("d-none", !cb.checked);
-    });
-  });
-})();
-</script>
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header">Días de la semana</div>
+      <div class="card-body">
+
+        <form method="post" action="{{ url_for('web.admin_horarios_asignar') }}">
+
+          <div class="row g-3 mb-3">
+            <div class="col-6">
+              <label class="form-label">Intervalo</label>
+              {# ✅ name en español #}
+              <select name="intervalo_minutos" class="form-select">
+                <option value="60" {% if cfg.intervalo_minutos==60 %}selected{% endif %}>60 min</option>
+                <option value="30" {% if cfg.intervalo_minutos==30 %}selected{% endif %}>30 min</option>
+              </select>
+            </div>
+            <div class="col-6">
+              <label class="form-label">Cupo máximo</label>
+              <input type="number" min="1" name="cupo_maximo" class="form-control"
+                     value="{{ cfg.cupo_maximo or 10 }}" required>
+            </div>
+          </div>
+
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th style="width:40px"></th>
+                  <th>Día</th>
+                  <th>Estado</th>
+                  <th>Horario asignado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for k, label in days_ui %}
+                  {# ✅ cfg.dias en vez de cfg.days #}
+                  {% set d = (cfg.dias.get(k) if cfg.dias else None) or {} %}
+                  {% set activo = d.get('activo', False) %}
+                  {% set pid = d.get('plantilla_id') %}
+                  {% set hname = tpl_map.get(pid|string) if pid else None %}
+
+                  <tr>
+                    <td>
+                      <input class="form-check-input" type="checkbox" name="dias" value="{{ k }}">
+                    </td>
+                    <td class="fw-semibold">{{ label }}</td>
+                    <td>
+                      {% if activo %}
+                        <span class="badge text-bg-success">Activo</span>
+                      {% else %}
+                        <span class="badge text-bg-secondary">Inactivo</span>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {% if hname %}
+                        {{ hname }}
+                      {% else %}
+                        <span class="text-muted">Sin asignar</span>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+
+          <hr class="my-3" />
+
+          <div class="row g-2 align-items-end">
+            <div class="col-12 col-md-8">
+              <label class="form-label">Horario a asignar</label>
+
+              {# ✅ name en español: plantilla_id #}
+              <select name="plantilla_id" class="form-select" required>
+                <option value="">-- Selecciona --</option>
+                {% for t in templates %}
+                  <option value="{{ t._id }}">{{ t.nombre }}</option>
+                {% endfor %}
+              </select>
+
+              <div class="form-text">Se aplicará a los días marcados.</div>
+            </div>
+
+            <div class="col-12 col-md-4 d-grid">
+              <button class="btn btn-primary" type="submit">Guardar</button>
+            </div>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Horarios registrados</span>
+        <span class="small text-muted">{{ templates|length }} total</span>
+      </div>
+
+      <div class="card-body">
+        {% if not templates %}
+          <div class="text-muted">
+            Aún no tienes horarios creados. Haz click en <b>Crear horario</b>.
+          </div>
+        {% else %}
+          <div class="vstack gap-2">
+            {% for t in templates %}
+              <div class="border rounded-3 p-3">
+                <div class="d-flex justify-content-between align-items-center gap-2">
+                  <div class="fw-semibold">{{ t.nombre }}</div>
+
+                  <div class="d-flex align-items-center gap-2">
+                    <span class="badge text-bg-light">{{ (t.bloques|length) }} bloque(s)</span>
+
+                    <form method="post"
+                          action="{{ url_for('web.admin_horarios_eliminar', template_id=t._id) }}"
+                          onsubmit="return confirm('¿Eliminar el horario: {{ t.nombre }}?');">
+                      <button class="btn btn-sm btn-outline-danger" type="submit">
+                        <i class="bi bi-trash"></i>
+                      </button>
+                    </form>
+                  </div>
+                </div>
+
+                <div class="small text-muted mt-2">
+                  {% for b in t.bloques %}
+                    {# ✅ ahora en español: inicio/fin (pero dejo compat con ini) #}
+                    <div>• {{ b.inicio or b.ini }} - {{ b.fin }}</div>
+                  {% endfor %}
+                </div>
+              </div>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+
+    </div>
+  </div>
+</div>
 
 {% endblock %}

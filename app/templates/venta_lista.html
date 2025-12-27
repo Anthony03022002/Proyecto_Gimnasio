@@ -10,17 +10,20 @@
       — Total: <strong>${{ '%.2f'|format(venta.total or 0) }}</strong>
     </p>
 
-    {% if credenciales.password %}
+    {% set cred = credenciales if credenciales is defined and credenciales else {} %}
+
+    {% if cred.get('password') %}
       <div class="alert alert-warning">
         <div class="fw-semibold mb-1">Credenciales del cliente (mostrar UNA sola vez)</div>
-        <div>Usuario: <strong>{{ credenciales.username }}</strong></div>
-        <div>Contraseña: <strong>{{ credenciales.password }}</strong></div>
+        <div>Usuario: <strong>{{ cred.get('username') }}</strong></div>
+        <div>Contraseña: <strong>{{ cred.get('password') }}</strong></div>
       </div>
     {% else %}
       <div class="alert alert-info">
         El cliente ya existía. No se generaron nuevas credenciales.
       </div>
     {% endif %}
+
 
     <div class="d-flex justify-content-end gap-2">
       <a href="{{ url_for('web.facturacion_nueva') }}" class="btn btn-outline-primary">Nueva venta</a>

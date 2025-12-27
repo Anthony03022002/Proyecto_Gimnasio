@@ -1,3 +1,4 @@
+from datetime import datetime
 import app.extensions as extensions
 
 def get_clientes_collection():
@@ -8,22 +9,17 @@ def get_clientes_collection():
 
 
 def crear_o_actualizar_cliente(user_id, info):
-    """
-    user_id: ObjectId del usuario (users._id)
-    info: dict con identificacion, nombre, email, telefono, etc.
-    Guardará/actualizará en clientes con _id = user_id
-    """
+
     clientes = get_clientes_collection()
 
-    doc = {
-        "_id": user_id,  # ✅ clave: mismo _id que en users y ventas
-        **info
-    }
+    payload = dict(info or {})
+    payload["actualizado"] = datetime.utcnow()
 
     clientes.update_one(
         {"_id": user_id},
-        {"$set": doc},
+        {"$set": payload},
         upsert=True
     )
 
+    doc = {"_id": user_id, **payload}
     return doc

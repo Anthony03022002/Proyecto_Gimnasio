@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% block title %}Crear horario{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Crear horario</h4>
+    <div class="text-muted small">Define hasta 2 bloques (bloque 1 obligatorio)</div>
+  </div>
+  <a href="{{ url_for('web.admin_horarios') }}" class="btn btn-sm btn-outline-secondary">Volver</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <form method="post" action="{{ url_for('web.admin_horarios_crear_post') }}">
+      <div class="mb-3">
+        <label class="form-label">Nombre</label>
+        <input type="text" name="nombre" class="form-control" placeholder="Ej: Mañana + Tarde" required>
+      </div>
+
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <div class="border rounded-3 p-3">
+            <div class="fw-semibold mb-2">Bloque 1 (obligatorio)</div>
+            <div class="row g-2">
+              <div class="col-6">
+                <label class="form-label small text-muted">Inicio</label>
+                <input type="time" name="b1_ini" class="form-control" value="05:00" required>
+              </div>
+              <div class="col-6">
+                <label class="form-label small text-muted">Fin</label>
+                <input type="time" name="b1_fin" class="form-control" value="12:00" required>
+              </div>
+            </div>
+          </div>
+        </div>
+
+       <div class="col-12 col-md-6">
+            <div class="border rounded-3 p-3">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                <div class="fw-semibold">Bloque 2 (opcional)</div>
+
+                <button type="button"
+                        id="btnToggleB2"
+                        class="btn btn-sm btn-outline-danger">
+                    Desactivar bloque 2
+                </button>
+                </div>
+
+                <div id="bloque2Fields">
+                <div class="row g-2">
+                    <div class="col-6">
+                    <label class="form-label small text-muted">Inicio</label>
+                    <input type="time" name="b2_ini" id="b2_ini" class="form-control" value="15:00">
+                    </div>
+                    <div class="col-6">
+                    <label class="form-label small text-muted">Fin</label>
+                    <input type="time" name="b2_fin" id="b2_fin" class="form-control" value="22:00">
+                    </div>
+                </div>
+                <div class="form-text">Si no quieres este bloque, puedes desactivarlo.</div>
+                </div>
+
+                <div id="bloque2DisabledMsg" class="text-muted small d-none">
+                Bloque 2 desactivado. Solo se guardará el Bloque 1.
+                </div>
+            </div>
+            </div>
+
+      </div>
+
+      <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary" type="submit">Guardar horario</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const btn = document.getElementById("btnToggleB2");
+    const fields = document.getElementById("bloque2Fields");
+    const msg = document.getElementById("bloque2DisabledMsg");
+    const b2Ini = document.getElementById("b2_ini");
+    const b2Fin = document.getElementById("b2_fin");
+
+    let enabled = true;
+
+    function setEnabled(val) {
+      enabled = val;
+
+      if (!enabled) {
+        fields.classList.add("d-none");
+        msg.classList.remove("d-none");
+
+        b2Ini.value = "";
+        b2Fin.value = "";
+        b2Ini.disabled = true;
+        b2Fin.disabled = true;
+
+        btn.classList.remove("btn-outline-danger");
+        btn.classList.add("btn-outline-success");
+        btn.textContent = "Activar bloque 2";
+      } else {
+        // mostrar + habilitar
+        fields.classList.remove("d-none");
+        msg.classList.add("d-none");
+
+        b2Ini.disabled = false;
+        b2Fin.disabled = false;
+
+        // si estaban vacíos, pon defaults bonitos
+        if (!b2Ini.value) b2Ini.value = "15:00";
+        if (!b2Fin.value) b2Fin.value = "22:00";
+
+        btn.classList.remove("btn-outline-success");
+        btn.classList.add("btn-outline-danger");
+        btn.textContent = "Desactivar bloque 2";
+      }
+    }
+
+    btn.addEventListener("click", () => setEnabled(!enabled));
+  })();
+</script>
+
+
+{% endblock %}

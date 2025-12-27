@@ -1,0 +1,85 @@
+{% extends "base.html" %}
+{% block title %}Admin - Editar Usuario{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Editar usuario</h4>
+    <div class="text-muted small">ID: {{ u._id }}</div>
+  </div>
+  <a href="{{ url_for('web.admin_usuarios') }}" class="btn btn-sm btn-outline-secondary">Volver</a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-header">Datos del usuario</div>
+  <div class="card-body">
+    <form method="post" action="{{ url_for('web.admin_usuario_guardar', user_id=u._id) }}">
+
+      <div class="row g-3">
+        <div class="col-12 col-md-6">
+          <label class="form-label">Username</label>
+          <input name="username" class="form-control" value="{{ u.username }}" required>
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Rol</label>
+          <select name="role" class="form-select" required>
+            <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
+            <option value="cajero" {% if u.role=='cajero' %}selected{% endif %}>Cajero</option>
+            <option value="entrenador" {% if u.role=='entrenador' %}selected{% endif %}>Entrenador</option>
+            <option value="cliente" {% if u.role=='cliente' %}selected{% endif %}>Cliente</option>
+          </select>
+        </div>
+
+        {% if u.role == "cliente" %}
+            <label class="form-label">Nombre (cliente)</label>
+            <input name="cliente_nombre" class="form-control" value="{{ (cliente.nombre if cliente else '') }}">
+            {% else %}
+            <label class="form-label">Nombre</label>
+            <input name="nombre" class="form-control" value="{{ u.nombre or '' }}">
+            {% endif %}
+
+
+        <div class="col-12">
+          <label class="form-label">Nueva contraseña (opcional)</label>
+
+          <div class="input-group">
+            <input id="newPass" type="password" name="new_password" class="form-control"
+                   placeholder="Deja vacío si no deseas cambiarla" minlength="6">
+            <button class="btn btn-outline-secondary" type="button" id="toggleNewPass">
+              <i class="bi bi-eye" id="toggleIcon"></i>
+            </button>
+          </div>
+
+          <div class="form-text">
+            Si escribes una nueva contraseña, se actualizará de inmediato (mínimo 6 caracteres).
+          </div>
+        </div>
+      </div>
+
+      <div class="d-flex justify-content-end mt-3">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-save"></i> Actualizar datos
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<script>
+  (function () {
+    const input = document.getElementById("newPass");
+    const btn = document.getElementById("toggleNewPass");
+    const icon = document.getElementById("toggleIcon");
+    if (!input || !btn || !icon) return;
+
+    btn.addEventListener("click", () => {
+      const isPwd = input.type === "password";
+      input.type = isPwd ? "text" : "password";
+      icon.classList.toggle("bi-eye", !isPwd);
+      icon.classList.toggle("bi-eye-slash", isPwd);
+    });
+  })();
+</script>
+
+{% endblock %}

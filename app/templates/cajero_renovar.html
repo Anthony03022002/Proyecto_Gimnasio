@@ -1,0 +1,216 @@
+{% extends "base.html" %}
+{% block title %}Renovar suscripción{% endblock %}
+{% block content %}
+
+{% set active = "cajero_renovar" %}
+
+<div class="row g-3">
+  <div class="col-12 col-lg-9">
+
+    <div class="d-lg-none mb-3 d-flex justify-content-between align-items-center">
+      <h3 class="mb-0">Renovar suscripción</h3>
+      <button class="btn btn-outline-primary btn-sm" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#menuOffcanvas">
+        <i class="bi bi-list"></i> Menú
+      </button>
+    </div>
+
+    <div class="d-none d-lg-block">
+      <h3 class="mb-2">Renovar suscripción</h3>
+    </div>
+
+    <div class="card shadow-sm mb-3">
+      <div class="card-body">
+        <form method="get" action="{{ url_for('web.cajero_renovar') }}" class="row g-2">
+          <div class="col-12 col-md-9">
+            <input class="form-control" name="q" value="{{ q }}" placeholder="Buscar por nombre, cédula, teléfono, email">
+          </div>
+          <div class="col-12 col-md-3 d-grid">
+            <button class="btn btn-outline-primary" type="submit">
+              <i class="bi bi-search"></i> Buscar
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    {% if clientes %}
+      <div class="card shadow-sm mb-3">
+        <div class="card-header">Resultados</div>
+        <div class="card-body p-0">
+          <div class="table-responsive">
+            <table class="table table-sm mb-0 align-middle">
+              <thead class="table-light">
+                <tr>
+                  <th>Nombre</th>
+                  <th>Identificación</th>
+                  <th>Teléfono</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in clientes %}
+                  <tr>
+                    <td class="fw-semibold">{{ c.nombre or '-' }}</td>
+                    <td>{{ c.identificacion or '-' }}</td>
+                    <td>{{ c.telefono or '-' }}</td>
+                    <td class="text-end">
+                      <a class="btn btn-sm btn-primary"
+                         href="{{ url_for('web.cajero_renovar', cliente_id=c._id) }}">
+                        Seleccionar
+                      </a>
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    {% endif %}
+
+    {% if cliente %}
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <span>Cliente seleccionado</span>
+          <span class="small text-muted">{{ cliente.nombre }}</span>
+        </div>
+        <div class="card-body">
+          <div class="row g-3">
+            <div class="col-12 col-md-6">
+              <div class="border rounded-3 p-3">
+                <div class="fw-semibold mb-1">Estado membresía</div>
+                {% if estado == "Activa" %}
+                  <span class="badge text-bg-success">Activa</span>
+                  <div class="small text-muted mt-1">Días restantes: {{ dias_restantes }}</div>
+                {% elif estado == "Vencida" %}
+                  <span class="badge text-bg-danger">Vencida</span>
+                {% else %}
+                  <span class="badge text-bg-secondary">Sin membresía</span>
+                {% endif %}
+              </div>
+            </div>
+
+            <div class="col-12 col-md-6">
+              <form method="post" action="{{ url_for('web.cajero_renovar_post') }}" class="border rounded-3 p-3">
+                <input type="hidden" name="cliente_id" value="{{ cliente._id }}">
+
+                <div class="mb-2">
+                    <label class="form-label">Meses</label>
+                    <select name="meses" id="meses" class="form-select" required>
+                    <option value="1" {% if meses_default==1 %}selected{% endif %}>1 mes</option>
+                    <option value="3">3 meses</option>
+                    <option value="6">6 meses</option>
+                    <option value="12">12 meses</option>
+                    </select>
+                </div>
+
+                <div class="row g-2">
+                    <div class="col-6">
+                    <label class="form-label">Fecha inicio</label>
+                    {# Mostramos el inicio calculado. Lo dejamos editable solo si quieres. #}
+                    <input type="date"
+                            name="fecha_inicio"
+                            id="fecha_inicio"
+                            class="form-control"
+                            value="{{ inicio_default.isoformat() }}">
+                    <div class="form-text">Inicio = fin anterior (si está activa).</div>
+                    </div>
+
+                    <div class="col-6">
+                    <label class="form-label">Fecha fin</label>
+                    <input type="date"
+                            name="fecha_fin"
+                            id="fecha_fin"
+                            class="form-control"
+                            value="{{ fin_default.isoformat() }}"
+                            readonly>
+                    <div class="form-text">Se calcula automáticamente.</div>
+                    </div>
+                </div>
+
+                <div class="d-grid mt-3">
+                    <button class="btn btn-primary" type="submit">
+                    <i class="bi bi-arrow-repeat"></i> Renovar
+                    </button>
+                </div>
+                </form>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    {% endif %}
+
+  </div>
+
+  <div class="d-none d-lg-block col-lg-3">
+    {% include "partials/sidebar_admin.html" %}
+  </div>
+</div>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="menuOffcanvas">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title">Menú</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    {% include "partials/sidebar_admin.html" %}
+  </div>
+</div>
+
+
+<script>
+(function () {
+  const mesesSel = document.getElementById("meses");
+  const iniInp   = document.getElementById("fecha_inicio");
+  const finInp   = document.getElementById("fecha_fin");
+
+  function pad2(n){ return String(n).padStart(2, "0"); }
+
+  function parseISODate(s){
+    // s: "YYYY-MM-DD"
+    if(!s) return null;
+    const [y,m,d] = s.split("-").map(Number);
+    if(!y || !m || !d) return null;
+    return { y, m, d };
+  }
+
+  function lastDayOfMonth(y, m){
+    return new Date(y, m, 0).getDate(); // m 1-12
+  }
+
+  function addMonthsISO(iso, months){
+    const p = parseISODate(iso);
+    if(!p) return "";
+    let y = p.y;
+    let m = p.m;
+    const d = p.d;
+
+    let total = (m - 1) + months;
+    y = y + Math.floor(total / 12);
+    m = (total % 12) + 1;
+
+    const last = lastDayOfMonth(y, m);
+    const day = Math.min(d, last);
+
+    return `${y}-${pad2(m)}-${pad2(day)}`;
+  }
+
+  function recalc(){
+    const meses = parseInt(mesesSel.value || "0", 10) || 0;
+    const ini = iniInp.value;
+    if(!ini || meses <= 0){
+      finInp.value = "";
+      return;
+    }
+    finInp.value = addMonthsISO(ini, meses);
+  }
+
+  mesesSel.addEventListener("change", recalc);
+  iniInp.addEventListener("change", recalc);
+
+  recalc();
+})();
+</script>
+{% endblock %}

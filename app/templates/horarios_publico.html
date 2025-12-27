@@ -2,57 +2,105 @@
 {% block title %}Horarios{% endblock %}
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-  <div class="d-flex justify-content-between align-items-center mb-2">
-  <h4 class="mb-0">Horarios</h4>
+<style>
+  .cal-wrap { border: 1px solid #e9ecef; border-radius: 12px; overflow: hidden; }
+  .cal-head { background: #fff; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #e9ecef; }
+  .cal-grid { height: 70vh; overflow: auto; background: #fff; }
+  .cal-row { display: grid; grid-template-columns: 90px repeat(7, 1fr); }
+  .cal-cell { border-bottom: 1px solid #f1f3f5; border-right: 1px solid #f1f3f5; min-height: 46px; padding: 6px; }
+  .cal-time { background: #fafafa; font-size: .85rem; color: #6c757d; display: flex; align-items: flex-start; justify-content: end; padding-right: 10px; }
+  .cal-dayhdr { padding: 10px; border-right: 1px solid #f1f3f5; }
+  .cal-dayhdr .dow { font-size: .8rem; color: #6c757d; }
+  .cal-dayhdr .dom { font-weight: 700; }
+  .cal-today { background: #f8f9ff; }
+  .slot-pill {
+    background: #eef2ff;
+    border: 1px solid #dbe4ff;
+    border-radius: 10px;
+    padding: 6px 8px;
+    line-height: 1.1;
+    font-size: .85rem;
+  }
+  .slot-pill .cap { color: #495057; font-size: .78rem; }
+  @media (max-width: 992px) {
+    .cal-row { grid-template-columns: 70px repeat(7, 160px); } /* scroll horizontal en móvil */
+    .cal-grid { overflow: auto; }
+  }
+</style>
 
-  {% if session.get("user_role") == "admin" %}
-    <a href="{{ url_for('web.admin_horarios_semana')}}"
-       class="btn btn-sm btn-outline-primary">
-      <i class="bi bi-plus-lg"></i> Ingresar horarios
-    </a>
-  {% endif %}
-</div>
+<div class="d-flex justify-content-between align-items-center mb-2">
+  <div class="d-flex align-items-center gap-2">
+    <h4 class="mb-0">Horarios</h4>
+
+    {% if session.get("user_role") == "admin" %}
+      <a href="{{ url_for('web.admin_horarios') }}" class="btn btn-sm btn-outline-primary">
+        <i class="bi bi-plus-lg"></i> Ingresar horarios
+      </a>
+    {% endif %}
+  </div>
+
+  {# navegación semanal #}
+
   <form method="get" action="{{ url_for('web.horarios_publico') }}" class="d-flex gap-2">
+    <input type="hidden" name="view" value="week">
+    <a class="btn btn-sm btn-outline-secondary"
+       href="{{ url_for('web.horarios_publico', view='week', fecha=prev_date.isoformat()) }}">
+      ←
+    </a>
+
     <input type="date" name="fecha" class="form-control form-control-sm" value="{{ fecha.isoformat() }}">
-    <button class="btn btn-outline-primary btn-sm" type="submit">Ver</button>
+
+    <a class="btn btn-sm btn-outline-secondary"
+       href="{{ url_for('web.horarios_publico', view='week', fecha=next_date.isoformat()) }}">
+      →
+    </a>
   </form>
 </div>
 
-<div class="card shadow-sm">
-  <div class="card-header">
-    Día: {{ fecha.strftime('%d/%m/%Y') }}
+<div class="cal-wrap shadow-sm">
+  {# Header días #}
+  <div class="cal-head">
+    <div class="cal-row">
+      <div class="cal-cell cal-time" style="border-right:1px solid #e9ecef;border-bottom:0;">
+        <span class="small text-muted">Hora</span>
+      </div>
+
+      {% for d in week_dates %}
+        {% set is_today = (d == (fecha.__class__.today())) %}
+        <div class="cal-dayhdr {% if is_today %}cal-today{% endif %}">
+          <div class="dow">
+            {{ ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][loop.index0] }}
+          </div>
+          <div class="dom">
+            {{ d.strftime('%d/%m') }}
+          </div>
+        </div>
+      {% endfor %}
+    </div>
   </div>
 
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-sm mb-0 align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>Inicio</th>
-            <th>Fin</th>
-            <th>Cupo</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if slots %}
-            {% for s in slots %}
-              <tr>
-                <td>{{ s.inicio.strftime('%H:%M') }}</td>
-                <td>{{ s.fin.strftime('%H:%M') }}</td>
-                <td>{{ s.cupo_usado or 0 }} / {{ s.cupo_maximo }}</td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="3" class="text-center text-muted py-3">
-                No hay horarios generados para este día.
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
-    </div>
+  {# Grid horas #}
+  <div class="cal-grid">
+    {% for t in time_labels %}
+      <div class="cal-row">
+        <div class="cal-cell cal-time">
+          {{ t }}
+        </div>
+
+        {% for d in week_dates %}
+          {% set key = d.isoformat() %}
+          {% set s = slot_map.get(key, {}).get(t) %}
+          <div class="cal-cell {% if d == (fecha.__class__.today()) %}cal-today{% endif %}">
+            {% if s %}
+              <div class="slot-pill">
+                <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                <div class="cap">{{ s.cupo_usado or 0 }} / {{ s.cupo_maximo }} cupos</div>
+              </div>
+            {% endif %}
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
   </div>
 </div>
 

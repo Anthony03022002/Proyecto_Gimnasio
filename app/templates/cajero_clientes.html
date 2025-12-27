@@ -1,0 +1,94 @@
+{% extends "base.html" %} {% block title %}Mis clientes{% endblock %} {% block
+content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Mis clientes</h4>
+    <div class="text-muted small">Clientes relacionados a tus ventas</div>
+  </div>
+  <a
+    class="btn btn-sm btn-outline-primary"
+    href="{{ url_for('web.facturacion_nueva') }}"
+  >
+    <i class="bi bi-plus-lg"></i> Nueva venta
+  </a>
+</div>
+
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Nombre</th>
+            <th>Usuario</th>
+            <th>Teléfono</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if clientes %} {% for c in clientes %}
+          <tr>
+            <td class="fw-semibold">{{ c.nombre }}</td>
+            <td class="text-muted">{{ c.username }}</td>
+            <td>{{ c.telefono or '-' }}</td>
+
+            <td>
+              {% if c.activo %}
+              <span class="badge text-bg-success">Activo</span>
+              {% else %} {% if c.bloqueado_manual %}
+              <span class="badge text-bg-warning">Suspendido</span>
+              {% else %}
+              <span class="badge text-bg-secondary">Vencido</span>
+              {% endif %} {% endif %}
+            </td>
+
+            <td class="text-end">
+              <a
+                class="btn btn-sm btn-outline-primary"
+                href="{{ url_for('web.cajero_cliente_editar', cliente_id=c._id) }}"
+              >
+                <i class="bi bi-pencil"></i>
+              </a>
+
+              {% if c.bloqueado_manual %}
+              <form
+                method="post"
+                action="{{ url_for('web.cajero_cliente_estado', cliente_id=c._id) }}"
+                class="d-inline"
+              >
+                <input type="hidden" name="accion" value="desbloquear" />
+                <button class="btn btn-sm btn-outline-success" type="submit">
+                  <i class="bi bi-check2-circle"></i>
+                </button>
+              </form>
+              {% else %}
+              <form
+                method="post"
+                action="{{ url_for('web.cajero_cliente_estado', cliente_id=c._id) }}"
+                class="d-inline"
+                onsubmit="return confirm('¿Suspender este cliente?');"
+              >
+                <input type="hidden" name="accion" value="bloquear" />
+                <button class="btn btn-sm btn-outline-warning" type="submit">
+                  <i class="bi bi-pause-circle"></i>
+                </button>
+              </form>
+              {% endif %}
+            </td>
+          </tr>
+          {% endfor %} {% else %}
+          <tr>
+            <td colspan="5" class="text-center text-muted py-3">
+              Aún no tienes clientes (haz una venta para registrar).
+            </td>
+          </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

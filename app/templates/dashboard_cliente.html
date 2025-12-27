@@ -1,7 +1,107 @@
 {% extends "base.html" %}
-{% block title %}Cliente - Horarios{% endblock %}
-
+{% block title %}Panel Cliente{% endblock %}
 {% block content %}
-<h3>Panel Cliente</h3>
-<p>Aquí el cliente verá sus reservas y horarios.</p>
+
+{% set active = "cliente_dashboard" %}
+
+<div class="row g-3">
+
+  <div class="col-12 col-lg-9">
+    <div class="d-lg-none mb-3 d-flex justify-content-between align-items-center">
+      <h3 class="mb-0">Panel Cliente</h3>
+      <button class="btn btn-outline-primary btn-sm" type="button"
+              data-bs-toggle="offcanvas" data-bs-target="#menuOffcanvas">
+        <i class="bi bi-list"></i> Menú
+      </button>
+    </div>
+
+    <div class="d-none d-lg-block">
+      <h3 class="mb-2">Panel Cliente</h3>
+    </div>
+
+    <p class="text-muted mb-3">
+      Bienvenido{{ (" " ~ (cliente.nombre or "")) if cliente else "" }}.
+    </p>
+
+    <div class="row g-3">
+      <div class="col-12 col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-muted">Mi membresía</h6>
+
+            {% if estado_membresia == "Activa" %}
+              <span class="badge text-bg-success">Activa</span>
+            {% elif estado_membresia == "Vencida" %}
+              <span class="badge text-bg-danger">Vencida</span>
+            {% else %}
+              <span class="badge text-bg-secondary">Sin membresía</span>
+            {% endif %}
+
+            <div class="mt-2 small">
+              {% if membresia %}
+                <div><b>Desde:</b> {{ membresia.fecha_desde.strftime('%d/%m/%Y') if membresia.fecha_desde else '-' }}</div>
+                <div><b>Hasta:</b> {{ membresia.fecha_hasta.strftime('%d/%m/%Y') if membresia.fecha_hasta else '-' }}</div>
+                <div><b>Meses:</b> {{ membresia.meses or '-' }}</div>
+                {% if dias_restantes is not none %}
+                  <div><b>Días restantes:</b> {{ dias_restantes }}</div>
+                {% endif %}
+              {% else %}
+                <div class="text-muted">Aún no tienes membresía registrada.</div>
+              {% endif %}
+            </div>
+
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-6">
+        <div class="card shadow-sm h-100">
+          <div class="card-body">
+            <h6 class="card-subtitle mb-2 text-muted">Mis datos</h6>
+            {% if cliente %}
+              <div class="small">
+                <div><b>Nombre:</b> {{ cliente.nombre or '-' }}</div>
+                <div><b>Email:</b> {{ cliente.email or '-' }}</div>
+                <div><b>Teléfono:</b> {{ cliente.telefono or '-' }}</div>
+              </div>
+            {% else %}
+              <div class="text-muted small">No hay perfil de cliente.</div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12">
+        <div class="card shadow-sm">
+          <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Horario</span>
+            <a href="{{ url_for('web.horarios_publico', view='week') }}" class="btn btn-outline-primary btn-sm">
+              <i class="bi bi-calendar-week"></i> Ver calendario
+            </a>
+          </div>
+          <div class="card-body">
+            <p class="mb-0 text-muted">Aquí luego podrás ver tus reservas (cuando las implementemos).</p>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="d-none d-lg-block col-lg-3">
+    {% include "partials/sidebar_admin.html" %}
+  </div>
+
+</div>
+
+<div class="offcanvas offcanvas-end" tabindex="-1" id="menuOffcanvas">
+  <div class="offcanvas-header">
+    <h5 class="offcanvas-title">Menú</h5>
+    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
+  </div>
+  <div class="offcanvas-body">
+    {% include "partials/sidebar_admin.html" %}
+  </div>
+</div>
+
 {% endblock %}
