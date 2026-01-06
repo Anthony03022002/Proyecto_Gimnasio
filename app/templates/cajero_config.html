@@ -4,25 +4,68 @@
 
 <div class="mb-3">
   <h4 class="mb-0">Configuración</h4>
-  <div class="text-muted small">Actualiza tu contraseña</div>
+  <div class="text-muted small">Actualiza tus datos</div>
 </div>
 
 <div class="card shadow-sm">
   <div class="card-body">
-    <form method="post" action="{{ url_for('web.cajero_config_password') }}">
+    <form method="post" action="{{ url_for('web.cajero_config') }}">
       <div class="row g-3">
+
         <div class="col-12 col-md-4">
-          <label class="form-label">Contraseña actual</label>
-          <input type="password" name="current_password" class="form-control" required>
+          <label class="form-label">Usuario</label>
+          <input
+            type="text"
+            name="username"
+            class="form-control"
+            required
+            value="{{ user.username or '' }}"
+          >
         </div>
+
         <div class="col-12 col-md-4">
-          <label class="form-label">Nueva contraseña</label>
-          <input type="password" name="new_password" class="form-control" required>
+          <label class="form-label">Correo</label>
+          <input
+            type="email"
+            name="email"
+            class="form-control"
+            required
+            value="{{ user.email or '' }}"
+          >
         </div>
+
         <div class="col-12 col-md-4">
-          <label class="form-label">Repetir nueva contraseña</label>
-          <input type="password" name="new_password2" class="form-control" required>
+          <label class="form-label">Teléfono</label>
+          <input
+            type="text"
+            name="telefono"
+            class="form-control"
+            value="{{ user.telefono or '' }}"
+          >
         </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Nombre</label>
+          <input
+            type="text"
+            name="nombre"
+            class="form-control"
+            required
+            value="{{ user.nombre or '' }}"
+          >
+        </div>
+
+        <div class="col-12 col-md-6">
+          <label class="form-label">Apellido</label>
+          <input
+            type="text"
+            name="apellido"
+            class="form-control"
+            required
+            value="{{ user.apellido or '' }}"
+          >
+        </div>
+
       </div>
 
       <div class="d-flex justify-content-end mt-3">

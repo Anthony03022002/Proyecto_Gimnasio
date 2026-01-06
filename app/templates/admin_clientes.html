@@ -7,7 +7,7 @@
     <div class="d-flex justify-content-between align-items-center">
       <div>
         <h4 class="mb-0">Clientes</h4>
-        <div class="text-muted small">Ver / editar / activar o desactivar</div>
+        <div class="text-muted small">Ver / editar</div>
       </div>
     </div>
   </div>
@@ -15,7 +15,12 @@
   <div class="col-12">
     <form method="get" class="row g-2 mb-3">
       <div class="col-12 col-md-8">
-        <input name="q" value="{{ q }}" class="form-control" placeholder="Buscar por nombre, identificación, email o teléfono...">
+        <input
+          name="q"
+          value="{{ q }}"
+          class="form-control"
+          placeholder="Buscar por nombre, identificación, email o teléfono..."
+        >
       </div>
       <div class="col-12 col-md-4 d-grid">
         <button class="btn btn-primary" type="submit">
@@ -30,113 +35,123 @@
         <div class="table-responsive">
           <table class="table table-sm mb-0 align-middle">
             <thead class="table-light">
-                <tr>
+              <tr>
                 <th>Nombre</th>
+                <th>Apellido</th>
                 <th>Identificación</th>
-                <th>Estado</th>
+                <th>F.Nacimiento</th>
                 <th class="text-end" style="width: 180px;">Acciones</th>
-                </tr>
+              </tr>
             </thead>
 
             <tbody>
-                {% if clientes %}
+              {% if clientes %}
                 {% for c in clientes %}
-                <tr>
-                    <td class="fw-semibold">{{ c.nombre }}</td>
-                    <td class="text-muted">{{ c.identificacion }}</td>
-
-                    <td>
-                    {% if c.activo %}
-                        <span class="badge text-bg-success">Activo</span>
-                    {% else %}
-                        <span class="badge text-bg-secondary">Inactivo</span>
-                    {% endif %}
-                    </td>
+                  <tr>
+                    <td class="fw-semibold">{{ c.nombre or '-' }}</td>
+                    <td class="text-muted">{{ c.apellido or '-' }}</td>
+                    <td class="text-muted">{{ c.identificacion or '-' }}</td>
+                    <td class="text-muted">{{ c.fecha_nacimiento_str or '-' }}</td>
 
                     <td class="text-end">
-                    <div class="btn-group btn-group-sm" role="group">
-
+                      <div class="btn-group btn-group-sm" role="group">
                         <!-- Editar -->
-                        <button type="button"
-                                class="btn btn-light border"
-                                data-bs-toggle="modal"
-                                data-bs-target="#editModal{{ c._id }}"
-                                title="Editar cliente">
-                        <i class="bi bi-pencil"></i>
+                        <button
+                          type="button"
+                          class="btn btn-light border"
+                          data-bs-toggle="modal"
+                          data-bs-target="#editModal{{ c._id }}"
+                          title="Editar cliente"
+                        >
+                          <i class="bi bi-pencil"></i>
                         </button>
-
-                        <!-- Activar/Desactivar -->
-                        {% if c.activo %}
-                        <form method="post" action="{{ url_for('web.admin_clientes_estado', cliente_id=c._id) }}">
-                            <input type="hidden" name="activo" value="0">
-                            <button type="submit" class="btn btn-light border text-danger" title="Desactivar">
-                            <i class="bi bi-person-dash"></i>
-                            </button>
-                        </form>
-                        {% else %}
-                        <form method="post" action="{{ url_for('web.admin_clientes_estado', cliente_id=c._id) }}">
-                            <input type="hidden" name="activo" value="1">
-                            <button type="submit" class="btn btn-light border text-success" title="Activar">
-                            <i class="bi bi-person-check"></i>
-                            </button>
-                        </form>
-                        {% endif %}
-
-                    </div>
+                      </div>
                     </td>
-                </tr>
+                  </tr>
 
-                <!-- MODAL EDITAR -->
-                <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog">
-                    <div class="modal-content">
+                  <!-- ✅ MODAL EDITAR (COMPLETO Y CORRECTO) -->
+                  <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
+                    <div class="modal-dialog modal-dialog-centered">
+                      <div class="modal-content">
+
                         <form method="post" action="{{ url_for('web.admin_clientes_editar', cliente_id=c._id) }}">
-                        <div class="modal-header">
-                            <h5 class="modal-title">Editar cliente</h5>
+                          <div class="modal-header">
+                            <h5 class="modal-title">
+                              <i class="bi bi-pencil me-1"></i> Editar cliente
+                            </h5>
                             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                        </div>
+                          </div>
 
-                        <div class="modal-body">
-                            <div class="mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" name="nombre" class="form-control" value="{{ c.nombre }}" required>
+                          <div class="modal-body">
+                            <div class="row g-3">
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Nombre</label>
+                                <input type="text" name="nombre" class="form-control" value="{{ c.nombre or '' }}" required>
+                              </div>
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Apellido</label>
+                                <input type="text" name="apellido" class="form-control" value="{{ c.apellido or '' }}">
+                              </div>
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Identificación</label>
+                                <input type="text" name="identificacion" class="form-control" value="{{ c.identificacion or '' }}" required>
+                              </div>
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Teléfono</label>
+                                <input type="text" name="telefono" class="form-control" value="{{ c.telefono or '' }}">
+                              </div>
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Email</label>
+                                <input type="email" name="email" class="form-control" value="{{ c.email or '' }}">
+                              </div>
+
+                              <div class="col-12 col-md-6">
+                                <label class="form-label">Fecha de nacimiento</label>
+                                <input
+                                  type="date"
+                                  name="fecha_nacimiento"
+                                  class="form-control"
+                                  value="{{ c.fecha_nacimiento_ymd or '' }}"
+                                >
+                                <div class="form-text">
+                                  Actual: {{ c.fecha_nacimiento_str or '-' }}
+                                </div>
+                              </div>
+
                             </div>
+                          </div>
 
-                            <div class="mb-3">
-                            <label class="form-label">Identificación</label>
-                            <input type="text" name="identificacion" class="form-control" value="{{ c.identificacion }}" required>
-                            </div>
+                          <div class="modal-footer">
+                            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">
+                              Cancelar
+                            </button>
+                            <button class="btn btn-primary" type="submit">
+                              <i class="bi bi-save"></i> Guardar
+                            </button>
+                          </div>
 
-                            <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" value="{{ c.email or '' }}">
-                            </div>
-
-                            <div class="mb-3">
-                            <label class="form-label">Teléfono</label>
-                            <input type="text" name="telefono" class="form-control" value="{{ c.telefono or '' }}">
-                            </div>
-                        </div>
-
-                        <div class="modal-footer">
-                            <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-                            <button class="btn btn-primary" type="submit">Guardar</button>
-                        </div>
                         </form>
+
+                      </div>
                     </div>
-                    </div>
-                </div>
+                  </div>
+                  <!-- /MODAL -->
 
                 {% endfor %}
-                {% else %}
+              {% else %}
                 <tr>
-                    <td colspan="4" class="text-center text-muted py-3">
+                  <td colspan="5" class="text-center text-muted py-3">
                     No hay clientes registrados.
-                    </td>
+                  </td>
                 </tr>
-                {% endif %}
+              {% endif %}
             </tbody>
-            </table>
+          </table>
         </div>
       </div>
     </div>

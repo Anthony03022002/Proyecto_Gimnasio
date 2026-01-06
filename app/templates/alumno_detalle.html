@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% block title %}Alumno{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">
+      {{ (alumno.nombre ~ ' ' ~ alumno.apellido)|trim }}
+    </h4>
+    <div class="text-muted small">
+      {{ alumno.email or '' }} {% if alumno.telefono %}· {{ alumno.telefono }}{% endif %}
+    </div>
+  </div>
+
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('web.entrenador_mis_alumnos') }}">
+    ← Volver
+  </a>
+</div>
+
+<div class="row g-3">
+  <div class="col-12 col-lg-6">
+    <div class="card shadow-sm">
+      <div class="card-header">
+        Planificación del alumno
+      </div>
+      <div class="card-body">
+
+        {% if plan %}
+          <div class="alert alert-success">
+            <div class="fw-semibold">Planificación actual</div>
+            <div class="small text-muted">
+              {{ plan.filename }} ·
+              {% if plan.bytes %}{{ (plan.bytes / 1024 / 1024) | round(2) }} MB{% endif %}
+            </div>
+          </div>
+
+          <a class="btn btn-outline-secondary btn-sm"
+             href="{{ url_for('web.descargar_planificacion', plan_id=plan._id) }}">
+            Descargar
+          </a>
+          <hr>
+        {% else %}
+          <div class="alert alert-secondary">
+            Aún no has subido una planificación para este alumno.
+          </div>
+        {% endif %}
+
+        <form method="post"
+              action="{{ url_for('web.subir_planificacion', cliente_id=cliente_id) }}"
+              enctype="multipart/form-data">
+          <label class="form-label">Subir/Reemplazar PDF</label>
+          <input type="file" name="pdf" accept="application/pdf" class="form-control" required>
+
+          <div class="form-text mt-2">
+            El servidor optimiza el PDF automáticamente.
+          </div>
+
+          <button class="btn btn-primary mt-3" type="submit">
+            <i class="bi bi-upload"></i> Guardar planificación
+          </button>
+        </form>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

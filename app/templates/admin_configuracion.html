@@ -15,7 +15,6 @@
   </div>
 
   {# mensajes flash #}
-  {% include "partials/_flash.html" %}
 
   <div class="card shadow-sm border-0">
     <div class="card-body">
@@ -74,9 +73,6 @@
               <button class="btn btn-primary">
                 <i class="bi bi-save"></i> Guardar perfil
               </button>
-              <a class="btn btn-outline-secondary" href="{{ url_for('web.admin_configuracion') }}">
-                <i class="bi bi-arrow-clockwise"></i> Reset
-              </a>
             </div>
           </form>
 
@@ -88,9 +84,6 @@
           </div>
         </div>
 
-        <!-- =========================
-             SEGURIDAD
-        ========================== -->
         <div class="tab-pane fade" id="tab-seguridad" role="tabpanel" aria-labelledby="tab-seguridad-btn">
 
           <form method="POST" action="{{ url_for('web.admin_configuracion_password') }}" class="row g-3">
@@ -150,21 +143,11 @@
               <input class="form-control" name="gym_direccion" value="{{ settings.gym_direccion or '' }}">
             </div>
 
-            <div class="col-12 col-md-3">
-              <label class="form-label">Moneda</label>
-              <select class="form-select" name="moneda">
-                <option value="USD" {% if (settings.moneda or 'USD') == "USD" %}selected{% endif %}>USD</option>
-                <option value="EUR" {% if (settings.moneda or '') == "EUR" %}selected{% endif %}>EUR</option>
-              </select>
-            </div>
 
             <div class="col-12 d-flex gap-2">
               <button class="btn btn-success">
                 <i class="bi bi-save2"></i> Guardar sistema
               </button>
-              <a class="btn btn-outline-secondary" href="{{ url_for('web.admin_configuracion') }}">
-                <i class="bi bi-arrow-clockwise"></i> Reset
-              </a>
             </div>
           </form>
 
@@ -172,7 +155,7 @@
 
           <div class="alert alert-secondary mb-0">
             <i class="bi bi-gear me-1"></i>
-            Esta configuración es global para todo el sistema (se guarda en <code>settings</code> con <code>_id: "app"</code>).
+            Esta configuración es global para todo el sistema
           </div>
 
         </div>

@@ -1,0 +1,95 @@
+{% extends "base.html" %}
+{% block title %}Mi membresía{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Mi membresía</h4>
+  </div>
+  <a href="{{ url_for('web.cliente_dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left"></i> Volver
+  </a>
+</div>
+
+{% if alertas and alertas|length > 0 %}
+  {% for a in alertas %}
+    <div class="alert alert-warning mb-2">{{ a }}</div>
+  {% endfor %}
+{% endif %}
+
+<div class="card shadow-sm">
+  <div class="card-body">
+    <div class="mb-2">
+      <b>Estado:</b>
+      {% if estado == "Activa" %}
+        <span class="badge text-bg-success">Activa</span>
+      {% elif estado == "Vencida" %}
+        <span class="badge text-bg-danger">Vencida</span>
+      {% else %}
+        <span class="badge text-bg-secondary">Sin membresía</span>
+      {% endif %}
+    </div>
+
+    {% if membresia %}
+      <div class="row g-2 small">
+        <div class="col-12 col-md-4">
+          <div class="text-muted">Contratada desde</div>
+          <div class="fw-semibold">
+            {{ membresia.fecha_desde.strftime('%d/%m/%Y') if membresia.fecha_desde else '-' }}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="text-muted">Vence el</div>
+          <div class="fw-semibold">
+            {{ membresia.fecha_hasta.strftime('%d/%m/%Y') if membresia.fecha_hasta else '-' }}
+          </div>
+        </div>
+
+        <div class="col-12 col-md-4">
+          <div class="text-muted">Días restantes</div>
+          <div class="fw-semibold">
+            {% if dias_restantes is not none %}
+              {{ dias_restantes }}
+            {% else %}
+              -
+            {% endif %}
+          </div>
+        </div>
+        {% set WHATSAPP_NUM = "593992899479" %}
+
+            {% set nombre_completo = (cliente.nombre or '') ~ ' ' ~ (cliente.apellido or '') %}
+            {% set ident = cliente.identificacion or '' %}
+            {% set user = session.get('username') or '' %}
+
+            {% if membresia and membresia.fecha_hasta %}
+            {% set vence_txt = membresia.fecha_hasta.strftime('%d/%m/%Y') %}
+            {% else %}
+            {% set vence_txt = '-' %}
+            {% endif %}
+
+            {% set dias_txt = (dias_restantes|string) if dias_restantes is not none else '-' %}
+
+            {% set wa_text =
+            "Hola, quiero renovar mi membresía.\n"
+            ~ "Cliente: " ~ nombre_completo|trim ~ "\n"
+            ~ "Identificación: " ~ ident ~ "\n"
+            ~ "Usuario: " ~ user ~ "\n"
+            ~ "Vence: " ~ vence_txt ~ "\n"
+            ~ "Días restantes: " ~ dias_txt
+            %}
+
+            <div class="mt-3">
+            <a class="btn btn-success"
+                target="_blank"
+                href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}">
+                <i class="bi bi-whatsapp"></i> Renovar por WhatsApp
+            </a>
+            </div>
+    {% else %}
+      <div class="text-muted">Aún no tienes una membresía registrada.</div>
+    {% endif %}
+  </div>
+</div>
+
+{% endblock %}

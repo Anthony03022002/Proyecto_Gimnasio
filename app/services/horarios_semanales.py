@@ -91,6 +91,13 @@ def get_plantilla_por_id(plantilla_id):
     col = get_plantillas_collection()
     return col.find_one({"_id": plantilla_id})
 
+def get_slots_collection():
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+    return db["horarios_slots"]
+
+
 
 def get_config_semanal_collection():
     db = extensions.mongo_db
@@ -196,11 +203,13 @@ def construir_slots_para_fecha(d, bloques, intervalo_minutos: int, cupo_maximo: 
             fin_slot = cur + timedelta(minutes=int(intervalo_minutos))
             if fin_slot > fin_dt:
                 break
+            slot_id = f"{d.isoformat()}|{cur.strftime('%H:%M')}"
             slots.append({
+                "key": cur.strftime("%H:%M"),            # ✅ identificador dentro del día
                 "inicio": cur,
                 "fin": fin_slot,
                 "cupo_maximo": int(cupo_maximo),
-                "cupo_usado": 0,
+                "cupo_restante": int(cupo_maximo),       # ✅ para reservar seguro sin comparar campos
             })
             cur = fin_slot
 

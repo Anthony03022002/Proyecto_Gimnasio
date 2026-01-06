@@ -3,7 +3,7 @@ from app.extensions import bcrypt
 import app.extensions as extensions
 from app.services.clientes import crear_o_actualizar_cliente, get_clientes_collection
 from app.services.contrasenas import generar_password
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 
@@ -27,13 +27,14 @@ def create_default_admin():
         "password": password_hash,
         "role": "admin",
         "activo": True,
+        "creado": datetime.utcnow(),
     })
 
     print("✅ Usuario administrador creado por defecto: admin / admin123")
 
+# CJAERO
 
-
-def create_cajero(username, password, nombre=None):
+def create_cajero(username, password, nombre=None, apellido=None, email=None, telefono=None):
     users = get_users_collection()
 
     existing = users.find_one({"username": username})
@@ -47,13 +48,17 @@ def create_cajero(username, password, nombre=None):
         "password": password_hash,
         "role": "cajero",
         "nombre": nombre,
+        "apellido": apellido,
+        "email": email,
+        "telefono": telefono,
         "activo": True,
+        "creado": datetime.utcnow(),
     }
 
     users.insert_one(doc)
     return doc
 
-def update_cajero(cajero_id, username=None, nombre=None):
+def update_cajero(cajero_id, username=None, nombre=None, apellido=None, email=None, telefono=None):
     users = get_users_collection()
 
     _id = ObjectId(cajero_id)
@@ -70,9 +75,16 @@ def update_cajero(cajero_id, username=None, nombre=None):
         update["username"] = username
     if nombre is not None:
         update["nombre"] = nombre
+    if apellido is not None:
+        update["apellido"] = apellido
+    if email is not None:
+        update["email"] = email
+    if telefono is not None:
+        update["telefono"] = telefono
 
     if update:
         users.update_one({"_id": _id}, {"$set": update})
+
 
 def list_cajeros():
     users = get_users_collection()
@@ -102,7 +114,9 @@ def delete_cajero(cajero_id):
 
 
 
-def find_or_create_cliente(identificacion, nombre, email=None, telefono=None):
+# CREAR CLIENTE Y USUARIO
+
+def find_or_create_cliente(identificacion, nombre, email=None, telefono=None, fecha_nacimiento=None, apellido=None):
     users = get_users_collection()
     clientes_col = get_clientes_collection()
 
@@ -110,6 +124,9 @@ def find_or_create_cliente(identificacion, nombre, email=None, telefono=None):
     nombre = (nombre or "").strip()
     email = (email or "").strip() if email else None
     telefono = (telefono or "").strip() if telefono else None
+
+    if isinstance(fecha_nacimiento, str):
+        fecha_nacimiento = fecha_nacimiento.strip() or None
 
     if not identificacion:
         raise ValueError("identificacion es obligatoria")
@@ -119,9 +136,10 @@ def find_or_create_cliente(identificacion, nombre, email=None, telefono=None):
     cliente_info = {
         "identificacion": identificacion,
         "nombre": nombre,
+        "apellido": apellido,
         "email": email,
         "telefono": telefono,
-        "updated_at": datetime.utcnow(),
+        "fecha_nacimiento": fecha_nacimiento,
     }
 
     cliente_existente = clientes_col.find_one({"identificacion": identificacion}, {"_id": 1})
@@ -145,20 +163,24 @@ def find_or_create_cliente(identificacion, nombre, email=None, telefono=None):
 
         return user, None
 
-    user_id = ObjectId()  
+    # =========================
+    # ✅ AQUÍ VAN LOS CAMBIOS
+    # =========================
+    user_id = ObjectId()
     username = identificacion
     password_plain = generar_password(10)
     password_hash = bcrypt.generate_password_hash(password_plain).decode("utf-8")
 
     user_doc = {
         "_id": user_id,
-        "cliente_id": user_id,          
+        "cliente_id": user_id,
         "username": username,
-        "password": password_hash,
+        "password": password_hash,              # (si tu login usa "password")
         "role": "cliente",
-        "must_change_password": True,
-        "created_at": datetime.utcnow(),
         "activo": True,
+
+        "must_change_password": True,           # ✅ OBLIGAR PRIMER INGRESO
+        "creado": datetime.now(timezone.utc),   # ✅ mejor que utcnow()
     }
 
     users.insert_one(user_doc)
@@ -166,6 +188,30 @@ def find_or_create_cliente(identificacion, nombre, email=None, telefono=None):
     crear_o_actualizar_cliente(user_id, cliente_info)
 
     return user_doc, password_plain
+
+def reset_password_cliente(cliente_id, new_password):
+    users = get_users_collection()
+    _id = ObjectId(cliente_id)
+
+    cliente = users.find_one({"_id": _id, "role": "cliente"})
+    if not cliente:
+        raise ValueError("Cliente no encontrado.")
+
+    new_password = (new_password or "").strip()
+    if len(new_password) < 6:
+        raise ValueError("La contraseña debe tener al menos 6 caracteres.")
+
+    password_hash = bcrypt.generate_password_hash(new_password).decode("utf-8")
+
+    users.update_one(
+        {"_id": _id},
+        {"$set": {
+            "password": password_hash,
+            "cambiar_clave": True,   
+        }}
+    )
+
+# USUARIOS
 
 
 def listar_usuarios(filtro=None):
@@ -225,14 +271,16 @@ def actualizar_usuario_completo(user_id, data):
         if "activo" in data:
             update["activo"] = bool(data.get("activo"))
 
-    update["actualizado_en"] = datetime.utcnow()
 
     users.update_one({"_id": oid}, {"$set": update})
 
     return users.find_one({"_id": oid})
 
 
-def create_entrenador(username, password, nombre=None):
+
+# ENTRENADORES
+
+def create_entrenador(username, password, nombre=None, apellido=None, email=None, telefono=None):
     users = get_users_collection()
 
     existing = users.find_one({"username": username})
@@ -246,14 +294,18 @@ def create_entrenador(username, password, nombre=None):
         "password": password_hash,
         "role": "entrenador",
         "nombre": nombre,
+        "apellido": apellido,
+        "telefono": telefono,
+        "email": email,
         "activo": True,
+        "creado": datetime.utcnow(),
     }
 
     users.insert_one(doc)
     return doc
 
 
-def update_entrenador(entrenador_id, username=None, nombre=None):
+def update_entrenador(entrenador_id, username=None, nombre=None, apellido=None, email=None, telefono=None):
     users = get_users_collection()
 
     _id = ObjectId(entrenador_id)
@@ -270,6 +322,12 @@ def update_entrenador(entrenador_id, username=None, nombre=None):
         update["username"] = username
     if nombre is not None:
         update["nombre"] = nombre
+    if apellido is not None:
+        update["apellido"] = apellido
+    if email is not None:
+        update["email"] = email
+    if telefono is not None:
+        update["telefono"] = telefono
 
     if update:
         users.update_one({"_id": _id}, {"$set": update})
@@ -305,3 +363,6 @@ def delete_entrenador(entrenador_id):
         raise ValueError("Entrenador no encontrado.")
 
     users.delete_one({"_id": _id})
+
+
+

@@ -3,7 +3,7 @@ content %}
 
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
-    <h4 class="mb-0">Mis clientes</h4>
+    <h4 class="mb-0">Clientes</h4>
     <div class="text-muted small">Clientes relacionados a tus ventas</div>
   </div>
   <a
@@ -33,16 +33,14 @@ content %}
             <td class="fw-semibold">{{ c.nombre }}</td>
             <td class="text-muted">{{ c.username }}</td>
             <td>{{ c.telefono or '-' }}</td>
-
             <td>
-              {% if c.activo %}
-              <span class="badge text-bg-success">Activo</span>
-              {% else %} {% if c.bloqueado_manual %}
-              <span class="badge text-bg-warning">Suspendido</span>
+              {% if c.user_activo %}
+                <span class="badge bg-success">Activo</span>
               {% else %}
-              <span class="badge text-bg-secondary">Vencido</span>
-              {% endif %} {% endif %}
+                <span class="badge bg-danger">Inactivo</span>
+              {% endif %}
             </td>
+
 
             <td class="text-end">
               <a
@@ -52,32 +50,100 @@ content %}
                 <i class="bi bi-pencil"></i>
               </a>
 
-              {% if c.bloqueado_manual %}
-              <form
-                method="post"
-                action="{{ url_for('web.cajero_cliente_estado', cliente_id=c._id) }}"
-                class="d-inline"
+              <!-- ✅ botón fuera de forms -->
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-dark"
+                data-bs-toggle="modal"
+                data-bs-target="#modalPwd{{ c._id }}"
+                title="Cambiar contraseña"
               >
-                <input type="hidden" name="accion" value="desbloquear" />
-                <button class="btn btn-sm btn-outline-success" type="submit">
-                  <i class="bi bi-check2-circle"></i>
-                </button>
-              </form>
-              {% else %}
-              <form
-                method="post"
-                action="{{ url_for('web.cajero_cliente_estado', cliente_id=c._id) }}"
-                class="d-inline"
-                onsubmit="return confirm('¿Suspender este cliente?');"
-              >
-                <input type="hidden" name="accion" value="bloquear" />
-                <button class="btn btn-sm btn-outline-warning" type="submit">
-                  <i class="bi bi-pause-circle"></i>
-                </button>
-              </form>
-              {% endif %}
+                <i class="bi bi-key"></i>
+              </button>
             </td>
           </tr>
+
+          <!-- ✅ MODAL: dentro del for (c existe) -->
+          <div
+            class="modal fade"
+            id="modalPwd{{ c._id }}"
+            tabindex="-1"
+            aria-hidden="true"
+          >
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">
+                    <i class="bi bi-key me-1"></i> Cambiar contraseña
+                  </h5>
+                  <button
+                    type="button"
+                    class="btn-close"
+                    data-bs-dismiss="modal"
+                    aria-label="Close"
+                  ></button>
+                </div>
+
+                <form
+                  method="post"
+                  action="{{ url_for('web.cajero_cliente_password', cliente_id=c._id) }}"
+                >
+                  <div class="modal-body">
+                    <div class="mb-2">
+                      <div class="small text-muted">Cliente:</div>
+                      <div class="fw-semibold">
+                        {{ c.nombre }}
+                        <span class="text-muted">({{ c.username }})</span>
+                      </div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">Nueva contraseña</label>
+                      <input
+                        class="form-control"
+                        type="password"
+                        name="new_password"
+                        minlength="6"
+                        required
+                      />
+                      <div class="form-text">Mínimo 6 caracteres.</div>
+                    </div>
+
+                    <div class="mb-3">
+                      <label class="form-label">Confirmar</label>
+                      <input
+                        class="form-control"
+                        type="password"
+                        name="confirm_password"
+                        minlength="6"
+                        required
+                      />
+                    </div>
+
+                    <div class="alert alert-warning mb-0">
+                      <i class="bi bi-exclamation-triangle me-1"></i>
+                      Al cliente se le pedirá cambiar la contraseña al iniciar
+                      sesión.
+                    </div>
+                  </div>
+
+                  <div class="modal-footer">
+                    <button
+                      type="button"
+                      class="btn btn-outline-secondary"
+                      data-bs-dismiss="modal"
+                    >
+                      Cancelar
+                    </button>
+                    <button type="submit" class="btn btn-primary">
+                      Guardar
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          </div>
+
           {% endfor %} {% else %}
           <tr>
             <td colspan="5" class="text-center text-muted py-3">

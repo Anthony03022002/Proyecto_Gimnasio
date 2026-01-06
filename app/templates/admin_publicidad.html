@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% block title %}Admin - Publicidad{% endblock %}
+{% block content %}
+
+{% set active="admin_publicidad" %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Publicidad</h4>
+    <div class="text-muted small">Sube imágenes y activa una para mostrarla como popup</div>
+  </div>
+</div>
+
+{# =========================
+   ✅ FORM SUBIR PUBLICIDAD
+   ========================= #}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <form
+      method="post"
+      action="{{ url_for('web.admin_publicidad_subir') }}"
+      enctype="multipart/form-data"
+      class="row g-2 align-items-end"
+    >
+      <div class="col-12 col-md-4">
+        <label class="form-label mb-1">Título</label>
+        <input
+          type="text"
+          name="titulo"
+          class="form-control"
+          placeholder="Ej: Promoción del mes"
+        >
+        <div class="form-text">Este texto saldrá arriba en el popup.</div>
+      </div>
+
+      <div class="col-12 col-md-5">
+        <label class="form-label mb-1">Imagen</label>
+        <input type="file" name="foto" class="form-control" accept="image/*" required>
+        <div class="form-text">Se optimiza automáticamente.</div>
+      </div>
+
+      <div class="col-12 col-md-3 d-grid">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-upload"></i> Subir
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{# =========================
+   ✅ LISTADO PUBLICIDADES
+   ========================= #}
+<div class="card shadow-sm">
+  <div class="card-body p-0">
+    <div class="table-responsive">
+      <table class="table table-sm mb-0 align-middle">
+        <thead class="table-light">
+          <tr>
+            <th>Vista</th>
+            <th>Título / Archivo</th>
+            <th>Estado</th>
+            <th class="text-end">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if pubs %}
+            {% for p in pubs %}
+              <tr>
+                <td style="width:140px">
+                  <img
+                    src="{{ url_for('web.ver_publicidad_img', pub_id=p._id) }}"
+                    style="width:130px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #eee"
+                    alt="publicidad"
+                  >
+                </td>
+
+                <td class="small">
+                  <div class="fw-semibold">
+                    {{ p.titulo or "Publicidad" }}
+                  </div>
+                  <div class="text-muted">
+                    {{ p.filename }}
+                    {% if p.bytes %}
+                      · {{ (p.bytes/1024/1024)|round(2) }} MB
+                    {% endif %}
+                  </div>
+                </td>
+
+                <td>
+                  {% if p.activo %}
+                    <span class="badge text-bg-success">Activa</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Inactiva</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  {% if not p.activo %}
+                    <form
+                      method="post"
+                      action="{{ url_for('web.admin_publicidad_activar', pub_id=p._id) }}"
+                      class="d-inline"
+                    >
+                      <button class="btn btn-sm btn-outline-success" type="submit">
+                        <i class="bi bi-check2-circle"></i> Activar
+                      </button>
+                    </form>
+                  {% else %}
+                    <form
+                      method="post"
+                      action="{{ url_for('web.admin_publicidad_desactivar', pub_id=p._id) }}"
+                      class="d-inline"
+                    >
+                      <button class="btn btn-sm btn-outline-danger" type="submit">
+                        <i class="bi bi-x-circle"></i> Desactivar
+                      </button>
+                    </form>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="4" class="text-center text-muted py-3">
+                Aún no has subido publicidades.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

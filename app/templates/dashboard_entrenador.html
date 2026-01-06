@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Entrenador - Clases{% endblock %}
+{% block title %}Entrenador - Reservas{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -21,127 +21,66 @@
         </a>
       </div>
 
-      <div class="row g-3">
+      <!-- ✅ SOLO una sección: Reservas de hoy -->
+      <div class="card shadow-sm">
+        <div class="card-header d-flex justify-content-between align-items-center">
+          <div><i class="bi bi-list-task"></i> Reservas de hoy</div>
+          <small class="text-muted">Orden: más recientes primero</small>
+        </div>
 
-        <!-- Clase actual -->
-        <div class="col-12 col-lg-5">
-          <div class="card shadow-sm h-100">
-            <div class="card-header">
-              <i class="bi bi-play-circle"></i> Clase en curso (ahora)
-            </div>
-            <div class="card-body">
-              {% if clase_actual %}
-                <h5 class="mb-2">{{ clase_actual.titulo or 'Clase' }}</h5>
-                <div class="text-muted mb-2">
-                  {{ clase_actual.inicio.astimezone(tz).strftime('%H:%M') }}
-                  -
-                  {{ clase_actual.fin.astimezone(tz).strftime('%H:%M') }}
-                </div>
+        <div class="card-body p-0">
+          <table class="table table-sm mb-0 align-middle">
+            <thead class="table-light">
+              <tr>
+                <th style="width: 110px;">Hora</th>
+                <th>Cliente</th>
+                <th>Estado</th>
+                <th class="text-end">Acción</th>
+              </tr>
+            </thead>
 
-                <div class="small">
-                  <div><b>Sala:</b> {{ clase_actual.sala or '-' }}</div>
-                  <div><b>Cupo:</b> {{ clase_actual.cupo_usado or 0 }}/{{ clase_actual.cupo_maximo or '-' }}</div>
-                </div>
+            <tbody>
+              {% if clases_hoy %}
+                {% for r in clases_hoy %}
+                  {% set hora = (r.slot_id.split('|')[1] if r.slot_id and '|' in r.slot_id else '-') %}
 
-                <hr>
-                <div class="alert alert-success mb-0">
-                  <i class="bi bi-check2-circle me-1"></i>
-                  Esta es tu clase actual.
-                </div>
+                  <tr>
+                    <td class="text-nowrap">{{ hora }}</td>
+
+                    <td>{{ r.cliente_nombre or '-' }}</td>
+
+
+                    <td>
+                      {% set est = r.estado or 'confirmada' %}
+                      {% if est == 'confirmada' %}
+                        <span class="badge bg-success">Confirmada</span>
+                      {% elif est == 'pendiente' %}
+                        <span class="badge bg-warning text-dark">Pendiente</span>
+                      {% elif est == 'cancelada' %}
+                        <span class="badge bg-secondary">Cancelada</span>
+                      {% else %}
+                        <span class="badge bg-primary">{{ est }}</span>
+                      {% endif %}
+                    </td>
+
+                    <td class="text-end">
+                      {# opcional: link a detalle si tienes endpoint #}
+                      {# <a class="btn btn-sm btn-outline-primary" href="{{ url_for('web.reserva_detalle', reserva_id=r._id) }}">Ver</a> #}
+                      <span class="text-muted small">—</span>
+                    </td>
+                  </tr>
+                {% endfor %}
               {% else %}
-                <div class="text-muted">
-                  No tienes una clase en curso en este momento.
-                </div>
+                <tr>
+                  <td colspan="4" class="text-center text-muted py-3">
+                    No tienes reservas registradas para hoy.
+                  </td>
+                </tr>
               {% endif %}
-            </div>
-          </div>
+            </tbody>
+          </table>
         </div>
-
-        <!-- Próximas clases -->
-        <div class="col-12 col-lg-7">
-          <div class="card shadow-sm h-100">
-            <div class="card-header">
-              <i class="bi bi-clock"></i> Próximas clases de hoy
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>Hora</th>
-                    <th>Título</th>
-                    <th>Sala</th>
-                    <th class="text-end">Cupo</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% if proximas %}
-                    {% for c in proximas %}
-                      <tr>
-                        <td class="text-nowrap">
-                          {{ c.inicio.astimezone(tz).strftime('%H:%M') }} - {{ c.fin.astimezone(tz).strftime('%H:%M') }}
-                        </td>
-                        <td>{{ c.titulo or 'Clase' }}</td>
-                        <td>{{ c.sala or '-' }}</td>
-                        <td class="text-end">
-                          {{ c.cupo_usado or 0 }}/{{ c.cupo_maximo or '-' }}
-                        </td>
-                      </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr>
-                      <td colspan="4" class="text-center text-muted py-3">
-                        No tienes más clases programadas para hoy.
-                      </td>
-                    </tr>
-                  {% endif %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-        <!-- Todas hoy -->
-        <div class="col-12">
-          <div class="card shadow-sm">
-            <div class="card-header">
-              <i class="bi bi-list-task"></i> Todas tus clases de hoy
-            </div>
-            <div class="card-body p-0">
-              <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>Hora</th>
-                    <th>Título</th>
-                    <th>Estado</th>
-                    <th>Sala</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {% if clases_hoy %}
-                    {% for c in clases_hoy %}
-                      <tr>
-                        <td class="text-nowrap">
-                          {{ c.inicio.astimezone(tz).strftime('%H:%M') }} - {{ c.fin.astimezone(tz).strftime('%H:%M') }}
-                        </td>
-                        <td>{{ c.titulo or 'Clase' }}</td>
-                        <td>{{ c.estado or 'programada' }}</td>
-                        <td>{{ c.sala or '-' }}</td>
-                      </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr>
-                      <td colspan="4" class="text-center text-muted py-3">
-                        No tienes clases registradas para hoy.
-                      </td>
-                    </tr>
-                  {% endif %}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
-
-      </div><!-- /row g-3 -->
+      </div>
 
     </div><!-- /col contenido -->
 

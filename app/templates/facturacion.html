@@ -3,7 +3,6 @@ content %}
 <h4 class="mb-3">Nueva venta</h4>
 
 <form method="post" action="{{ url_for('web.facturacion_nueva_post') }}">
-  <!-- DATOS DEL CLIENTE -->
   <div class="card mb-3 shadow-sm">
     <div class="card-header">Datos del cliente</div>
     <div class="card-body row g-3">
@@ -17,8 +16,12 @@ content %}
         />
       </div>
       <div class="col-12 col-md-8">
-        <label class="form-label">Nombre completo</label>
+        <label class="form-label">Nombre</label>
         <input type="text" name="nombre" class="form-control" required />
+      </div>
+      <div class="col-12 col-md-8">
+        <label class="form-label">Apellido</label>
+        <input type="text" name="apellido" class="form-control" required />
       </div>
       <div class="col-12 col-md-6">
         <label class="form-label">Email</label>
@@ -28,6 +31,11 @@ content %}
         <label class="form-label">Teléfono</label>
         <input type="text" name="telefono" class="form-control" />
       </div>
+      <div class="col-12 col-md-6">
+        <label class="form-label">Fecha de nacimiento</label>
+        <input type="date" name="fecha_nacimiento" class="form-control" />
+      </div>
+
     </div>
   </div>
 
@@ -75,7 +83,7 @@ content %}
               name="fecha_hasta"
               id="fecha_hasta"
               class="form-control"
-              readonly
+              required
             />
           </div>
 

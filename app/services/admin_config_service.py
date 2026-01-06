@@ -33,12 +33,12 @@ def actualizar_perfil_admin(admin_id: str, username=None, nombre=None, email=Non
     if not admin:
         raise ValueError("Administrador no encontrado.")
 
-    # Validar username único si cambia
     if username and username != admin.get("username"):
         if usuarios.find_one({"username": username, "_id": {"$ne": _id}}):
             raise ValueError("Ese username ya está en uso.")
 
-    cambios = {"updated_at": datetime.now(timezone.utc)}
+    cambios = {}  
+
     if username is not None and username.strip() != "":
         cambios["username"] = username.strip()
     if nombre is not None:
@@ -50,8 +50,12 @@ def actualizar_perfil_admin(admin_id: str, username=None, nombre=None, email=Non
     if activo is not None:
         cambios["activo"] = bool(activo)
 
-    usuarios.update_one({"_id": _id}, {"$set": cambios})
+    if cambios:
+        usuarios.update_one({"_id": _id}, {"$set": cambios})
+
     return usuarios.find_one({"_id": _id})
+
+
 
 
 def cambiar_password_admin(admin_id: str, password_actual: str, password_nuevo: str):
@@ -71,7 +75,7 @@ def cambiar_password_admin(admin_id: str, password_actual: str, password_nuevo: 
     nuevo_hash = bcrypt.generate_password_hash(password_nuevo).decode("utf-8")
     usuarios.update_one(
         {"_id": _id},
-        {"$set": {"password": nuevo_hash, "updated_at": datetime.now(timezone.utc)}}
+        {"$set": {"password": nuevo_hash}}
     )
 
 
@@ -86,14 +90,12 @@ def obtener_configuracion_app():
         "gym_nombre": "Mi Gimnasio",
         "gym_direccion": "",
         "gym_telefono": "",
-        "moneda": "USD",
-        "updated_at": datetime.now(timezone.utc),
     }
     col.insert_one(base)
     return base
 
 
-def actualizar_configuracion_app(gym_nombre=None, gym_direccion=None, gym_telefono=None, moneda=None):
+def actualizar_configuracion_app(gym_nombre=None, gym_direccion=None, gym_telefono=None):
     col = coleccion_configuracion()
     cambios = {"updated_at": datetime.now(timezone.utc)}
 
@@ -103,8 +105,6 @@ def actualizar_configuracion_app(gym_nombre=None, gym_direccion=None, gym_telefo
         cambios["gym_direccion"] = gym_direccion.strip()
     if gym_telefono is not None:
         cambios["gym_telefono"] = gym_telefono.strip()
-    if moneda is not None and moneda.strip() != "":
-        cambios["moneda"] = moneda.strip().upper()
 
     col.update_one({"_id": "app"}, {"$set": cambios}, upsert=True)
     return col.find_one({"_id": "app"})

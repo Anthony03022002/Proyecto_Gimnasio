@@ -20,11 +20,33 @@
     padding: 6px 8px;
     line-height: 1.1;
     font-size: .85rem;
+    display: block;
+    width: 100%;
   }
   .slot-pill .cap { color: #495057; font-size: .78rem; }
   @media (max-width: 992px) {
     .cal-row { grid-template-columns: 70px repeat(7, 160px); } /* scroll horizontal en móvil */
     .cal-grid { overflow: auto; }
+  }
+  .slot-open{
+    background:#eef2ff;
+    border-color:#dbe4ff;
+  }
+  .slot-partial{
+    background:#fff4e6;   /* naranja suave */
+    border-color:#ffd8a8;
+  }
+  .slot-full{
+    background:#ffe3e3;   /* rojo suave */
+    border-color:#ffa8a8;
+  }
+  .slot-mine{
+    background:#e6fcf5;   /* verde suave */
+    border-color:#c3fae8;
+  }
+  .slot-full,
+  .slot-full *{
+    color:#842029;
   }
 </style>
 
@@ -40,7 +62,6 @@
   </div>
 
   {# navegación semanal #}
-
   <form method="get" action="{{ url_for('web.horarios_publico') }}" class="d-flex gap-2">
     <input type="hidden" name="view" value="week">
     <a class="btn btn-sm btn-outline-secondary"
@@ -92,10 +113,83 @@
           {% set s = slot_map.get(key, {}).get(t) %}
           <div class="cal-cell {% if d == (fecha.__class__.today()) %}cal-today{% endif %}">
             {% if s %}
-              <div class="slot-pill">
-                <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
-                <div class="cap">{{ s.cupo_usado or 0 }} / {{ s.cupo_maximo }} cupos</div>
-              </div>
+              {% set usados = (s.cupo_usado or 0) %}
+              {% set maximo = (s.cupo_maximo or 0) %}
+
+              {% set is_full = (maximo > 0 and usados >= maximo) %}
+              {% set is_partial = (usados > 0 and not is_full) %}
+              {% set cupo_ok = (not is_full) %}
+
+              {% set is_cliente = (session.get("user_role") == "cliente") %}
+              {% set is_entrenador = (session.get("user_role") == "entrenador") %}
+              {% set ya_reservado = (mis_slot_ids is defined and (s._id in mis_slot_ids)) %}
+
+              {# ✅ clase por estado #}
+              {% set estado_class = "slot-open" %}
+              {% if is_partial %}{% set estado_class = "slot-partial" %}{% endif %}
+              {% if is_full %}{% set estado_class = "slot-full" %}{% endif %}
+
+              {# ✅ CLIENTE: si ya reservó -> verde #}
+              {% if is_cliente and ya_reservado %}
+                <div class="slot-pill slot-mine">
+                  <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="cap">Reservado por ti</div>
+                </div>
+
+              {# ✅ CLIENTE: puede reservar si hay cupo #}
+              {% elif is_cliente and cupo_ok %}
+                <button
+                  type="button"
+                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalReservar"
+                  data-slot-id="{{ s._id }}"
+                  data-fecha="{{ key }}"
+                  data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                  data-fin="{{ s.fin.strftime('%H:%M') }}"
+                >
+                  <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
+
+                  {% if is_full %}
+                    <div class="small mt-1">Sin cupos</div>
+                  {% elif is_partial %}
+                    <div class="text-muted small mt-1">Ya hay reservas</div>
+                  {% else %}
+                    <div class="text-muted small mt-1">Clic para reservar</div>
+                  {% endif %}
+                </button>
+
+              {# ✅ ENTRENADOR: ver alumnos (solo sus slots filtrados por backend) #}
+              {% elif is_entrenador %}
+                <button
+                  type="button"
+                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none btn-ver-alumnos"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalAlumnos"
+                  data-slot-id="{{ s._id }}"
+                  data-fecha="{{ key }}"
+                  data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                  data-fin="{{ s.fin.strftime('%H:%M') }}"
+                >
+                  <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="cap">{{ usados }} alumno(s)</div>
+                  <div class="text-muted small mt-1">Clic para ver alumnos</div>
+                </button>
+
+              {# ✅ ADMIN/CAJERO (y cliente cuando no puede): solo muestra estado/colores #}
+              {% else %}
+                <div class="slot-pill {{ estado_class }}">
+                  <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
+
+                  {% if is_full %}
+                    <div class="small mt-1">Lleno</div>
+                  {% elif is_partial %}
+                    <div class="text-muted small mt-1">Con reservas</div>
+                  {% endif %}
+                </div>
+              {% endif %}
             {% endif %}
           </div>
         {% endfor %}
@@ -103,5 +197,148 @@
     {% endfor %}
   </div>
 </div>
+
+{# ===========================
+   ✅ MODAL RESERVAR (CLIENTE)
+   =========================== #}
+{% if session.get("user_role") == "cliente" %}
+<div class="modal fade" id="modalReservar" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-md">
+    <div class="modal-content">
+      <form method="post" action="{{ url_for('web.cliente_reservar') }}" id="formReservar">
+        <div class="modal-header">
+          <div>
+            <h5 class="modal-title mb-0">Reservar horario</h5>
+            <div class="text-muted small" id="txtSlotInfo">-</div>
+          </div>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+        </div>
+
+        <div class="modal-body">
+          <input type="hidden" name="slot_id" id="inpSlotId">
+          <input type="hidden" name="fecha_ref" id="inpFechaRef" value="{{ fecha.isoformat() }}">
+
+          <label class="form-label">Entrenador</label>
+          <select class="form-select" name="entrenador_id" required>
+            <option value="">-- Selecciona --</option>
+            {% for e in entrenadores %}
+              <option value="{{ e._id }}">{{ e.username }}</option>
+            {% endfor %}
+          </select>
+
+          <div class="form-text mt-2">
+            Al confirmar, el cupo se toma inmediatamente.
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+          <button class="btn btn-primary" type="submit">
+            <i class="bi bi-check2-circle"></i> Reservar
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('modalReservar');
+  if (modal) {
+    modal.addEventListener('show.bs.modal', function (event) {
+      const btn = event.relatedTarget;
+      if (!btn) return;
+
+      const slotId = btn.getAttribute('data-slot-id') || '';
+      const fecha  = btn.getAttribute('data-fecha') || '';
+      const inicio = btn.getAttribute('data-inicio') || '';
+      const fin    = btn.getAttribute('data-fin') || '';
+
+      document.getElementById('inpSlotId').value = slotId;
+      document.getElementById('txtSlotInfo').textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+    });
+  }
+</script>
+{% endif %}
+
+{# ===========================
+   ✅ MODAL ALUMNOS (ENTRENADOR)
+   Requiere endpoint: /entrenador/slot-alumnos?slot_id=...
+   =========================== #}
+{% if session.get("user_role") == "entrenador" %}
+<div class="modal fade" id="modalAlumnos" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-md">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Alumnos del horario</h5>
+          <div class="text-muted small" id="txtAlumnosSlotInfo">-</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="alumnosStatus" class="text-muted small mb-2"></div>
+        <ul id="alumnosList" class="list-group"></ul>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const modalAlumnos = document.getElementById('modalAlumnos');
+  const alumnosList = document.getElementById('alumnosList');
+  const alumnosStatus = document.getElementById('alumnosStatus');
+  const txtInfo = document.getElementById('txtAlumnosSlotInfo');
+
+  if (modalAlumnos) {
+    modalAlumnos.addEventListener('show.bs.modal', async function (event) {
+      const btn = event.relatedTarget;
+      if (!btn) return;
+
+      const slotId = btn.getAttribute('data-slot-id') || '';
+      const fecha  = btn.getAttribute('data-fecha') || '';
+      const inicio = btn.getAttribute('data-inicio') || '';
+      const fin    = btn.getAttribute('data-fin') || '';
+
+      txtInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+
+      alumnosList.innerHTML = '';
+      alumnosStatus.textContent = 'Cargando...';
+
+      try {
+        const resp = await fetch(`/entrenador/slot-alumnos?slot_id=${encodeURIComponent(slotId)}`);
+        const data = await resp.json();
+
+        if (!resp.ok || !data.ok) {
+          alumnosStatus.textContent = (data && data.error) ? data.error : 'Error al cargar alumnos';
+          return;
+        }
+
+        const alumnos = data.alumnos || [];
+        alumnosStatus.textContent = `${alumnos.length} alumno(s)`;
+
+        if (alumnos.length === 0) {
+          alumnosList.innerHTML = `<li class="list-group-item text-muted">Sin alumnos</li>`;
+          return;
+        }
+
+        for (const a of alumnos) {
+          const li = document.createElement('li');
+          li.className = 'list-group-item';
+          li.textContent = a.nombre || '-';
+          alumnosList.appendChild(li);
+        }
+      } catch (e) {
+        alumnosStatus.textContent = 'Error de red';
+      }
+    });
+  }
+</script>
+{% endif %}
 
 {% endblock %}

@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% block title %}Mi Progreso{% endblock %}
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+  <div>
+    <h4 class="mb-0">Mi progreso</h4>
+    <div class="text-muted small">Planificación y galería de fotos</div>
+  </div>
+
+  <a class="btn btn-sm btn-outline-secondary" href="{{ url_for('web.cliente_dashboard') }}">
+    ← Volver
+  </a>
+</div>
+
+{# =========================
+   ✅ PLANIFICACIÓN (PDF)
+   ========================= #}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <h6 class="card-subtitle mb-2 text-muted">Planificación</h6>
+
+    {% if plan_actual %}
+      <div class="d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <div>
+          <div class="fw-semibold">Planificación actual</div>
+          <div class="text-muted small">
+            {{ plan_actual.filename or "plan.pdf" }}
+            {% if plan_actual.bytes %}
+              · {{ (plan_actual.bytes / 1024 / 1024) | round(2) }} MB
+            {% endif %}
+          </div>
+
+          <div class="text-muted small mt-1">
+            {% set dt = plan_actual.updated_at or plan_actual.creado %}
+            {% if dt %}
+              Actualizada: {{ dt.strftime('%d/%m/%Y %H:%M') }}
+            {% endif %}
+          </div>
+        </div>
+
+        <a class="btn btn-sm btn-primary"
+           href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}">
+          <i class="bi bi-download"></i> Descargar
+        </a>
+      </div>
+    {% else %}
+      <div class="text-muted">
+        Aún no tienes una planificación subida por tu entrenador.
+      </div>
+    {% endif %}
+  </div>
+</div>
+
+{# =========================
+   ✅ GALERÍA DE PROGRESO
+   ========================= #}
+<div class="card shadow-sm mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-2">
+      <div>
+        <h6 class="card-subtitle mb-0 text-muted">Galería de progreso</h6>
+        <div class="text-muted small">Sube fotos y guarda tu avance</div>
+      </div>
+    </div>
+
+    <form method="post"
+          action="{{ url_for('web.cliente_progreso_subir_foto') }}"
+          enctype="multipart/form-data"
+          class="row g-2 align-items-end">
+      <div class="col-12 col-md-8">
+        <label class="form-label mb-1">Subir foto</label>
+        <input type="file" name="foto" accept="image/*" class="form-control" required>
+        <div class="form-text">
+          La imagen se optimiza automáticamente para ocupar menos espacio.
+        </div>
+      </div>
+      <div class="col-12 col-md-4 d-grid">
+        <button class="btn btn-primary" type="submit">
+          <i class="bi bi-upload"></i> Subir foto
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if fotos and fotos|length > 0 %}
+  <div class="row g-3">
+    {% for img in fotos %}
+      <div class="col-6 col-md-4 col-lg-3">
+        <div class="card shadow-sm h-100">
+          <a href="{{ url_for('web.cliente_progreso_ver_foto', foto_id=img._id) }}"
+             target="_blank"
+             class="text-decoration-none">
+            <img
+              src="{{ url_for('web.cliente_progreso_ver_foto', foto_id=img._id) }}"
+              class="card-img-top"
+              style="height: 180px; object-fit: cover;"
+              alt="foto progreso"
+              loading="lazy"
+            >
+          </a>
+          <div class="card-body p-2">
+            <div class="small text-muted">
+              {% if img.creado %}{{ img.creado.strftime('%d/%m/%Y') }}{% endif %}
+              {% if img.bytes %} · {{ (img.bytes/1024/1024)|round(2) }} MB{% endif %}
+            </div>
+          </div>
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+{% else %}
+  <div class="text-muted small">
+    Aún no has subido fotos.
+  </div>
+{% endif %}
+
+{% endblock %}

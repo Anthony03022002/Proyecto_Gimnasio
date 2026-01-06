@@ -5,7 +5,6 @@
 <div class="d-flex justify-content-between align-items-center mb-3">
   <div>
     <h4 class="mb-0">Editar usuario</h4>
-    <div class="text-muted small">ID: {{ u._id }}</div>
   </div>
   <a href="{{ url_for('web.admin_usuarios') }}" class="btn btn-sm btn-outline-secondary">Volver</a>
 </div>
@@ -16,11 +15,13 @@
     <form method="post" action="{{ url_for('web.admin_usuario_guardar', user_id=u._id) }}">
 
       <div class="row g-3">
+        <!-- Username -->
         <div class="col-12 col-md-6">
           <label class="form-label">Username</label>
           <input name="username" class="form-control" value="{{ u.username }}" required>
         </div>
 
+        <!-- Rol -->
         <div class="col-12 col-md-6">
           <label class="form-label">Rol</label>
           <select name="role" class="form-select" required>
@@ -31,21 +32,68 @@
           </select>
         </div>
 
+        {# =========================
+           CLIENTE (colección clientes)
+           ========================= #}
         {% if u.role == "cliente" %}
+          <div class="col-12 col-md-6">
             <label class="form-label">Nombre (cliente)</label>
             <input name="cliente_nombre" class="form-control" value="{{ (cliente.nombre if cliente else '') }}">
-            {% else %}
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Apellido (cliente)</label>
+            <input name="cliente_apellido" class="form-control" value="{{ (cliente.apellido if cliente else '') }}">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Email (cliente)</label>
+            <input name="cliente_email" type="email" class="form-control" value="{{ (cliente.email if cliente else '') }}">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Teléfono (cliente)</label>
+            <input name="cliente_telefono" class="form-control" value="{{ (cliente.telefono if cliente else '') }}">
+          </div>
+
+        {# =========================
+           NO CLIENTE (colección users)
+           ========================= #}
+        {% else %}
+          <div class="col-12 col-md-6">
             <label class="form-label">Nombre</label>
             <input name="nombre" class="form-control" value="{{ u.nombre or '' }}">
-            {% endif %}
+          </div>
 
+          <div class="col-12 col-md-6">
+            <label class="form-label">Apellido</label>
+            <input name="apellido" class="form-control" value="{{ u.apellido or '' }}">
+          </div>
 
+          <div class="col-12 col-md-6">
+            <label class="form-label">Correo</label>
+            <input name="email" type="email" class="form-control" value="{{ u.email or '' }}">
+          </div>
+
+          <div class="col-12 col-md-6">
+            <label class="form-label">Teléfono</label>
+            <input name="telefono" class="form-control" value="{{ u.telefono or '' }}">
+          </div>
+        {% endif %}
+
+        <!-- Nueva contraseña -->
         <div class="col-12">
           <label class="form-label">Nueva contraseña (opcional)</label>
 
           <div class="input-group">
-            <input id="newPass" type="password" name="new_password" class="form-control"
-                   placeholder="Deja vacío si no deseas cambiarla" minlength="6">
+            <input
+              id="newPass"
+              type="password"
+              name="new_password"
+              class="form-control"
+              placeholder="Deja vacío si no deseas cambiarla"
+              minlength="6"
+            >
             <button class="btn btn-outline-secondary" type="button" id="toggleNewPass">
               <i class="bi bi-eye" id="toggleIcon"></i>
             </button>

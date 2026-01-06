@@ -13,7 +13,6 @@ def crear_o_actualizar_cliente(user_id, info):
     clientes = get_clientes_collection()
 
     payload = dict(info or {})
-    payload["actualizado"] = datetime.utcnow()
 
     clientes.update_one(
         {"_id": user_id},

@@ -17,13 +17,15 @@ def crear_venta(cliente_data, membresia, vendedor_username):
     cliente_user, password_plain = find_or_create_cliente(
         identificacion=cliente_data["identificacion"],
         nombre=cliente_data["nombre"],
+        apellido=cliente_data.get("apellido"),
         email=cliente_data.get("email"),
         telefono=cliente_data.get("telefono"),
+        fecha_nacimiento=cliente_data.get("fecha_nacimiento"),
     )
 
     venta_doc = {
         "cliente_id": cliente_user["_id"],     
-        "vendedor_username": vendedor_username,
+        "vendedor": vendedor_username,
         "fecha": datetime.now(timezone.utc),
         "membresia": {
             "meses": membresia.get("meses"),
@@ -42,13 +44,41 @@ def crear_venta(cliente_data, membresia, vendedor_username):
     return venta_doc
 
 
-def listar_ventas_por_cajero(vendedor_username, limit=10):
+def _parse_date_yyyy_mm_dd(s: str):
+    """
+    Recibe 'YYYY-MM-DD' (input type="date") y devuelve datetime UTC.
+    """
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.strip())  # naive (YYYY-MM-DD)
+        return dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def listar_ventas_por_cajero(vendedor_username, limit=20, q=None, fecha_desde=None, fecha_hasta=None):
     ventas = get_ventas_collection()
 
+    q = (q or "").strip()
+    dt_desde = _parse_date_yyyy_mm_dd(fecha_desde)
+    dt_hasta = _parse_date_yyyy_mm_dd(fecha_hasta)
+
+    match_base = {"vendedor": vendedor_username}
+
+    # filtro fechas (incluye todo el día "hasta")
+    if dt_desde or dt_hasta:
+        rango = {}
+        if dt_desde:
+            rango["$gte"] = dt_desde.replace(hour=0, minute=0, second=0, microsecond=0)
+        if dt_hasta:
+            rango["$lte"] = dt_hasta.replace(hour=23, minute=59, second=59, microsecond=999000)
+        match_base["fecha"] = rango
+
     pipeline = [
-        {"$match": {"vendedor_username": vendedor_username}},
-        {"$sort": {"fecha": -1}},
-        {"$limit": limit},
+        {"$match": match_base},
+
+        # lookup cliente
         {"$lookup": {
             "from": "clientes",
             "localField": "cliente_id",
@@ -56,16 +86,37 @@ def listar_ventas_por_cajero(vendedor_username, limit=10):
             "as": "cliente"
         }},
         {"$unwind": {"path": "$cliente", "preserveNullAndEmptyArrays": True}},
+    ]
+
+    # filtro texto por cliente (nombre, apellido, identificacion)
+    if q:
+        pipeline.append({
+            "$match": {
+                "$or": [
+                    {"cliente.nombre": {"$regex": q, "$options": "i"}},
+                    {"cliente.apellido": {"$regex": q, "$options": "i"}},
+                    {"cliente.identificacion": {"$regex": q, "$options": "i"}},
+                ]
+            }
+        })
+
+    pipeline += [
         {"$project": {
             "fecha": 1,
             "membresia": 1,
-            "vendedor_username": 1,
-            "cliente_nombre": "$cliente.nombre",
-            "cliente_identificacion": "$cliente.identificacion",
-        }}
+            "vendedor": 1,
+
+            "cliente_nombre": {"$ifNull": ["$cliente.nombre", ""]},
+            "cliente_apellido": {"$ifNull": ["$cliente.apellido", ""]},
+            "cliente_identificacion": {"$ifNull": ["$cliente.identificacion", ""]},
+            "cliente_telefono": {"$ifNull": ["$cliente.telefono", ""]},
+        }},
+        {"$sort": {"fecha": -1}},      # ✅ más reciente -> más antiguo
+        {"$limit": int(limit)},        # ✅ 20
     ]
 
     return list(ventas.aggregate(pipeline))
+
 
 
 
@@ -73,19 +124,12 @@ def resumen_ventas_hoy_por_cajero(vendedor_username):
     ventas = get_ventas_collection()
 
     ahora = datetime.now(timezone.utc)
-
     inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
     fin = ahora.replace(hour=23, minute=59, second=59, microsecond=999000)
 
-    cursor = ventas.find({
-        "vendedor_username": vendedor_username,
+    conteo = ventas.count_documents({
+        "vendedor": vendedor_username,                 # ✅ campo real
         "fecha": {"$gte": inicio, "$lte": fin}
     })
 
-    conteo = 0
-    for _ in cursor:
-        conteo += 1
-
-    return {
-        "conteo": conteo
-    }
+    return {"conteo": conteo}

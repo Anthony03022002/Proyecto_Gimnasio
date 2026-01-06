@@ -86,9 +86,10 @@
   }
 </style>
 
-{% set role = session.get("user_role") %} {% set username =
-session.get("username") or "Usuario" %} {% set initials = (username[:1] or
-"U")|upper %} {% set active = active or '' %}
+{% set role = session.get("user_role") %}
+{% set username = session.get("username") or "Usuario" %}
+{% set initials = (username[:1] or "U")|upper %}
+{% set active = active or "" %}
 
 <div class="card shadow-sm app-sidebar-card sticky-top sidebar-sticky">
   <div class="app-sidebar-header">
@@ -97,152 +98,208 @@ session.get("username") or "Usuario" %} {% set initials = (username[:1] or
       <div class="app-sidebar-meta">
         <div class="name">{{ username }}</div>
         <div class="role">
-          {% if role == "admin" %}Administrador {% elif role == "cajero"
-          %}Cajero {% elif role == "entrenador" %}Entrenador {% elif role ==
-          "cliente" %}Cliente {% else %}Usuario{% endif %}
+          {% if role == "admin" %}
+            Administrador
+          {% elif role == "cajero" %}
+            Cajero
+          {% elif role == "entrenador" %}
+            Entrenador
+          {% elif role == "cliente" %}
+            Cliente
+          {% else %}
+            Usuario
+          {% endif %}
         </div>
       </div>
     </div>
   </div>
 
   <div class="app-sidebar-list">
-    {# ---------------- ADMIN ---------------- #} {% if role == "admin" %}
-    <a
-      href="{{ url_for('web.admin_dashboard') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='admin_dashboard' %}active{% endif %}"
-    >
-      <i class="bi bi-speedometer2"></i> Dashboard
-    </a>
 
-    <a
-      href="{{ url_for('web.admin_cajeros') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='admin_cajeros' %}active{% endif %}"
-    >
-      <i class="bi bi-receipt"></i> Cajeros
-    </a>
+    {# ---------------- ADMIN ---------------- #}
+    {% if role == "admin" %}
+      <a
+        href="{{ url_for('web.admin_dashboard') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_dashboard' %}active{% endif %}"
+      >
+        <i class="bi bi-speedometer2"></i> Dashboard
+      </a>
 
-    <a
-      href="{{ url_for('web.admin_horarios') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='admin_horarios' %}active{% endif %}"
-    >
-      <i class="bi bi-calendar-week"></i> Horarios / Clases
-    </a>
+      <a
+        href="{{ url_for('web.admin_cajeros') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_cajeros' %}active{% endif %}"
+      >
+        <i class="bi bi-receipt"></i> Cajeros
+      </a>
 
-    <a
-      href="{{ url_for('web.admin_usuarios') }}"
-      class="list-group-item list-group-item-action app-sideitem"
-    >
-      <i class="bi bi-people"></i> Usuarios
-    </a>
+      <a
+        href="{{ url_for('web.admin_horarios') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_horarios' %}active{% endif %}"
+      >
+        <i class="bi bi-calendar-week"></i> Horarios
+      </a>
 
-    <a
-      href="{{ url_for('web.admin_entrenadores') }}"
-      class="list-group-item list-group-item-action app-sideitem"
-    >
-      <i class="bi bi-person-workspace"></i> Entrenadores
-    </a>
+      <a
+        href="{{ url_for('web.admin_usuarios') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_usuarios' %}active{% endif %}"
+      >
+        <i class="bi bi-people"></i> Usuarios
+      </a>
 
-    <a
-      href="{{ url_for('web.admin_clientes') }}"
-      class="list-group-item list-group-item-action app-sideitem"
-    >
-      <i class="bi bi-person-badge"></i> Clientes
-    </a>
+      <a
+        href="{{ url_for('web.admin_entrenadores') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_entrenadores' %}active{% endif %}"
+      >
+        <i class="bi bi-person-workspace"></i> Entrenadores
+      </a>
 
-    <a
-      href="{{ url_for('web.admin_configuracion') }}"
-      class="list-group-item list-group-item-action app-sideitem danger"
-    >
-      <i class="bi bi-gear"></i> Configuración
-    </a>
-    {% endif %} {# ---------------- CAJERO ---------------- #} {% if role ==
-    "cajero" %}
-    <a
-      href="{{ url_for('web.cajero_dashboard') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_dashboard' %}active{% endif %}"
-    >
-      <i class="bi bi-speedometer2"></i> Panel
-    </a>
+      <a
+        href="{{ url_for('web.admin_clientes') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_clientes' %}active{% endif %}"
+      >
+        <i class="bi bi-person-badge"></i> Clientes
+      </a>
 
-    <a
-      href="{{ url_for('web.cajero_renovar') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_renovar' %}active{% endif %}"
-    >
-      <i class="bi bi-arrow-repeat"></i> Renovar suscripción
-    </a>
+      <a
+        href="{{ url_for('web.admin_ventas_listado') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_ventas' %}active{% endif %}"
+      >
+        <i class="bi bi-list"></i> Ventas
+      </a>
 
-    <a
-      href="{{ url_for('web.horarios_publico', view='week') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
-    >
-      <i class="bi bi-calendar-week"></i> Horario
-    </a>
+      <a
+        href="{{ url_for('web.admin_publicidad') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_publicidad' %}active{% endif %}"
+      >
+        <i class="bi bi-megaphone"></i> Publicidad
+      </a>
 
-    <a
-      href="{{ url_for('web.cajero_clientes') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_clientes' %}active{% endif %}"
-    >
-      <i class="bi bi-person-lines-fill"></i> Mis clientes
-    </a>
 
-    <a
-      href="{{ url_for('web.cajero_config') }}"
-      class="list-group-item list-group-item-action app-sideitem danger {% if active=='cajero_config' %}active{% endif %}"
-    >
-      <i class="bi bi-gear"></i> Configuración
-    </a>
-    {% endif %} {# ---------------- ENTRENADOR ---------------- #} {% if role ==
-    "entrenador" %}
-    <a
-      href="{{ url_for('web.entrenador_dashboard') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='entrenador_dashboard' %}active{% endif %}"
-    >
-      <i class="bi bi-speedometer2"></i> Panel
-    </a>
+      <a
+        href="{{ url_for('web.admin_configuracion') }}"
+        class="list-group-item list-group-item-action app-sideitem danger {% if active=='admin_configuracion' %}active{% endif %}"
+      >
+        <i class="bi bi-gear"></i> Configuración
+      </a>
+    {% endif %}
 
-    <a
-      href="{{ url_for('web.horarios_publico', view='week') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
-    >
-      <i class="bi bi-calendar-week"></i> Horario / Clases
-    </a>
+    {# ---------------- CAJERO ---------------- #}
+    {% if role == "cajero" %}
+      <a
+        href="{{ url_for('web.cajero_dashboard') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_dashboard' %}active{% endif %}"
+      >
+        <i class="bi bi-speedometer2"></i> Panel
+      </a>
 
-    <a href="#" class="list-group-item list-group-item-action app-sideitem">
-      <i class="bi bi-people"></i> Mis alumnos
-    </a>
+      <a
+        href="{{ url_for('web.cajero_renovar') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_renovar' %}active{% endif %}"
+      >
+        <i class="bi bi-arrow-repeat"></i> Renovar suscripción
+      </a>
 
-    <a
-      href="{{ url_for('web.entrenador_configuracion') }}"
-      class="list-group-item list-group-item-action app-sideitem danger"
-    >
-      <i class="bi bi-gear"></i> Configuración
-    </a>
-    {% endif %} {# ---------------- CLIENTE ---------------- #} {% if role ==
-    "cliente" %}
-    <a
-      href="{{ url_for('web.cliente_dashboard') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_dashboard' %}active{% endif %}"
-    >
-      <i class="bi bi-speedometer2"></i> Mi panel
-    </a>
+      <a
+        href="{{ url_for('web.horarios_publico', view='week') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
+      >
+        <i class="bi bi-calendar-week"></i> Horario
+      </a>
 
-    <a
-      href="{{ url_for('web.horarios_publico', view='week') }}"
-      class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
-    >
-      <i class="bi bi-calendar-week"></i> Horario
-    </a>
+      <a
+        href="{{ url_for('web.cajero_clientes') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_clientes' %}active{% endif %}"
+      >
+        <i class="bi bi-person-lines-fill"></i> Clientes
+      </a>
 
-    <a href="#" class="list-group-item list-group-item-action app-sideitem">
-      <i class="bi bi-card-checklist"></i> Mi membresía
-    </a>
+      <a
+        href="{{ url_for('web.cajero_config') }}"
+        class="list-group-item list-group-item-action app-sideitem danger {% if active=='cajero_config' %}active{% endif %}"
+      >
+        <i class="bi bi-gear"></i> Configuración
+      </a>
+    {% endif %}
 
-    <a
-      href="#"
-      class="list-group-item list-group-item-action app-sideitem danger"
-    >
-      <i class="bi bi-gear"></i> Configuración
-    </a>
+    {# ---------------- ENTRENADOR ---------------- #}
+    {% if role == "entrenador" %}
+      <a
+        href="{{ url_for('web.entrenador_dashboard') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='entrenador_dashboard' %}active{% endif %}"
+      >
+        <i class="bi bi-speedometer2"></i> Panel
+      </a>
+
+      <a
+        href="{{ url_for('web.horarios_publico', view='week') }}"
+        class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
+      >
+        <i class="bi bi-calendar-week"></i> Horario / Clases
+      </a>
+
+      <a class=" list-group-item list-group-item-action app-sideitem nav-link {% if active == 'entrenador_mis_alumnos' %}active{% endif %}"
+        href="{{ url_for('web.entrenador_mis_alumnos') }}">
+        <i class="bi bi-people"></i> Mis alumnos
+      </a>
+
+      <a
+        href="{{ url_for('web.entrenador_configuracion') }}"
+        class="list-group-item list-group-item-action app-sideitem danger {% if active=='entrenador_configuracion' %}active{% endif %}"
+      >
+        <i class="bi bi-gear"></i> Configuración
+      </a>
+    {% endif %}
+
+    {# ---------------- CLIENTE ---------------- #}
+    {% if role == "cliente" %}
+
+      {% if session.get("membresia_activa") %}
+
+        <a
+          href="{{ url_for('web.cliente_dashboard') }}"
+          class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_dashboard' %}active{% endif %}"
+        >
+          <i class="bi bi-speedometer2"></i> Mi panel
+        </a>
+
+        <a
+          href="{{ url_for('web.horarios_publico', view='week') }}"
+          class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
+        >
+          <i class="bi bi-calendar-week"></i> Horario
+        </a>
+
+        <a
+          href="{{ url_for('web.cliente_membresia') }}"
+          class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_membresia' %}active{% endif %}"
+        >
+          <i class="bi bi-card-checklist"></i> Mi membresía
+        </a>
+
+        <a
+          href="{{ url_for('web.cliente_progreso') }}"
+          class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_progreso' %}active{% endif %}"
+        >
+          <i class="bi bi-graph-up"></i> Mi Progreso
+        </a>
+
+        <a
+          href="{{ url_for('web.cliente_config') }}"
+          class="list-group-item list-group-item-action app-sideitem danger {% if active=='cliente_config' %}active{% endif %}"
+        >
+          <i class="bi bi-gear"></i> Configuración
+        </a>
+      {% else %}
+
+        <a
+          href="{{ url_for('web.cliente_membresia') }}"
+          class="list-group-item list-group-item-action app-sideitem  {% if active=='cliente_membresia' %}active{% endif %}"
+        >
+          <i class="bi bi-card-checklist"></i> Mi membresía
+        </a>
+
+      {% endif %}
+
     {% endif %}
 
     <div class="app-side-divider"></div>
@@ -255,5 +312,6 @@ session.get("username") or "Usuario" %} {% set initials = (username[:1] or
         <i class="bi bi-box-arrow-right"></i> Salir
       </a>
     </div>
+
   </div>
 </div>

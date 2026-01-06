@@ -38,33 +38,61 @@
             <th>Usuario</th>
             <th>Rol</th>
             <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Estado</th>
             <th class="text-end">Acciones</th>
           </tr>
         </thead>
-       <tbody>
-        {% if usuarios %}
+        <tbody>
+          {% if usuarios %}
             {% for u in usuarios %}
-            <tr>
+              <tr>
                 <td class="fw-semibold">{{ u.username }}</td>
                 <td><span class="badge text-bg-light">{{ u.role }}</span></td>
                 <td class="text-muted">{{ u.nombre_mostrar }}</td>
-                <td class="text-end">
-                <a class="btn btn-sm btn-outline-primary"
-                    href="{{ url_for('web.admin_usuario_editar', user_id=u._id) }}">
-                    <i class="bi bi-pencil-square"></i> Editar
-                </a>
-                </td>
-            </tr>
-            {% endfor %}
-        {% else %}
-            <tr>
-            <td colspan="4" class="text-center text-muted py-3">
-                No hay usuarios.
-            </td>
-            </tr>
-        {% endif %}
-        </tbody>
+                <td class="text-muted">{{ u.apellido or '-' }}</td>
 
+                <!-- ✅ Estado -->
+                <td>
+                  {% if u.activo %}
+                    <span class="badge text-bg-success">Activo</span>
+                  {% else %}
+                    <span class="badge text-bg-secondary">Inactivo</span>
+                  {% endif %}
+                </td>
+
+                <td class="text-end">
+                  <!-- Editar -->
+                  <a class="btn btn-sm btn-outline-primary"
+                     href="{{ url_for('web.admin_usuario_editar', user_id=u._id) }}">
+                    <i class="bi bi-pencil-square"></i>
+                  </a>
+
+                  <form method="post"
+                        action="{{ url_for('web.admin_usuario_toggle_activo', user_id=u._id) }}"
+                        class="d-inline"
+                        onsubmit="return confirm('¿Cambiar estado del usuario?');">
+                    {% if u.activo %}
+                      <button class="btn btn-sm btn-outline-warning" type="submit" title="Desactivar">
+                        <i class="bi bi-pause-circle"></i>
+                      </button>
+                    {% else %}
+                      <button class="btn btn-sm btn-outline-success" type="submit" title="Activar">
+                        <i class="bi bi-play-circle"></i>
+                      </button>
+                    {% endif %}
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="6" class="text-center text-muted py-3">
+                No hay usuarios.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
       </table>
     </div>
   </div>

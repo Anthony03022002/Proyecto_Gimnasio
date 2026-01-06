@@ -7,6 +7,9 @@ from .web import web_bp
 
 def create_app():
     app = Flask(__name__, static_folder="static", template_folder="templates")
+    app.config["MAX_CONTENT_LENGTH"] = 25 * 1024 * 1024  # 25MB
+
+
     app.config.from_object(Config)
 
     # 1) Inicializamos extensiones (Mongo, bcrypt, jwt)
