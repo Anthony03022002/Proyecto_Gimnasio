@@ -28,68 +28,64 @@
         <span class="navbar-text text-light ms-auto me-3">
           {{ session['username'] }} ({{ session['user_role'] }})
         </span>
-        <a
-          class="btn btn-outline-light btn-sm"
-          href="{{ url_for('web.logout') }}"
-          >Salir</a
-        >
+        <a class="btn btn-outline-light btn-sm" href="{{ url_for('web.logout') }}">Salir</a>
         {% endif %}
       </div>
     </nav>
 
     <div class="container">
-      {% with messages = get_flashed_messages(with_categories=true) %} {% if
-      messages %} {% for category, message in messages %}
-      <div
-        class="alert alert-{{ category }} alert-dismissible fade show"
-        role="alert"
-      >
-        {{ message }}
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="alert"
-          aria-label="Close"
-        ></button>
-      </div>
-      {% endfor %} {% endif %} {% endwith %} {% block content %}{% endblock %}
+      {% with messages = get_flashed_messages(with_categories=true) %}
+        {% if messages %}
+          {% for category, message in messages %}
+            <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+              {{ message }}
+              <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+          {% endfor %}
+        {% endif %}
+      {% endwith %}
+
+      {% block content %}{% endblock %}
     </div>
 
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
     <script src="{{ url_for('static', filename='js/main.js') }}"></script>
 
-    {# ========================= ✅ MODAL PUBLICIDAD (GLOBAL)
-    ========================= #} {% if session.get("username") and
-    publicidad_activa %}
+    {# =========================
+       ✅ MODAL PUBLICIDAD (SOLO DASHBOARDS)
+       ========================= #}
+    {% if session.get("username") and publicidad_activa and show_publicidad %}
+
+    {# ✅ detectar si es video por "kind" o por extensión (por si docs viejos no tienen kind) #}
+    {% set fn = (publicidad_activa.filename or "")|lower %}
+    {% set is_video =
+        (publicidad_activa.kind == "video")
+        or fn.endswith(".mp4")
+        or fn.endswith(".webm")
+        or fn.endswith(".mov")
+        or fn.endswith(".m4v")
+        or fn.endswith(".avi")
+    %}
+
     <style>
       /* ✅ Modal más grande/ancho */
-      .modal-publicidad .modal-dialog {
-        max-width: 980px; /* ajusta: 900, 1000, 1100 */
-      }
+      .modal-publicidad .modal-dialog { max-width: 980px; }
 
       @media (max-width: 992px) {
-        .modal-publicidad .modal-dialog {
-          max-width: 95vw;
-          margin: 1rem auto;
-        }
+        .modal-publicidad .modal-dialog { max-width: 95vw; margin: 1rem auto; }
       }
 
-      /* ✅ Imagen: ocupa alto visible sin deformarse */
-      .modal-publicidad-img {
+      /* ✅ Media (img/video) */
+      .modal-publicidad-media{
         width: 100%;
-        max-height: 72vh; /* ajusta si quieres más alto: 75vh, 80vh */
-        object-fit: contain; /* para que no se recorte */
-        background: #111; /* fondo si hay espacio sobrante */
+        max-height: 72vh;
+        object-fit: contain;
+        background: #111;
         display: block;
       }
     </style>
 
-    <div
-      class="modal fade modal-publicidad"
-      id="modalPublicidad"
-      tabindex="-1"
-      aria-hidden="true"
-    >
+    <div class="modal fade modal-publicidad" id="modalPublicidad" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-dialog-centered modal-xl">
         <div class="modal-content">
           <div class="modal-header">
@@ -97,28 +93,32 @@
               <i class="bi bi-megaphone me-1"></i>
               {{ publicidad_activa.titulo or "Publicidad" }}
             </h6>
-            <button
-              type="button"
-              class="btn-close"
-              data-bs-dismiss="modal"
-              aria-label="Cerrar"
-            ></button>
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
           </div>
 
           <div class="modal-body p-0">
-            <img
-              src="{{ url_for('web.ver_publicidad_img', pub_id=publicidad_activa._id) }}"
-              alt="publicidad"
-              class="modal-publicidad-img"
-            />
+            {% if is_video %}
+              <video
+                class="modal-publicidad-media"
+                src="{{ url_for('web.ver_publicidad_media', pub_id=publicidad_activa._id) }}"
+                controls
+                autoplay
+                muted
+                loop
+                playsinline
+                preload="metadata"
+              ></video>
+            {% else %}
+              <img
+                src="{{ url_for('web.ver_publicidad_media', pub_id=publicidad_activa._id) }}"
+                alt="publicidad"
+                class="modal-publicidad-media"
+              />
+            {% endif %}
           </div>
 
           <div class="modal-footer">
-            <button
-              class="btn btn-outline-secondary"
-              type="button"
-              data-bs-dismiss="modal"
-            >
+            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">
               Cerrar
             </button>
             <button class="btn btn-primary" type="button" id="btnNoMostrarPub">

@@ -3,13 +3,17 @@ from functools import wraps
 import os
 import re
 import shutil
+from zoneinfo import ZoneInfo
 from bson import ObjectId
 from flask import abort, jsonify, render_template, redirect, send_file, url_for, request, session, flash
+
+from app.services.alertas_clientes import obtener_clientes_por_vencer
+from app.services.indicadores import _as_float_form, _build_kpi_and_chart
 from . import web_bp
 from app.services.user_service import get_users_collection, create_cajero, list_cajeros, reset_password_cliente, update_cajero, reset_password_cajero, delete_cajero, create_entrenador, list_entrenadores, update_entrenador, reset_password_entrenador, delete_entrenador
 from app.extensions import bcrypt
 from app.services.ventas_service import crear_venta, listar_ventas_por_cajero, resumen_ventas_hoy_por_cajero, get_ventas_collection
-from datetime import date, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone, time as dtime
 import time as pytime
 import app.extensions as extensions
 from app.services.horarios_semanales import (
@@ -51,7 +55,9 @@ from app.services.entrenador_config_service import (
 from app.utils.pdf_tools import optimizar_pdf
 from werkzeug.utils import secure_filename
 from app.utils.image_tools import allowed_image, optimizar_imagen
+from app.utils.media_tools import ffmpeg_disponible, optimizar_video_ffmpeg
 
+from app.utils.horarios_tools import _week_id_from_date_str, _clamp_slot_restante
 
 def _parse_date_yyyy_mm_dd(s: str):
     if not s:
@@ -162,6 +168,8 @@ def admin_dashboard():
     total_clientes = clientes.count_documents({})
     total_entrenadores = users.count_documents({"role": "entrenador"})
     total_cajeros = users.count_documents({"role": "cajero"})
+    
+    clientes_por_vencer = obtener_clientes_por_vencer(db, dias_objetivo=(2,1,0), limitar=300)
 
     ahora = datetime.now(timezone.utc)
     inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -199,8 +207,10 @@ def admin_dashboard():
     return render_template(
         "dashboard_admin.html",
         total_clientes=total_clientes,
+        show_publicidad=True,
         total_entrenadores=total_entrenadores,
         total_cajeros=total_cajeros,
+        clientes_por_vencer=clientes_por_vencer,
         ventas_hoy=ventas_hoy,
         ultimas_ventas=ultimas_ventas,
     )
@@ -1138,8 +1148,9 @@ def facturacion_nueva_post():
         flash("Fecha hasta inválida.", "danger")
         return redirect(url_for("web.facturacion_nueva"))
 
-    fecha_desde_dt = datetime.combine(fecha_desde_date, pytime.min)
-    fecha_hasta_dt = datetime.combine(fecha_hasta_date, pytime.min)
+    fecha_desde_dt = datetime.combine(fecha_desde_date, dtime.min)
+    fecha_hasta_dt = datetime.combine(fecha_hasta_date, dtime.min)
+
 
     cliente_data = {
         "identificacion": identificacion,
@@ -1173,6 +1184,7 @@ def facturacion_nueva_post():
     
 # ADMIN PUBLICIDAD
 
+
 @web_bp.get("/admin/publicidad")
 @login_required(role="admin")
 def admin_publicidad():
@@ -1195,16 +1207,24 @@ def admin_publicidad_subir():
     pub_col = db["publicidades"]
     titulo = (request.form.get("titulo") or "").strip()
 
-
-    f = request.files.get("foto")
+    # ✅ ahora se llama "archivo" (imagen o video)
+    f = request.files.get("archivo")
     if not f or not f.filename:
-        flash("No se subió ninguna imagen.", "warning")
+        flash("No se subió ningún archivo.", "warning")
         return redirect(url_for("web.admin_publicidad"))
 
-    # ✅ valida formato (usa tu helper allowed_image si ya lo tienes)
-    ext = f.filename.rsplit(".", 1)[-1].lower() if "." in f.filename else ""
-    if ext not in {"jpg", "jpeg", "png", "webp"}:
-        flash("Formato no permitido. Usa JPG, PNG o WEBP.", "danger")
+    filename = secure_filename(f.filename)
+    ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
+
+    allowed_img = {"jpg", "jpeg", "png", "webp"}
+    allowed_vid = {"mp4", "mov", "m4v", "webm", "avi"}
+
+    if ext in allowed_img:
+        kind = "image"
+    elif ext in allowed_vid:
+        kind = "video"
+    else:
+        flash("Formato no permitido. Usa imagen (JPG/PNG/WEBP) o video (MP4/MOV/WEBM).", "danger")
         return redirect(url_for("web.admin_publicidad"))
 
     base_dir = os.path.join(os.getcwd(), "uploads", "publicidad")
@@ -1212,27 +1232,49 @@ def admin_publicidad_subir():
     os.makedirs(tmp_dir, exist_ok=True)
 
     ts_tmp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-    original_name = secure_filename(f.filename)
-    tmp_path = os.path.join(tmp_dir, f"{ts_tmp}__{original_name}")
+    tmp_path = os.path.join(tmp_dir, f"{ts_tmp}__{filename}")
+
+    # guardar temporal
     f.save(tmp_path)
     try:
         f.close()
     except Exception:
         pass
 
-    # ✅ guardar como JPG optimizado
     ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    final_name = f"pub_{ts}.jpg"
+
+    # ✅ nombre final según tipo
+    if kind == "video":
+        final_name = f"pub_{ts}.mp4"  # siempre mp4 optimizado
+    else:
+        final_name = f"pub_{ts}.jpg"  # siempre jpg optimizado
+
     final_path = os.path.join(base_dir, final_name)
-    final_tmp_path = os.path.join(tmp_dir, f"__final__{ts_tmp}.jpg")
+    final_tmp_path = os.path.join(tmp_dir, f"__final__{ts_tmp}__{final_name}")
 
     try:
-        # optimiza (max_side y quality ajustables)
-        optimizar_imagen(tmp_path, final_tmp_path, max_side=1600, quality=82)
+        if kind == "video":
+            # ✅ si no hay ffmpeg (Windows), no revienta: guarda sin optimizar
+            if ffmpeg_disponible():
+                optimizar_video_ffmpeg(tmp_path, final_tmp_path)
+            else:
+                replace_with_retry(tmp_path, final_tmp_path)
+        else:
+            # ✅ optimiza imagen
+            optimizar_imagen(tmp_path, final_tmp_path, max_side=1600, quality=82)
+
         replace_with_retry(final_tmp_path, final_path)
+
     except Exception:
-        # último recurso: mover el original tal cual
-        replace_with_retry(tmp_path, final_path)
+        # último recurso: guardar el original tal cual
+        try:
+            replace_with_retry(tmp_path, final_path)
+        except Exception:
+            safe_delete_or_quarantine(tmp_path)
+            safe_delete_or_quarantine(final_tmp_path)
+            flash("No se pudo guardar la publicidad.", "danger")
+            return redirect(url_for("web.admin_publicidad"))
+
     finally:
         safe_delete_or_quarantine(tmp_path)
         safe_delete_or_quarantine(final_tmp_path)
@@ -1244,17 +1286,21 @@ def admin_publicidad_subir():
     file_size = os.path.getsize(final_path)
     rel_path = os.path.relpath(final_path, os.getcwd()).replace("\\", "/")
 
-    # ✅ por defecto: NO activar automáticamente (o si quieres, lo activamos)
     pub_col.insert_one({
+        "titulo": titulo or "Publicidad",
+        "kind": kind,                 # ✅ image / video
         "filename": final_name,
         "rel_path": rel_path,
-        "titulo": titulo or "Publicidad",
         "bytes": int(file_size),
         "activo": False,
         "creado": datetime.now(timezone.utc),
     })
 
-    flash("Publicidad subida (optimizada). Ahora puedes activarla.", "success")
+    if kind == "video" and not ffmpeg_disponible():
+        flash("Publicidad subida. (Sin FFmpeg: el video se guardó sin optimizar).", "warning")
+    else:
+        flash("Publicidad subida (optimizada). Ahora puedes activarla.", "success")
+
     return redirect(url_for("web.admin_publicidad"))
 
 
@@ -1270,7 +1316,6 @@ def admin_publicidad_activar(pub_id):
         flash("ID inválido.", "danger")
         return redirect(url_for("web.admin_publicidad"))
 
-    # ✅ solo 1 activa a la vez
     pub_col.update_many({}, {"$set": {"activo": False}})
     pub_col.update_one({"_id": pid}, {"$set": {"activo": True}})
 
@@ -1295,10 +1340,15 @@ def admin_publicidad_desactivar(pub_id):
     return redirect(url_for("web.admin_publicidad"))
 
 
+
 # CAJERO
 @web_bp.get("/cajero")
 @login_required(role="cajero")
 def cajero_dashboard():
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+
     username = session.get("username")
 
     q = (request.args.get("q") or "").strip()
@@ -1318,12 +1368,19 @@ def cajero_dashboard():
     ultima_venta_list = listar_ventas_por_cajero(username, limit=1)
     ultima_venta = ultima_venta_list[0] if ultima_venta_list else None
 
+    clientes_por_vencer = obtener_clientes_por_vencer(
+        db,
+        dias_objetivo=(2, 1, 0),
+        limitar=200
+    )
+
     return render_template(
         "dashboard_cajero.html",
         ventas=ventas,
         resumen_hoy=resumen_hoy,
+        show_publicidad=True,
         ultima_venta=ultima_venta,
-
+        clientes_por_vencer=clientes_por_vencer,
         q=q, desde=desde, hasta=hasta,
     )
 
@@ -1624,10 +1681,17 @@ def cajero_renovar_post():
 
     cliente_id = (request.form.get("cliente_id") or "").strip()
     meses_raw = (request.form.get("meses") or "").strip()
+    concepto = (request.form.get("concepto") or "").strip()
+
 
     if not cliente_id:
         flash("Selecciona un cliente.", "danger")
         return redirect(url_for("web.cajero_renovar"))
+    
+    if len(concepto) > 120:
+        flash("Concepto muy largo (máx 120 caracteres).", "danger")
+        return redirect(url_for("web.cajero_renovar", cliente_id=cliente_id))
+
 
     try:
         oid = ObjectId(cliente_id)
@@ -1681,6 +1745,7 @@ def cajero_renovar_post():
         "fecha": datetime.utcnow(),
         "vendedor": session.get("username"),
         "cliente_id": oid,
+        "concepto": concepto,
         "tipo": "renovacion",
         "membresia": {
             "meses": meses,
@@ -1727,6 +1792,98 @@ def cajero_cliente_password(cliente_id):
     return redirect(url_for("web.cajero_clientes"))
 
 
+
+@web_bp.get("/staff/slot-reservas")
+@login_required()
+def staff_slot_reservas():
+    # ✅ solo admin/cajero
+    if session.get("user_role") not in ("admin", "cajero"):
+        return jsonify({"ok": False, "error": "No autorizado"}), 403
+
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+
+    reservas_col = db["reservas"]
+
+    slot_id = (request.args.get("slot_id") or "").strip()
+    if not slot_id:
+        return jsonify({"ok": False, "error": "slot_id inválido"}), 400
+
+    pipeline = [
+        {"$match": {"slot_id": slot_id, "estado": {"$ne": "cancelada"}, "cancelada": {"$ne": True}}},
+        {"$lookup": {"from": "clientes", "localField": "cliente_id", "foreignField": "_id", "as": "cliente"}},
+        {"$unwind": {"path": "$cliente", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {"from": "users", "localField": "entrenador_id", "foreignField": "_id", "as": "entrenador"}},
+        {"$unwind": {"path": "$entrenador", "preserveNullAndEmptyArrays": True}},
+        {"$project": {
+            "_id": 0,
+            "reserva_id": {"$toString": "$_id"},
+            "cliente_nombre": {
+                "$trim": {"input": {"$concat": [
+                    {"$ifNull": ["$cliente.nombre", ""]},
+                    " ",
+                    {"$ifNull": ["$cliente.apellido", ""]}
+                ]}}
+            },
+            "cliente_identificacion": {"$ifNull": ["$cliente.identificacion", ""]},
+            "entrenador_nombre": {"$ifNull": ["$entrenador.username", "-"]},
+            "estado": {"$ifNull": ["$estado", "confirmada"]},
+        }},
+        {"$sort": {"cliente_nombre": 1}},
+    ]
+
+    rows = list(reservas_col.aggregate(pipeline))
+
+    reservas = [{
+        "reserva_id": r.get("reserva_id"),
+        "cliente": (r.get("cliente_nombre") or "-").strip() or "-",
+        "identificacion": (r.get("cliente_identificacion") or "").strip(),
+        "entrenador": (r.get("entrenador_nombre") or "-").strip(),
+        "estado": (r.get("estado") or "").strip(),
+    } for r in rows]
+
+    return jsonify({"ok": True, "slot_id": slot_id, "reservas": reservas})
+
+
+
+
+@web_bp.post("/staff/reservas/<reserva_id>/cancelar")
+@login_required()
+def staff_cancelar_reserva(reserva_id):
+    if session.get("user_role") not in ("admin", "cajero"):
+        return jsonify({"ok": False, "error": "No autorizado"}), 403
+
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+    reservas_col = db["reservas"]
+
+    try:
+        rid = ObjectId(reserva_id)
+    except Exception:
+        return jsonify({"ok": False, "error": "ID de reserva inválido"}), 400
+
+    r = reservas_col.find_one({"_id": rid})
+    if not r:
+        return jsonify({"ok": False, "error": "Reserva no existe"}), 404
+
+    if r.get("estado") == "cancelada" or r.get("cancelada") is True:
+        return jsonify({"ok": True, "estado": "cancelada"})
+
+    reservas_col.update_one(
+        {"_id": rid},
+        {"$set": {
+            "estado": "cancelada",
+            "cancelada": True,
+            "cancelada_at": datetime.now(timezone.utc),
+            "cancelada_por": session.get("username"),
+            "cancelada_por_rol": session.get("user_role"),
+        }}
+    )
+    return jsonify({"ok": True, "estado": "cancelada"})
+
+
 # ENTRENADOR
 
 @web_bp.get("/entrenador")
@@ -1744,6 +1901,7 @@ def entrenador_dashboard():
     return render_template(
         "dashboard_entrenador.html",
         entrenador=entrenador,
+        show_publicidad=True,
         ahora_local=ahora_local,
         clases_hoy=clases_hoy,
         tz=tz,
@@ -1975,6 +2133,8 @@ def entrenador_alumno_detalle(cliente_id):
 
     clientes_col = db["clientes"]
     plan_col = db["planificaciones"]
+    fotos_col = db["progreso_fotos"]
+
 
     try:
         entrenador_oid = ObjectId(session["user_id"])
@@ -1995,18 +2155,213 @@ def entrenador_alumno_detalle(cliente_id):
 
     plan = plan_col.find_one(
         {"entrenador_id": entrenador_oid, "cliente_id": cliente_oid},
-        projection={"filename": 1, "bytes": 1, "updated_at": 1, "creado": 1}
+        projection={"filename": 1, "bytes": 1, "images": 1, "updated_at": 1, "creado": 1}
     )
+    
+    medidas_col = db["progreso_medidas"]
+
+    medidas = list(
+        medidas_col.find(
+            {"cliente_id": cliente_oid, "entrenador_id": entrenador_oid},
+            projection={"fecha": 1, "peso_kg": 1, "grasa_pct": 1, "musculo_pct": 1}
+        ).sort("fecha", 1).limit(60)
+    )
+
+    latest, prev, chart_json = _build_kpi_and_chart(medidas)
+    
+    fotos_progreso = list(
+        fotos_col.find(
+            {"cliente_id": cliente_oid},
+            projection={"filename": 1, "bytes": 1, "creado": 1, "rel_path": 1}
+        ).sort("creado", -1).limit(60)
+    )
+
 
     return render_template(
         "alumno_detalle.html",
         alumno=alumno,
         cliente_id=str(cliente_oid),
         plan=plan,
+        medidas=medidas,
+        kpi_latest=latest,
+        fotos_progreso=fotos_progreso,
+        kpi_prev=prev,
+        chart_json=chart_json,
         active="entrenador_mis_alumnos",
     )
 
+@web_bp.post("/entrenador/alumno/<cliente_id>/medidas")
+@login_required(role="entrenador")
+def entrenador_medidas_crear(cliente_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
 
+    medidas_col = db["progreso_medidas"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+    except Exception:
+        flash("ID inválido.", "danger")
+        return redirect(url_for("web.entrenador_mis_alumnos"))
+
+    # seguridad: alumno pertenece al entrenador
+    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
+        flash("Ese alumno no pertenece a tu agenda.", "warning")
+        return redirect(url_for("web.entrenador_mis_alumnos"))
+
+    # valores
+    fecha_raw = (request.form.get("fecha") or "").strip()
+    peso_raw = request.form.get("peso_kg")
+    grasa_raw = request.form.get("grasa_pct")
+    musculo_raw = request.form.get("musculo_pct")
+
+    # fecha (opcional) -> si no viene, hoy UTC
+    if fecha_raw:
+        try:
+            # input type="date" => YYYY-MM-DD
+            fecha_dt = datetime.strptime(fecha_raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            flash("Fecha inválida.", "danger")
+            return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+    else:
+        fecha_dt = datetime.now(timezone.utc)
+
+    peso = _as_float_form(peso_raw, 20, 400)
+    grasa = _as_float_form(grasa_raw, 1, 80)
+    musculo = _as_float_form(musculo_raw, 1, 80)
+
+    if peso is None or grasa is None or musculo is None:
+        flash("Valores inválidos. Revisa peso, %grasa y %músculo.", "danger")
+        return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+    medidas_col.insert_one({
+        "cliente_id": cliente_oid,
+        "entrenador_id": entrenador_oid,
+        "fecha": fecha_dt,
+        "peso_kg": float(peso),
+        "grasa_pct": float(grasa),
+        "musculo_pct": float(musculo),
+    })
+
+    flash("Medición guardada.", "success")
+    return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+
+@web_bp.get("/entrenador/alumno/<cliente_id>/progreso/foto/<foto_id>")
+@login_required(role="entrenador")
+def entrenador_progreso_ver_foto(cliente_id, foto_id):
+    db = extensions.mongo_db
+    fotos_col = db["progreso_fotos"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+        fid = ObjectId(foto_id)
+    except Exception:
+        abort(400)
+
+    # ✅ seguridad: solo si el alumno pertenece al entrenador
+    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
+        abort(403)
+
+    doc = fotos_col.find_one({"_id": fid})
+    if not doc:
+        abort(404)
+
+    # ✅ la foto debe ser de ese cliente
+    if doc.get("cliente_id") != cliente_oid:
+        abort(403)
+
+    abs_path = os.path.join(os.getcwd(), doc["rel_path"])
+    if not os.path.exists(abs_path):
+        abort(404)
+
+    return send_file(abs_path, as_attachment=False)
+
+
+@web_bp.get("/entrenador/alumno/<cliente_id>/progreso/foto/<foto_id>/download")
+@login_required(role="entrenador")
+def entrenador_progreso_descargar_foto(cliente_id, foto_id):
+    db = extensions.mongo_db
+    fotos_col = db["progreso_fotos"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+        fid = ObjectId(foto_id)
+    except Exception:
+        abort(400)
+
+    # ✅ seguridad: solo si el alumno pertenece al entrenador
+    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
+        abort(403)
+
+    doc = fotos_col.find_one({"_id": fid})
+    if not doc:
+        abort(404)
+
+    # ✅ la foto debe ser de ese cliente
+    if doc.get("cliente_id") != cliente_oid:
+        abort(403)
+
+    abs_path = os.path.join(os.getcwd(), doc["rel_path"])
+    if not os.path.exists(abs_path):
+        abort(404)
+
+    filename = doc.get("filename") or "foto.jpg"
+    return send_file(abs_path, as_attachment=True, download_name=filename)
+
+
+@web_bp.post("/entrenador/alumno/<cliente_id>/progreso/foto/<foto_id>/eliminar")
+@login_required(role="entrenador")
+def entrenador_progreso_eliminar_foto(cliente_id, foto_id):
+    db = extensions.mongo_db
+    fotos_col = db["progreso_fotos"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+        fid = ObjectId(foto_id)
+    except Exception:
+        flash("ID inválido.", "danger")
+        return redirect(url_for("web.entrenador_mis_alumnos"))
+
+    # ✅ seguridad: solo si el alumno pertenece al entrenador
+    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
+        flash("Ese alumno no pertenece a tu agenda.", "warning")
+        return redirect(url_for("web.entrenador_mis_alumnos"))
+
+    doc = fotos_col.find_one({"_id": fid})
+    if not doc:
+        flash("Foto no encontrada.", "warning")
+        return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+    # ✅ la foto debe ser de ese cliente
+    if doc.get("cliente_id") != cliente_oid:
+        flash("No autorizado.", "danger")
+        return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+    # borrar archivo físico
+    rel_path = doc.get("rel_path")
+    if rel_path:
+        abs_path = os.path.join(os.getcwd(), rel_path)
+        if os.path.exists(abs_path):
+            try:
+                # usa tu helper si existe
+                safe_delete_or_quarantine(abs_path)
+            except Exception:
+                try:
+                    os.remove(abs_path)
+                except Exception:
+                    pass
+
+    # borrar doc de Mongo
+    fotos_col.delete_one({"_id": fid})
+
+    flash("Foto eliminada.", "success")
+    return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
 # Cliente
 
@@ -2080,12 +2435,20 @@ def cliente_dashboard():
     reservas_col = db["reservas"]
     noti_col = db["notificaciones"]
     users_col = db["users"]  # ✅ NUEVO (para mostrar entrenador)
+    plan_col = db["planificaciones"]
 
     user_id = session.get("user_id")
     if not user_id:
         return redirect(url_for("web.logout"))
 
     cliente_id = ObjectId(user_id)
+    
+    plan_actual = plan_col.find_one(
+        {"cliente_id": cliente_id},
+        sort=[("updated_at", -1), ("creado", -1)],
+        projection={"filename": 1, "bytes": 1, "updated_at": 1, "creado": 1, "rel_path": 1}
+    )
+
 
     # --- cliente perfil ---
     cliente = clientes_col.find_one({"_id": cliente_id})
@@ -2264,11 +2627,13 @@ def cliente_dashboard():
         "dashboard_cliente.html",
         cliente=cliente,
         membresia=membresia,
+        show_publicidad=True,
         estado_membresia=estado_membresia,
         dias_restantes=dias_restantes,
         alertas_membresia=alertas_membresia,
         clases_proximas=clases_prox,
         clases_pasadas=clases_pas,
+        plan_actual=plan_actual,
     )
 
 
@@ -2413,18 +2778,33 @@ def cliente_progreso():
     plan_actual = plan_col.find_one(
         {"cliente_id": cliente_oid},
         sort=[("updated_at", -1), ("creado", -1)],
-        projection={"filename": 1, "bytes": 1, "updated_at": 1, "creado": 1}
+        projection={"filename": 1, "rel_path": 1, "bytes": 1, "images": 1, "updated_at": 1, "creado": 1}
     )
 
     fotos = list(fotos_col.find(
         {"cliente_id": cliente_oid},
         projection={"filename": 1, "bytes": 1, "creado": 1}
     ).sort("creado", -1).limit(60))
+    
+    medidas_col = db["progreso_medidas"]
+
+    medidas = list(
+        medidas_col.find(
+            {"cliente_id": cliente_oid},
+            projection={"fecha": 1, "peso_kg": 1, "grasa_pct": 1, "musculo_pct": 1}
+        ).sort("fecha", 1).limit(90)
+    )
+
+    latest, prev, chart_json = _build_kpi_and_chart(medidas)
 
     return render_template(
         "cliente_progreso.html",
         plan_actual=plan_actual,
         fotos=fotos,
+        medidas=medidas,
+        kpi_latest=latest,
+        kpi_prev=prev,
+        chart_json=chart_json,
         active="cliente_progreso"
     )
 
@@ -2444,73 +2824,89 @@ def cliente_progreso_subir_foto():
         flash("Cliente inválido.", "danger")
         return redirect(url_for("web.logout"))
 
-    f = request.files.get("foto")
-    if not f or not f.filename:
+    files = request.files.getlist("foto")
+    files = [x for x in (files or []) if x and x.filename]
+
+    if not files:
         flash("No se subió ninguna imagen.", "warning")
         return redirect(url_for("web.cliente_progreso"))
 
-    if not allowed_image(f.filename):
-        flash("Formato no permitido. Usa JPG, PNG o WEBP.", "danger")
+    # ✅ LIMITE TOTAL (acumulado)
+    MAX_FOTOS_TOTAL = 4
+    existentes = fotos_col.count_documents({"cliente_id": cliente_oid})
+
+    if existentes >= MAX_FOTOS_TOTAL:
+        flash("Ya tienes 4 fotos registradas. Elimina una para poder subir otra.", "danger")
         return redirect(url_for("web.cliente_progreso"))
+
+    if existentes + len(files) > MAX_FOTOS_TOTAL:
+        restantes = MAX_FOTOS_TOTAL - existentes
+        flash(f"Solo puedes subir {restantes} foto(s) más. Límite total: 4.", "danger")
+        return redirect(url_for("web.cliente_progreso"))
+
+    # ✅ validar formatos
+    for f in files:
+        if not allowed_image(f.filename):
+            flash("Formato no permitido. Usa JPG, PNG o WEBP.", "danger")
+            return redirect(url_for("web.cliente_progreso"))
 
     base_dir = os.path.join(os.getcwd(), "uploads", "progreso", str(cliente_oid))
     os.makedirs(base_dir, exist_ok=True)
-
     tmp_dir = os.path.join(base_dir, "_tmp")
     os.makedirs(tmp_dir, exist_ok=True)
 
-    original_name = secure_filename(f.filename)
-    ts_tmp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-    tmp_path = os.path.join(tmp_dir, f"{ts_tmp}__{original_name}")
+    subidas_ok = 0
 
-    f.save(tmp_path)
-    try:
-        f.close()
-    except Exception:
-        pass
+    for f in files:
+        original_name = secure_filename(f.filename)
+        ts_tmp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+        tmp_path = os.path.join(tmp_dir, f"{ts_tmp}__{original_name}")
 
-    # ✅ siempre guardamos como JPG optimizado
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    final_name = f"foto_{ts}.jpg"
-    final_path = os.path.join(base_dir, final_name)
-
-    final_tmp_path = os.path.join(tmp_dir, f"__final__{ts_tmp}.jpg")
-
-    try:
-        # optimiza -> final_tmp
-        optimizar_imagen(tmp_path, final_tmp_path, max_side=1600, quality=82)
-        # mueve con retry (windows locks)
-        replace_with_retry(final_tmp_path, final_path)
-    except Exception:
-        # si falla optimización, guardamos original tal cual (pero OJO: puede ser PNG pesado)
-        # mejor guardarlo igual como jpg simple:
+        f.save(tmp_path)
         try:
-            optimizar_imagen(tmp_path, final_tmp_path, max_side=2000, quality=85)
+            f.close()
+        except Exception:
+            pass
+
+        ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
+        final_name = f"foto_{ts}.jpg"
+        final_path = os.path.join(base_dir, final_name)
+        final_tmp_path = os.path.join(tmp_dir, f"__final__{ts_tmp}.jpg")
+
+        try:
+            optimizar_imagen(tmp_path, final_tmp_path, max_side=1600, quality=82)
             replace_with_retry(final_tmp_path, final_path)
         except Exception:
-            # último recurso: guarda el archivo original con su extensión
-            # (pero así podría ser pesado)
-            replace_with_retry(tmp_path, final_path)
-    finally:
-        safe_delete_or_quarantine(tmp_path)
-        safe_delete_or_quarantine(final_tmp_path)
+            try:
+                optimizar_imagen(tmp_path, final_tmp_path, max_side=2000, quality=85)
+                replace_with_retry(final_tmp_path, final_path)
+            except Exception:
+                replace_with_retry(tmp_path, final_path)
+        finally:
+            safe_delete_or_quarantine(tmp_path)
+            safe_delete_or_quarantine(final_tmp_path)
 
-    if not os.path.exists(final_path):
-        flash("No se pudo guardar la imagen. Intenta nuevamente.", "danger")
+        if not os.path.exists(final_path):
+            continue
+
+        file_size = os.path.getsize(final_path)
+        rel_path = os.path.relpath(final_path, os.getcwd()).replace("\\", "/")
+
+        fotos_col.insert_one({
+            "cliente_id": cliente_oid,
+            "filename": final_name,
+            "rel_path": rel_path,
+            "bytes": int(file_size),
+            "creado": datetime.now(timezone.utc),
+        })
+
+        subidas_ok += 1
+
+    if subidas_ok == 0:
+        flash("No se pudo guardar ninguna imagen. Intenta nuevamente.", "danger")
         return redirect(url_for("web.cliente_progreso"))
 
-    file_size = os.path.getsize(final_path)
-    rel_path = os.path.relpath(final_path, os.getcwd()).replace("\\", "/")
-
-    fotos_col.insert_one({
-        "cliente_id": cliente_oid,
-        "filename": final_name,
-        "rel_path": rel_path,
-        "bytes": int(file_size),
-        "creado": datetime.now(timezone.utc),
-    })
-
-    flash(f"Foto subida y optimizada ({file_size/1024/1024:.2f} MB).", "success")
+    flash(f"Subidas {subidas_ok} foto(s). Total actual: {existentes + subidas_ok} / {MAX_FOTOS_TOTAL}.", "success")
     return redirect(url_for("web.cliente_progreso"))
 
 
@@ -2542,10 +2938,48 @@ def cliente_progreso_ver_foto(foto_id):
     return send_file(abs_path, as_attachment=False)
 
 
+@web_bp.post("/cliente/progreso/foto/<foto_id>/eliminar")
+@login_required(role="cliente")
+def cliente_progreso_eliminar_foto(foto_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+
+    fotos_col = db["progreso_fotos"]
+
+    try:
+        fid = ObjectId(foto_id)
+        cliente_oid = ObjectId(session["user_id"])
+    except Exception:
+        flash("ID inválido.", "danger")
+        return redirect(url_for("web.cliente_progreso"))
+
+    doc = fotos_col.find_one({"_id": fid})
+    if not doc:
+        flash("Foto no encontrada.", "warning")
+        return redirect(url_for("web.cliente_progreso"))
+
+    # ✅ permiso: solo el dueño
+    if doc.get("cliente_id") != cliente_oid:
+        flash("No tienes permisos para eliminar esta foto.", "danger")
+        return redirect(url_for("web.cliente_progreso"))
+
+    # borrar archivo físico
+    rel_path = doc.get("rel_path")
+    if rel_path:
+        abs_path = os.path.join(os.getcwd(), rel_path)
+        if os.path.exists(abs_path):
+            safe_delete_or_quarantine(abs_path)
+
+    # borrar doc en mongo
+    fotos_col.delete_one({"_id": fid})
+
+    flash("Foto eliminada.", "success")
+    return redirect(url_for("web.cliente_progreso"))
+
 
 
 # Horarios Semanales
-
 @web_bp.get("/horarios")
 @login_required()
 def horarios_publico():
@@ -2565,6 +2999,19 @@ def horarios_publico():
     except ValueError:
         d = date.today()
 
+    # ✅ helper: inicio de semana (lunes)
+    def week_start(dt_date: date) -> date:
+        return dt_date - timedelta(days=dt_date.weekday())
+
+    if view != "week":
+        view = "week"
+
+    # ✅ AHORA sí: week_dates existe antes de usarlo
+    start = week_start(d)  # lunes
+    week_dates = [start + timedelta(days=i) for i in range(7)]
+    prev_date = start - timedelta(days=7)
+    next_date = start + timedelta(days=7)
+
     cfg = get_config_semanal()
     intervalo_minutos = int(cfg.get("intervalo_minutos", 60))
     cupo_maximo = int(cfg.get("cupo_maximo", 10))
@@ -2576,26 +3023,30 @@ def horarios_publico():
         users_col.find({"role": "entrenador", "activo": True}, {"username": 1}).sort("username", 1)
     )
 
-    # ✅ slots reservados por mí (para “Reservado por ti”) cuando soy CLIENTE
     mis_slot_ids = set()
+    reserva_por_fecha = {}
+
+    # ✅ SOLO UNA VEZ (quitamos el duplicado que tenías)
     if session.get("user_role") == "cliente" and session.get("user_id"):
         cid = ObjectId(session["user_id"])
+
+        # slots reservados (para pintar "Reservado por ti")
         for r in reservas_col.find({"cliente_id": cid, "estado": "confirmada"}, {"slot_id": 1}):
             sid = r.get("slot_id")
             if sid:
                 mis_slot_ids.add(str(sid))
 
-    # helper: inicio de semana (lunes)
-    def week_start(dt_date: date) -> date:
-        return dt_date - timedelta(days=dt_date.weekday())
-
-    if view != "week":
-        view = "week"
-
-    start = week_start(d)  # lunes
-    week_dates = [start + timedelta(days=i) for i in range(7)]
-    prev_date = start - timedelta(days=7)
-    next_date = start + timedelta(days=7)
+        # reserva por fecha (para cambio de horario / etc)
+        fechas_semana = [wd.isoformat() for wd in week_dates]
+        cursor = reservas_col.find(
+            {"cliente_id": cid, "estado": "confirmada", "fecha": {"$in": fechas_semana}},
+            {"slot_id": 1, "fecha": 1}
+        )
+        for r in cursor:
+            fk = r.get("fecha")
+            sid = r.get("slot_id")
+            if fk and sid:
+                reserva_por_fecha[fk] = {"reserva_id": str(r["_id"]), "slot_id": str(sid)}
 
     week_id = start.isoformat()
     doc_week = semanas_col.find_one({"_id": week_id})
@@ -2633,11 +3084,11 @@ def horarios_publico():
         semanas_col.insert_one(doc_week)
 
     # =========================
-    # ✅ NUEVO: si soy ENTRENADOR, saco mis reservas de la semana
+    # ✅ si soy ENTRENADOR, saco mis reservas de la semana
     # =========================
     solo_mis_reservas = (session.get("user_role") == "entrenador" and session.get("user_id"))
     slot_ids_entrenador = set()
-    slot_count_entrenador = {}  # slot_id -> total reservas
+    slot_count_entrenador = {}
 
     if solo_mis_reservas:
         try:
@@ -2661,12 +3112,13 @@ def horarios_publico():
                 slot_ids_entrenador.add(sid)
                 slot_count_entrenador[sid] = int(row.get("total", 0))
 
-            # opcional: en esta vista el modal de "elegir entrenador" no tiene sentido
-            entrenadores = []  # o déjalo como estaba si lo usas en otra parte
+            # para entrenador no necesito cargar lista de entrenadores en modal
+            entrenadores = []
 
-    # ✅ construir slot_map que usa el HTML (por día -> por hora)
+    # ✅ construir slot_map que usa el HTML
     slot_map = {wd.isoformat(): {} for wd in week_dates}
     all_slots = []
+    slot_ids_semana = []
 
     for day in (doc_week.get("days") or []):
         fecha_key = day.get("date")
@@ -2675,23 +3127,18 @@ def horarios_publico():
 
         for s in (day.get("slots") or []):
             key = s.get("key") or s["inicio"].strftime("%H:%M")
+            slot_id = f"{fecha_key}|{key}"
 
-            slot_id = f"{fecha_key}|{key}"  # ✅ mismo formato que reservas.slot_id
-
-            # ✅ NUEVO: si soy entrenador -> solo mostrar slots donde tengo reservas
             if solo_mis_reservas and slot_id not in slot_ids_entrenador:
                 continue
 
-            cupo_max = int(s.get("cupo_maximo", cupo_maximo))
-            cupo_rest = int(s.get("cupo_restante", cupo_max))
-            cupo_usado = cupo_max - cupo_rest
+            slot_ids_semana.append(slot_id)
 
-            # ✅ NUEVO: si soy entrenador, cupo_usado = cantidad real de reservas del slot
-            if solo_mis_reservas:
-                cupo_usado = slot_count_entrenador.get(slot_id, 0)
+            cupo_max = int(s.get("cupo_maximo", cupo_maximo))
+            cupo_usado = slot_count_entrenador.get(slot_id, 0) if solo_mis_reservas else 0
 
             slot_map[fecha_key][key] = {
-                "_id": slot_id,              # ✅ slot_id para modal/POST
+                "_id": slot_id,
                 "inicio": s["inicio"],
                 "fin": s["fin"],
                 "cupo_maximo": cupo_max,
@@ -2700,7 +3147,28 @@ def horarios_publico():
 
             all_slots.append({"inicio": s["inicio"], "fin": s["fin"]})
 
-    # time_labels igual que antes (pero basado en slots reales del doc semanal)
+    # =========================
+    # ✅ CONTEO REAL (si NO es entrenador)
+    # =========================
+    if slot_ids_semana and not solo_mis_reservas:
+        slot_ids_semana = list(set(slot_ids_semana))
+
+        pipe_counts = [
+            {"$match": {
+                "slot_id": {"$in": slot_ids_semana},
+                "estado": {"$ne": "cancelada"},
+                "cancelada": {"$ne": True},
+            }},
+            {"$group": {"_id": "$slot_id", "usados": {"$sum": 1}}},
+        ]
+        counts = {str(x["_id"]): int(x.get("usados", 0)) for x in reservas_col.aggregate(pipe_counts)}
+
+        for fecha_key, m in slot_map.items():
+            for k, slot in m.items():
+                sid = slot.get("_id")
+                slot["cupo_usado"] = counts.get(sid, 0)
+
+    # time_labels
     def to_minute(dt):
         return dt.hour * 60 + dt.minute
 
@@ -2735,12 +3203,12 @@ def horarios_publico():
         intervalo_minutos=intervalo_minutos,
         prev_date=prev_date,
         next_date=next_date,
+        reserva_por_fecha=reserva_por_fecha,
         entrenadores=entrenadores,
         mis_slot_ids=mis_slot_ids,
-
-        # ✅ NUEVO: para mostrar botón "Ver alumnos" en el template
         solo_mis_reservas=solo_mis_reservas,
     )
+
 
 @web_bp.get("/admin/horarios")
 @login_required(role="admin")
@@ -2886,32 +3354,30 @@ def cliente_reservar():
     if db is None:
         raise RuntimeError("mongo_db no está inicializado.")
 
-    semanas_col  = db["horarios_dias"]   # docs semanales
+    semanas_col  = db["horarios_dias"]
     reservas_col = db["reservas"]
-    users_col    = db["users"]           # ✅ NUEVO: para validar entrenador
+    users_col    = db["users"]
 
-    slot_id = (request.form.get("slot_id") or "").strip()   # "YYYY-MM-DD|HH:MM"
-    entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()  # ✅ AHORA id
+    slot_id = (request.form.get("slot_id") or "").strip()  # "YYYY-MM-DD|HH:MM"
+    entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()
     fecha_ref = (request.form.get("fecha_ref") or "").strip()
 
     if not slot_id or "|" not in slot_id:
         flash("Horario inválido.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
 
-    fecha_key, slot_key = slot_id.split("|", 1)  # fecha_key="YYYY-MM-DD", slot_key="HH:MM"
+    fecha_key, slot_key = slot_id.split("|", 1)
 
     if not entrenador_id_raw:
         flash("Selecciona un entrenador.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ convertir entrenador_id a ObjectId
     try:
         entrenador_id = ObjectId(entrenador_id_raw)
     except Exception:
         flash("Entrenador inválido.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ validar que exista y sea entrenador activo
     entrenador_doc = users_col.find_one(
         {"_id": entrenador_id, "role": "entrenador", "activo": True},
         {"_id": 1, "username": 1}
@@ -2920,14 +3386,13 @@ def cliente_reservar():
         flash("Entrenador no encontrado o inactivo.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # cliente_id
     try:
         cliente_id = ObjectId(session["user_id"])
     except Exception:
         flash("Sesión inválida.", "danger")
         return redirect(url_for("web.logout"))
 
-    # ✅ REGLA: 1 reserva confirmada por día
+    # ✅ 1 reserva por día (solo confirmadas cuentan)
     ya_hoy = reservas_col.find_one({
         "cliente_id": cliente_id,
         "estado": "confirmada",
@@ -2937,49 +3402,89 @@ def cliente_reservar():
         flash("Solo puedes reservar 1 clase por día. Cancela tu reserva para agendar otra.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ evitar duplicado exacto (misma hora)
+    # ✅ evita duplicado exacto (confirmada)
     if reservas_col.find_one({"cliente_id": cliente_id, "slot_id": slot_id, "estado": "confirmada"}):
         flash("Ya tienes una reserva en ese horario.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # week_id (lunes de esa fecha)
+    # week_id (lunes de esa semana)
     try:
-        d = datetime.strptime(fecha_key, "%Y-%m-%d").date()
-    except ValueError:
+        week_id = _week_id_from_date_str(fecha_key)
+    except Exception:
         flash("Fecha inválida.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
 
-    week_start = d - timedelta(days=d.weekday())
-    week_id = week_start.isoformat()
-
-    # ✅ descontar cupo en doc semanal
-    res = semanas_col.update_one(
+    # ==========================================================
+    # ✅ NUEVO: validar que el slot exista y leer cupo_maximo real
+    # ==========================================================
+    doc_week = semanas_col.find_one(
         {"_id": week_id},
-        {"$inc": {"days.$[d].slots.$[s].cupo_restante": -1}},
-        array_filters=[
-            {"d.date": fecha_key},
-            {"s.key": slot_key, "s.cupo_restante": {"$gt": 0}},
-        ]
+        {"days": 1}
     )
-
-    if res.modified_count == 0:
-        flash("Ese horario no existe o ya no tiene cupos.", "danger")
+    if not doc_week:
+        flash("Semana no encontrada. Intenta recargar.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ crear reserva guardando entrenador_id
-    reservas_col.insert_one({
-        "cliente_id": cliente_id,
+    day_doc = None
+    for dd in (doc_week.get("days") or []):
+        if dd.get("date") == fecha_key:
+            day_doc = dd
+            break
+
+    if not day_doc:
+        flash("Día no encontrado en el horario.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    slot_doc = None
+    for ss in (day_doc.get("slots") or []):
+        k = ss.get("key") or (ss.get("inicio").strftime("%H:%M") if ss.get("inicio") else None)
+        if k == slot_key:
+            slot_doc = ss
+            break
+
+    if not slot_doc:
+        flash("Ese horario no existe.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    # cupo máximo del slot (si no hay, usa config)
+    cupo_max = int(slot_doc.get("cupo_maximo") or 0)
+    if cupo_max <= 0:
+        # fallback a config general si fuese necesario
+        cfg = get_config_semanal()
+        cupo_max = int(cfg.get("cupo_maximo", 10))
+
+    # ==========================================================
+    # ✅ NUEVO: cupos reales desde reservas confirmadas (NO canceladas)
+    # ==========================================================
+    usados = reservas_col.count_documents({
         "slot_id": slot_id,
-        "fecha": fecha_key,
-        "entrenador_id": entrenador_id,          # ✅ AQUÍ
-        # opcional: guardar username para no hacer lookup después
-        # "entrenador_username": entrenador_doc.get("username"),
         "estado": "confirmada",
-        "creado": datetime.now(timezone.utc),
+        "cancelada": {"$ne": True},
     })
+
+    if usados >= cupo_max:
+        flash("Ese horario ya no tiene cupos.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    # ✅ insertar reserva (ya no tocamos cupo_restante)
+    try:
+        reservas_col.insert_one({
+            "cliente_id": cliente_id,
+            "slot_id": slot_id,
+            "fecha": fecha_key,
+            "entrenador_id": entrenador_id,
+            "estado": "confirmada",
+            "creado": datetime.now(timezone.utc),
+        })
+    except Exception:
+        flash("No se pudo confirmar la reserva. Intenta nuevamente.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     flash("Reserva confirmada.", "success")
     return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+
+
 
 @web_bp.post("/cliente/reservas/<reserva_id>/cancelar")
 @login_required(role="cliente")
@@ -3005,17 +3510,36 @@ def cliente_cancelar_reserva(reserva_id):
         flash("Reserva inválida.", "danger")
         return redirect(url_for("web.cliente_dashboard"))
 
-    fecha_key, slot_key = slot_id.split("|", 1)
+    fecha_key, slot_key = slot_id.split("|", 1)  # fecha_key="YYYY-MM-DD", slot_key="HH:MM"
 
+    # ✅ REGLA: el cliente solo puede cancelar hasta 2 horas antes del inicio
+    TZ_EC = ZoneInfo("America/Guayaquil")
     try:
-        d = datetime.strptime(fecha_key, "%Y-%m-%d").date()
-    except ValueError:
+        inicio_local = datetime.strptime(f"{fecha_key} {slot_key}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ_EC)
+    except Exception:
+        flash("No se pudo leer la hora de la reserva.", "danger")
+        return redirect(url_for("web.cliente_dashboard"))
+
+    ahora_local = datetime.now(TZ_EC)
+    faltan = inicio_local - ahora_local
+
+    if faltan.total_seconds() <= 0:
+        flash("La clase ya inició o ya pasó. No puedes cancelar.", "warning")
+        return redirect(url_for("web.cliente_dashboard"))
+
+    if faltan.total_seconds() < 2 * 3600:
+        mins = int(faltan.total_seconds() // 60)
+        flash(f"Solo puedes cancelar hasta 2 horas antes. Faltan {mins} minuto(s).", "warning")
+        return redirect(url_for("web.cliente_dashboard"))
+
+    # ✅ desde aquí sí puede cancelar
+    try:
+        week_id = _week_id_from_date_str(fecha_key)
+    except Exception:
         flash("Fecha inválida.", "danger")
         return redirect(url_for("web.cliente_dashboard"))
 
-    week_start = d - timedelta(days=d.weekday())
-    week_id = week_start.isoformat()
-
+    # ✅ devolver cupo
     semanas_col.update_one(
         {"_id": week_id},
         {"$inc": {"days.$[d].slots.$[s].cupo_restante": 1}},
@@ -3025,13 +3549,173 @@ def cliente_cancelar_reserva(reserva_id):
         ]
     )
 
+    # ✅ marcar cancelada
     reservas_col.update_one(
         {"_id": rid},
         {"$set": {"estado": "cancelada", "cancelada_en": datetime.now(timezone.utc)}}
     )
 
+    # clamp defensivo: no pasar de cupo_maximo
+    _clamp_slot_restante(db, week_id, fecha_key, slot_key)
+
     flash("Reserva cancelada. Ya puedes agendar otra clase para ese día.", "success")
     return redirect(url_for("web.cliente_dashboard"))
+
+@web_bp.post("/cliente/reservas/<reserva_id>/cambiar")
+@login_required(role="cliente")
+def cliente_cambiar_reserva(reserva_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+
+    semanas_col  = db["horarios_dias"]
+    reservas_col = db["reservas"]
+    users_col    = db["users"]
+
+    # inputs
+    slot_id_new = (request.form.get("slot_id") or "").strip()
+    entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()
+    fecha_ref = (request.form.get("fecha_ref") or "").strip()
+
+    if not slot_id_new or "|" not in slot_id_new:
+        flash("Horario inválido.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
+
+    try:
+        cliente_id = ObjectId(session["user_id"])
+        rid = ObjectId(reserva_id)
+    except Exception:
+        flash("Solicitud inválida.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
+
+    # reserva actual
+    reserva = reservas_col.find_one({"_id": rid, "cliente_id": cliente_id, "estado": "confirmada"})
+    if not reserva:
+        flash("Reserva no encontrada o ya cancelada.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
+
+    slot_id_old = (reserva.get("slot_id") or "").strip()
+    if "|" not in slot_id_old:
+        flash("Reserva inválida.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
+
+    fecha_old, key_old = slot_id_old.split("|", 1)
+    fecha_new, key_new = slot_id_new.split("|", 1)
+
+    # ✅ para “cambiar hora”, obliga mismo día
+    if fecha_new != fecha_old:
+        flash("Solo puedes cambiar a otra hora del mismo día.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    # ✅ regla 2 horas (se basa en la hora ORIGINAL)
+    TZ_EC = ZoneInfo("America/Guayaquil")
+    try:
+        inicio_old_local = datetime.strptime(f"{fecha_old} {key_old}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ_EC)
+    except Exception:
+        flash("No se pudo leer la hora de la reserva.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    ahora_local = datetime.now(TZ_EC)
+    faltan = inicio_old_local - ahora_local
+    if faltan.total_seconds() <= 0:
+        flash("La clase ya inició o ya pasó. No puedes cambiar.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+    if faltan.total_seconds() < 2 * 3600:
+        mins = int(faltan.total_seconds() // 60)
+        flash(f"Solo puedes cambiar hasta 2 horas antes. Faltan {mins} minuto(s).", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    # entrenador (si lo quieres obligatorio también al cambiar)
+    if not entrenador_id_raw:
+        flash("Selecciona un entrenador.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    try:
+        entrenador_id = ObjectId(entrenador_id_raw)
+    except Exception:
+        flash("Entrenador inválido.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    entrenador_doc = users_col.find_one(
+        {"_id": entrenador_id, "role": "entrenador", "activo": True},
+        {"_id": 1}
+    )
+    if not entrenador_doc:
+        flash("Entrenador no encontrado o inactivo.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    # si cambia al mismo slot, no hagas nada
+    if slot_id_new == slot_id_old:
+        flash("Ya tienes esa reserva.", "info")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    # week_id
+    try:
+        week_id = _week_id_from_date_str(fecha_old)
+    except Exception:
+        flash("Fecha inválida.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    # ✅ 1) tomar cupo del NUEVO (si hay)
+    dec = semanas_col.update_one(
+        {"_id": week_id},
+        {"$inc": {"days.$[d].slots.$[s].cupo_restante": -1}},
+        array_filters=[
+            {"d.date": fecha_new},
+            {"s.key": key_new, "s.cupo_restante": {"$gt": 0}},
+        ]
+    )
+    if dec.modified_count == 0:
+        flash("Ese horario no existe o ya no tiene cupos.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    # ✅ 2) devolver cupo del VIEJO
+    semanas_col.update_one(
+        {"_id": week_id},
+        {"$inc": {"days.$[d].slots.$[s].cupo_restante": 1}},
+        array_filters=[
+            {"d.date": fecha_old},
+            {"s.key": key_old},
+        ]
+    )
+
+    # clamps defensivos
+    _clamp_slot_restante(db, week_id, fecha_old, key_old)
+    _clamp_slot_restante(db, week_id, fecha_new, key_new)
+
+    # ✅ 3) actualizar reserva
+    try:
+        reservas_col.update_one(
+            {"_id": rid, "cliente_id": cliente_id, "estado": "confirmada"},
+            {"$set": {
+                "slot_id": slot_id_new,
+                "fecha": fecha_new,
+                "entrenador_id": entrenador_id,
+                "cambiado_en": datetime.now(timezone.utc),
+                "slot_id_anterior": slot_id_old,
+            }}
+        )
+    except Exception:
+        # rollback “mejor esfuerzo”
+        semanas_col.update_one(
+            {"_id": week_id},
+            {"$inc": {"days.$[d].slots.$[s].cupo_restante": 1}},
+            array_filters=[{"d.date": fecha_new}, {"s.key": key_new}],
+        )
+        semanas_col.update_one(
+            {"_id": week_id},
+            {"$inc": {"days.$[d].slots.$[s].cupo_restante": -1}},
+            array_filters=[{"d.date": fecha_old}, {"s.key": key_old, "s.cupo_restante": {"$gt": 0}}],
+        )
+        _clamp_slot_restante(db, week_id, fecha_old, key_old)
+        _clamp_slot_restante(db, week_id, fecha_new, key_new)
+
+        flash("No se pudo cambiar la reserva. Intenta nuevamente.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    flash("Reserva cambiada correctamente.", "success")
+    return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
 
 @web_bp.get("/cliente/membresia")
 @login_required(role="cliente")
@@ -3095,16 +3779,17 @@ def cliente_membresia():
             alertas.append(mensaje)
 
         if estado == "Activa" and dias_restantes is not None:
-            if dias_restantes <= 5 and dias_restantes > 3:
+            if dias_restantes == 2:
                 push_noti(
-                    "membresia_5_dias",
-                    f"Tu membresía vence en {dias_restantes} días. Recuerda renovarla."
+                    "membresia_2_dias",
+                    "Tu membresía vence en 2 días. Recuerda renovarla."
                 )
-            elif dias_restantes <= 3 and dias_restantes >= 0:
+            elif dias_restantes == 1:
                 push_noti(
-                    "membresia_3_dias",
-                    f"⚠️ Tu membresía vence en {dias_restantes} días. Se desactivará si no renuevas."
+                    "membresia_1_dia",
+                    "⚠️ Tu membresía vence mañana. Se desactivará si no renuevas."
                 )
+
 
     return render_template(
         "cliente_membresia.html",
@@ -3268,7 +3953,6 @@ def subir_planificacion(cliente_id):
 
     plan_col = db["planificaciones"]
 
-    # entrenador logueado
     try:
         entrenador_oid = ObjectId(session["user_id"])
         cliente_oid = ObjectId(cliente_id)
@@ -3276,102 +3960,154 @@ def subir_planificacion(cliente_id):
         flash("ID inválido.", "danger")
         return redirect(url_for("web.horarios_publico"))
 
-    # seguridad: alumno con reservas del entrenador
     if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
         flash("Ese alumno no pertenece a tu agenda.", "warning")
         return redirect(url_for("web.horarios_publico"))
 
-    f = request.files.get("pdf")
-    if not f or not f.filename:
-        flash("No se subió ningún archivo.", "warning")
-        return redirect(url_for("web.horarios_publico"))
+    f_pdf = request.files.get("pdf")
+    imgs = request.files.getlist("imagenes")  # ✅ nuevo
 
-    if not _allowed_pdf(f.filename):
+    # si no subió nada
+    if (not f_pdf or not f_pdf.filename) and (not imgs or all((not x or not x.filename) for x in imgs)):
+        flash("No seleccionaste archivos para subir.", "warning")
+        return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+    # validar pdf si viene
+    if f_pdf and f_pdf.filename and not _allowed_pdf(f_pdf.filename):
         flash("Solo se permite PDF.", "danger")
-        return redirect(url_for("web.horarios_publico"))
+        return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
-    # carpeta destino
+    # validar imágenes si vienen
+    def _allowed_image(name: str) -> bool:
+        name = (name or "").lower()
+        return name.endswith((".jpg", ".jpeg", ".png", ".webp", ".gif"))
+
+    clean_imgs = [x for x in (imgs or []) if x and x.filename]
+    for im in clean_imgs:
+        if not _allowed_image(im.filename):
+            flash("Solo se permiten imágenes JPG, PNG, WEBP o GIF.", "danger")
+            return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
     base_dir = os.path.join(os.getcwd(), "uploads", "planificaciones", str(entrenador_oid), str(cliente_oid))
     os.makedirs(base_dir, exist_ok=True)
 
-    # buscar planificación anterior (para borrarla luego)
+    img_dir = os.path.join(base_dir, "imagenes")
+    os.makedirs(img_dir, exist_ok=True)
+
     old = plan_col.find_one(
         {"entrenador_id": entrenador_oid, "cliente_id": cliente_oid},
-        projection={"rel_path": 1}
-    )
+        projection={"rel_path": 1, "images": 1}
+    ) or {}
 
-    # tmp dir
-    tmp_dir = os.path.join(base_dir, "_tmp")
-    os.makedirs(tmp_dir, exist_ok=True)
+    ahora = datetime.now(timezone.utc)
 
-    # tmp único
-    original_name = secure_filename(f.filename)
-    ts_tmp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S_%f")
-    tmp_path = os.path.join(tmp_dir, f"{ts_tmp}__{original_name}")
+    update_set = {"updated_at": ahora}
+    update_on_insert = {"creado": ahora}
+    new_images_meta = None
 
-    # guardar temporal
-    f.save(tmp_path)
-    try:
-        f.close()
-    except Exception:
-        pass
+    # ======================
+    # ✅ PDF (opcional)
+    # ======================
+    if f_pdf and f_pdf.filename:
+        original_name = secure_filename(f_pdf.filename)
 
-    # ✅ FINAL con nombre único
-    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
-    final_name = f"plan_{ts}.pdf"
-    final_path = os.path.join(base_dir, final_name)
+        tmp_dir = os.path.join(base_dir, "_tmp")
+        os.makedirs(tmp_dir, exist_ok=True)
 
-    # optimiza hacia final_tmp y luego lo mueves a final_path
-    final_tmp_path = os.path.join(tmp_dir, f"__final__{ts_tmp}.pdf")
+        ts_tmp = ahora.strftime("%Y%m%d_%H%M%S_%f")
+        tmp_path = os.path.join(tmp_dir, f"{ts_tmp}__{original_name}")
 
-    try:
-        # ✅ tu optimizar_pdf YA NO debe usar linear=True (eso rompe en tu PyMuPDF)
-        optimizar_pdf(tmp_path, final_tmp_path)
+        f_pdf.save(tmp_path)
+        try:
+            f_pdf.close()
+        except Exception:
+            pass
 
-        # ✅ mover con retry (windows locks)
-        replace_with_retry(final_tmp_path, final_path)
+        ts = ahora.strftime("%Y%m%d_%H%M%S")
+        final_name = f"plan_{ts}.pdf"
+        final_path = os.path.join(base_dir, final_name)
+        final_tmp_path = os.path.join(tmp_dir, f"__final__{ts_tmp}.pdf")
 
-    except Exception:
-        # si falla optimización: usa el original como final (con retry)
-        replace_with_retry(tmp_path, final_path)
+        try:
+            optimizar_pdf(tmp_path, final_tmp_path)
+            replace_with_retry(final_tmp_path, final_path)
+        except Exception:
+            replace_with_retry(tmp_path, final_path)
+        finally:
+            safe_delete_or_quarantine(tmp_path)
+            safe_delete_or_quarantine(final_tmp_path)
 
-    finally:
-        safe_delete_or_quarantine(tmp_path)
-        safe_delete_or_quarantine(final_tmp_path)
+        if not os.path.exists(final_path):
+            flash("No se pudo guardar el PDF. Intenta nuevamente.", "danger")
+            return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
-    # validar final
-    if not os.path.exists(final_path):
-        flash("No se pudo guardar el PDF. Intenta nuevamente.", "danger")
-        return redirect(url_for("web.horarios_publico"))
+        file_size = os.path.getsize(final_path)
+        rel_path = os.path.relpath(final_path, os.getcwd()).replace("\\", "/")
 
-    file_size = os.path.getsize(final_path)
-    rel_path = os.path.relpath(final_path, os.getcwd()).replace("\\", "/")
+        # borrar anterior PDF
+        if old.get("rel_path"):
+            old_abs = os.path.join(os.getcwd(), old["rel_path"])
+            if os.path.exists(old_abs) and os.path.abspath(old_abs) != os.path.abspath(final_path):
+                safe_delete_or_quarantine(old_abs)
 
-    # borrar anterior (si existe y es distinto)
-    if old and old.get("rel_path"):
-        old_abs = os.path.join(os.getcwd(), old["rel_path"])
-        if os.path.exists(old_abs) and os.path.abspath(old_abs) != os.path.abspath(final_path):
-            safe_delete_or_quarantine(old_abs)
+        update_set.update({
+            "filename": final_name,
+            "rel_path": rel_path,
+            "bytes": int(file_size),
+        })
 
-    # ✅ upsert: 1 planificación por alumno (por entrenador) en Mongo
+    # ======================
+    # ✅ IMÁGENES (opcional)
+    # ======================
+    if clean_imgs:
+        # borrar imágenes anteriores si existen (reemplazo total)
+        for prev in (old.get("images") or []):
+            rp = prev.get("rel_path")
+            if rp:
+                prev_abs = os.path.join(os.getcwd(), rp)
+                if os.path.exists(prev_abs):
+                    safe_delete_or_quarantine(prev_abs)
+
+        new_images_meta = []
+        for im in clean_imgs:
+            safe_name = secure_filename(im.filename)
+            ts = ahora.strftime("%Y%m%d_%H%M%S_%f")
+            # conservamos extensión original
+            ext = os.path.splitext(safe_name)[1].lower() or ".jpg"
+            final_img_name = f"img_{ts}{ext}"
+            final_img_path = os.path.join(img_dir, final_img_name)
+
+            im.save(final_img_path)
+            try:
+                im.close()
+            except Exception:
+                pass
+
+            if not os.path.exists(final_img_path):
+                continue
+
+            b = os.path.getsize(final_img_path)
+            relp = os.path.relpath(final_img_path, os.getcwd()).replace("\\", "/")
+            new_images_meta.append({
+                "filename": safe_name,
+                "stored_as": final_img_name,
+                "rel_path": relp,
+                "bytes": int(b),
+                "uploaded_at": ahora,
+            })
+
+        update_set["images"] = new_images_meta
+
+    # upsert doc
     plan_col.update_one(
         {"entrenador_id": entrenador_oid, "cliente_id": cliente_oid},
-        {
-            "$set": {
-                "filename": final_name,
-                "rel_path": rel_path,
-                "bytes": int(file_size),
-                "updated_at": datetime.now(timezone.utc),
-            },
-            "$setOnInsert": {
-                "creado": datetime.now(timezone.utc),
-            }
-        },
+        {"$set": update_set, "$setOnInsert": update_on_insert},
         upsert=True
     )
 
-    flash(f"Planificación subida y optimizada ({file_size/1024/1024:.2f} MB).", "success")
-    return redirect(url_for("web.horarios_publico"))
+    flash("Planificación guardada.", "success")
+    return redirect(url_for("web.entrenador_mis_alumnos", cliente_id=str(cliente_oid)))
+
 
 
 @web_bp.get("/planificacion/<plan_id>/download")
@@ -3409,10 +4145,10 @@ def descargar_planificacion(plan_id):
     return send_file(abs_path, as_attachment=True, download_name=doc.get("filename", "plan.pdf"))
 
 
-#PUBLICIDAD
-@web_bp.get("/publicidad/<pub_id>/img")
+# PUBLICIDAD
+@web_bp.get("/publicidad/<pub_id>/media")
 @login_required()
-def ver_publicidad_img(pub_id):
+def ver_publicidad_media(pub_id):
     db = extensions.mongo_db
     pub_col = db["publicidades"]
 
@@ -3429,5 +4165,187 @@ def ver_publicidad_img(pub_id):
     if not os.path.exists(abs_path):
         abort(404)
 
-    # inline para mostrar
     return send_file(abs_path, as_attachment=False)
+
+@web_bp.get("/planificacion/<plan_id>/imagen/<int:idx>")
+@login_required()
+def ver_plan_imagen(plan_id, idx):
+    db = extensions.mongo_db
+    plan_col = db["planificaciones"]
+
+    try:
+        pid = ObjectId(plan_id)
+        uid = ObjectId(session["user_id"])
+    except Exception:
+        abort(400)
+
+    doc = plan_col.find_one({"_id": pid})
+    if not doc:
+        abort(404)
+
+    role = session.get("user_role")
+
+    # permisos
+    if role == "entrenador":
+        if doc.get("entrenador_id") != uid:
+            abort(403)
+    elif role == "cliente":
+        if doc.get("cliente_id") != uid:
+            abort(403)
+    else:
+        abort(403)
+
+    imgs = doc.get("images") or []
+    if idx < 0 or idx >= len(imgs):
+        abort(404)
+
+    abs_path = os.path.join(os.getcwd(), imgs[idx]["rel_path"])
+    if not os.path.exists(abs_path):
+        abort(404)
+
+    # inline (para que abra en pestaña y se vea)
+    return send_file(abs_path, as_attachment=False)
+
+@web_bp.post("/planificacion/<plan_id>/pdf/eliminar")
+@login_required()
+def eliminar_plan_pdf(plan_id):
+    db = extensions.mongo_db
+    plan_col = db["planificaciones"]
+
+    try:
+        pid = ObjectId(plan_id)
+        uid = ObjectId(session["user_id"])
+    except Exception:
+        abort(400)
+
+    doc = plan_col.find_one({"_id": pid})
+    if not doc:
+        abort(404)
+
+    role = session.get("user_role")
+
+    # permisos
+    if role == "entrenador":
+        if doc.get("entrenador_id") != uid:
+            abort(403)
+        redirect_to = url_for("web.entrenador_alumno_detalle", cliente_id=str(doc.get("cliente_id")))
+    elif role == "cliente":
+        if doc.get("cliente_id") != uid:
+            abort(403)
+        # ajusta si tu vista cliente se llama distinto
+        redirect_to = url_for("web.cliente_membresia_page")  # o tu página de planificación cliente
+    else:
+        abort(403)
+
+    # borrar archivo físico
+    rel_path = doc.get("rel_path")
+    if rel_path:
+        abs_path = os.path.join(os.getcwd(), rel_path)
+        if os.path.exists(abs_path):
+            safe_delete_or_quarantine(abs_path)
+
+    # quitar campos del PDF, NO toca imágenes
+    plan_col.update_one(
+        {"_id": pid},
+        {"$unset": {"filename": "", "rel_path": "", "bytes": ""}, "$set": {"updated_at": datetime.now(timezone.utc)}}
+    )
+
+    flash("PDF eliminado.", "success")
+    return redirect(redirect_to)
+
+
+@web_bp.post("/planificacion/<plan_id>/imagen/<int:idx>/eliminar")
+@login_required()
+def eliminar_plan_imagen(plan_id, idx):
+    db = extensions.mongo_db
+    plan_col = db["planificaciones"]
+
+    try:
+        pid = ObjectId(plan_id)
+        uid = ObjectId(session["user_id"])
+    except Exception:
+        abort(400)
+
+    doc = plan_col.find_one({"_id": pid})
+    if not doc:
+        abort(404)
+
+    role = session.get("user_role")
+
+    if role == "entrenador":
+        if doc.get("entrenador_id") != uid:
+            abort(403)
+        redirect_to = url_for("web.entrenador_alumno_detalle", cliente_id=str(doc.get("cliente_id")))
+    elif role == "cliente":
+        if doc.get("cliente_id") != uid:
+            abort(403)
+        redirect_to = url_for("web.cliente_membresia_page")  # ajusta a tu pantalla cliente
+    else:
+        abort(403)
+
+    imgs = doc.get("images") or []
+    if idx < 0 or idx >= len(imgs):
+        flash("Imagen no encontrada.", "warning")
+        return redirect(redirect_to)
+
+    img = imgs[idx]
+    relp = img.get("rel_path")
+    if relp:
+        abs_path = os.path.join(os.getcwd(), relp)
+        if os.path.exists(abs_path):
+            safe_delete_or_quarantine(abs_path)
+
+    # eliminar del array en Mongo (reconstruyendo lista)
+    new_imgs = [x for i, x in enumerate(imgs) if i != idx]
+
+    plan_col.update_one(
+        {"_id": pid},
+        {"$set": {"images": new_imgs, "updated_at": datetime.now(timezone.utc)}}
+    )
+
+    flash("Imagen eliminada.", "success")
+    return redirect(redirect_to)
+
+@web_bp.post("/planificacion/<plan_id>/imagenes/eliminar")
+@login_required()
+def eliminar_plan_imagenes(plan_id):
+    db = extensions.mongo_db
+    plan_col = db["planificaciones"]
+
+    try:
+        pid = ObjectId(plan_id)
+        uid = ObjectId(session["user_id"])
+    except Exception:
+        abort(400)
+
+    doc = plan_col.find_one({"_id": pid})
+    if not doc:
+        abort(404)
+
+    role = session.get("user_role")
+
+    if role == "entrenador":
+        if doc.get("entrenador_id") != uid:
+            abort(403)
+        redirect_to = url_for("web.entrenador_alumno_detalle", cliente_id=str(doc.get("cliente_id")))
+    elif role == "cliente":
+        if doc.get("cliente_id") != uid:
+            abort(403)
+        redirect_to = url_for("web.cliente_membresia_page")  # ajusta
+    else:
+        abort(403)
+
+    for img in (doc.get("images") or []):
+        relp = img.get("rel_path")
+        if relp:
+            abs_path = os.path.join(os.getcwd(), relp)
+            if os.path.exists(abs_path):
+                safe_delete_or_quarantine(abs_path)
+
+    plan_col.update_one(
+        {"_id": pid},
+        {"$unset": {"images": ""}, "$set": {"updated_at": datetime.now(timezone.utc)}}
+    )
+
+    flash("Imágenes eliminadas.", "success")
+    return redirect(redirect_to)

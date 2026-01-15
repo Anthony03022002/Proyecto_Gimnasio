@@ -1,17 +1,13 @@
-{% extends "base.html" %}
-{% block title %}Panel Cajero{% endblock %}
-
-{% block content %}
-
-{% set active = "cajero_dashboard" %}
+{% extends "base.html" %} {% block title %}Panel Cajero{% endblock %} {% block
+content %} {% set active = "cajero_dashboard" %}
 
 <div class="row g-3">
-
   {# CONTENIDO PRINCIPAL #}
   <div class="col-12 col-lg-9">
-
     {# Header móvil con botón menú #}
-    <div class="d-lg-none mb-3 d-flex justify-content-between align-items-center">
+    <div
+      class="d-lg-none mb-3 d-flex justify-content-between align-items-center"
+    >
       <h3 class="mb-0">Panel Cajero</h3>
       <button
         class="btn btn-outline-primary btn-sm"
@@ -29,7 +25,25 @@
       <h3 class="mb-2">Panel Cajero</h3>
     </div>
 
+    <button type="button"
+            class="btn btn-outline-secondary position-relative"
+            data-bs-toggle="modal"
+            data-bs-target="#modalNotiRenovaciones"
+            title="Notificaciones de renovaciones">
+      <i class="bi bi-bell"></i>
+
+      {% set noti_count = (clientes_por_vencer|length) if clientes_por_vencer is defined and clientes_por_vencer else 0 %}
+      {% if noti_count > 0 %}
+        <span class="position-absolute top-0 start-100 translate-middle badge rounded-pill text-bg-danger">
+          {{ noti_count }}
+          <span class="visually-hidden">notificaciones</span>
+        </span>
+      {% endif %}
+    </button>
+
     <p class="text-muted mb-3">Resumen de tus ventas.</p>
+
+    
 
     <div class="row g-3">
       <div class="col-6 col-md-4">
@@ -47,12 +61,12 @@
           <div class="card-body">
             <h6 class="card-subtitle mb-2 text-muted">Última venta</h6>
             {% if ultima_venta %}
-              <h6 class="mb-1">{{ ultima_venta.cliente_nombre }}</h6>
-              <p class="mb-1 small text-muted">
-                {{ ultima_venta.fecha.strftime('%d/%m/%Y') }}
-              </p>
+            <h6 class="mb-1">{{ ultima_venta.cliente_nombre }}</h6>
+            <p class="mb-1 small text-muted">
+              {{ ultima_venta.fecha.strftime('%d/%m/%Y') }}
+            </p>
             {% else %}
-              <p class="mb-0 small text-muted">Sin registros todavía</p>
+            <p class="mb-0 small text-muted">Sin registros todavía</p>
             {% endif %}
           </div>
         </div>
@@ -60,23 +74,32 @@
 
       <div class="col-12">
         <div class="card shadow-sm">
-          <div class="card-header d-flex justify-content-between align-items-center">
+          <div
+            class="card-header d-flex justify-content-between align-items-center"
+          >
             <span>Ventas</span>
-            <a href="{{ url_for('web.facturacion_nueva') }}" class="btn btn-outline-primary btn-sm">
+            <a
+              href="{{ url_for('web.facturacion_nueva') }}"
+              class="btn btn-outline-primary btn-sm"
+            >
               <i class="bi bi-plus-lg"></i> Nueva venta
             </a>
           </div>
 
           {# ✅ FILTROS #}
           <div class="p-3 border-bottom">
-            <form class="row g-2" method="get" action="{{ url_for('web.cajero_dashboard') }}">
+            <form
+              class="row g-2"
+              method="get"
+              action="{{ url_for('web.cajero_dashboard') }}"
+            >
               <div class="col-12 col-md-6">
                 <input
                   class="form-control"
                   name="q"
                   placeholder="Buscar: nombre, apellido o identificación"
                   value="{{ q or '' }}"
-                >
+                />
               </div>
 
               <div class="col-6 col-md-3">
@@ -85,7 +108,7 @@
                   class="form-control"
                   name="desde"
                   value="{{ desde or '' }}"
-                >
+                />
               </div>
 
               <div class="col-6 col-md-3">
@@ -94,11 +117,14 @@
                   class="form-control"
                   name="hasta"
                   value="{{ hasta or '' }}"
-                >
+                />
               </div>
 
               <div class="col-12 d-flex justify-content-end gap-2">
-                <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('web.cajero_dashboard') }}">
+                <a
+                  class="btn btn-outline-secondary btn-sm"
+                  href="{{ url_for('web.cajero_dashboard') }}"
+                >
                   <i class="bi bi-x-circle"></i> Limpiar
                 </a>
                 <button class="btn btn-outline-primary btn-sm" type="submit">
@@ -120,27 +146,33 @@
                   </tr>
                 </thead>
                 <tbody>
-                  {% if ventas %}
-                    {% for v in ventas %}
-                    <tr>
-                      <td>
-                        {{ v.cliente_nombre }}
-                        {% if v.cliente_apellido %} {{ v.cliente_apellido }}{% endif %}
-                        {% if v.cliente_identificacion %}
-                          <div class="text-muted small">{{ v.cliente_identificacion }}</div>
-                        {% endif %}
-                      </td>
-                      <td>{{ v.membresia.fecha_desde.strftime('%d/%m/%Y') if v.membresia else '-' }}</td>
-                      <td>{{ v.membresia.fecha_hasta.strftime('%d/%m/%Y') if v.membresia else '-' }}</td>
-                      <td>{{ v.membresia.meses if v.membresia else '-' }}</td>
-                    </tr>
-                    {% endfor %}
-                  {% else %}
-                    <tr>
-                      <td colspan="5" class="text-center text-muted py-3">
-                        No hay ventas con esos filtros.
-                      </td>
-                    </tr>
+                  {% if ventas %} {% for v in ventas %}
+                  <tr>
+                    <td>
+                      {{ v.cliente_nombre }} {% if v.cliente_apellido %} {{
+                      v.cliente_apellido }}{% endif %} {% if
+                      v.cliente_identificacion %}
+                      <div class="text-muted small">
+                        {{ v.cliente_identificacion }}
+                      </div>
+                      {% endif %}
+                    </td>
+                    <td>
+                      {{ v.membresia.fecha_desde.strftime('%d/%m/%Y') if
+                      v.membresia else '-' }}
+                    </td>
+                    <td>
+                      {{ v.membresia.fecha_hasta.strftime('%d/%m/%Y') if
+                      v.membresia else '-' }}
+                    </td>
+                    <td>{{ v.membresia.meses if v.membresia else '-' }}</td>
+                  </tr>
+                  {% endfor %} {% else %}
+                  <tr>
+                    <td colspan="5" class="text-center text-muted py-3">
+                      No hay ventas con esos filtros.
+                    </td>
+                  </tr>
                   {% endif %}
                 </tbody>
               </table>
@@ -150,19 +182,16 @@
             <div class="px-3 py-2 text-muted small">
               Mostrando máximo 20 registros (más recientes primero).
             </div>
-
           </div>
         </div>
       </div>
     </div>
-
   </div>
 
   {# SIDEBAR (DESKTOP) #}
   <div class="d-none d-lg-block col-lg-3">
     {% include "partials/sidebar_admin.html" %}
   </div>
-
 </div>
 
 {# OFFCANVAS (MÓVIL) #}
@@ -174,12 +203,96 @@
 >
   <div class="offcanvas-header">
     <h5 class="offcanvas-title" id="menuOffcanvasLabel">Menú</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+    <button
+      type="button"
+      class="btn-close"
+      data-bs-dismiss="offcanvas"
+      aria-label="Cerrar"
+    ></button>
   </div>
   <div class="offcanvas-body">
-    {# Reutilizamos el mismo menú #}
-    {% include "partials/sidebar_admin.html" %}
+    {# Reutilizamos el mismo menú #} {% include "partials/sidebar_admin.html" %}
   </div>
 </div>
 
+<div class="modal fade" id="modalNotiRenovaciones" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Clientes por renovar / no renovaron</h5>
+          <div class="text-muted small">
+            Se muestran: 2 días antes, 1 día antes, hoy y los vencidos sin renovación.
+          </div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        {% if clientes_por_vencer and clientes_por_vencer|length > 0 %}
+          <div class="table-responsive">
+            <table class="table table-sm align-middle mb-0">
+              <thead class="table-light">
+                <tr>
+                  <th>Cliente</th>
+                  <th>Cédula</th>
+                  <th>Teléfono</th>
+                  <th>Email</th>
+                  <th class="text-end">Estado</th>
+                </tr>
+              </thead>
+              <tbody>
+                {% for c in clientes_por_vencer %}
+                  <tr>
+                    <td class="fw-semibold">{{ c.nombre or '-' }}</td>
+                    <td>{{ c.identificacion or '-' }}</td>
+                    <td>{{ c.telefono or '-' }}</td>
+                    <td>{{ c.email or '-' }}</td>
+
+                    <td class="text-end">
+                      {% if c.no_renovo %}
+                        <span class="badge text-bg-danger">
+                          NO RENOVÓ (hace {{ (c.dias_restantes * -1) }} día(s))
+                        </span>
+                      {% else %}
+                        {% if c.dias_restantes == 0 %}
+                          <span class="badge text-bg-danger">VENCE HOY</span>
+                        {% elif c.dias_restantes == 1 %}
+                          <span class="badge text-bg-warning">VENCE EN 1 DÍA</span>
+                        {% elif c.dias_restantes == 2 %}
+                          <span class="badge text-bg-warning">VENCE EN 2 DÍAS</span>
+                        {% else %}
+                          <span class="badge text-bg-secondary">
+                            {{ c.dias_restantes }} día(s)
+                          </span>
+                        {% endif %}
+                      {% endif %}
+
+                      {% if c.fecha_hasta %}
+                        <div class="small text-muted mt-1">
+                          Hasta: {{ c.fecha_hasta }}
+                        </div>
+                      {% endif %}
+                    </td>
+                  </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        {% else %}
+          <div class="text-muted small">
+            No hay clientes por renovar (ni vencidos sin renovación) en este momento.
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 {% endblock %}
+

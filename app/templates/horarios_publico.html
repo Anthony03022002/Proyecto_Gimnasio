@@ -1,3 +1,4 @@
+{# templates/horarios_publico.html #}
 {% extends "base.html" %}
 {% block title %}Horarios{% endblock %}
 {% block content %}
@@ -13,6 +14,7 @@
   .cal-dayhdr .dow { font-size: .8rem; color: #6c757d; }
   .cal-dayhdr .dom { font-weight: 700; }
   .cal-today { background: #f8f9ff; }
+
   .slot-pill {
     background: #eef2ff;
     border: 1px solid #dbe4ff;
@@ -24,30 +26,18 @@
     width: 100%;
   }
   .slot-pill .cap { color: #495057; font-size: .78rem; }
+
   @media (max-width: 992px) {
-    .cal-row { grid-template-columns: 70px repeat(7, 160px); } /* scroll horizontal en móvil */
+    .cal-row { grid-template-columns: 70px repeat(7, 160px); }
     .cal-grid { overflow: auto; }
   }
-  .slot-open{
-    background:#eef2ff;
-    border-color:#dbe4ff;
-  }
-  .slot-partial{
-    background:#fff4e6;   /* naranja suave */
-    border-color:#ffd8a8;
-  }
-  .slot-full{
-    background:#ffe3e3;   /* rojo suave */
-    border-color:#ffa8a8;
-  }
-  .slot-mine{
-    background:#e6fcf5;   /* verde suave */
-    border-color:#c3fae8;
-  }
-  .slot-full,
-  .slot-full *{
-    color:#842029;
-  }
+
+  .slot-open{ background:#eef2ff; border-color:#dbe4ff; }
+  .slot-partial{ background:#fff4e6; border-color:#ffd8a8; }
+  .slot-full{ background:#ffe3e3; border-color:#ffa8a8; }
+  .slot-mine{ background:#e6fcf5; border-color:#c3fae8; }
+
+  .slot-full, .slot-full *{ color:#842029; }
 </style>
 
 <div class="d-flex justify-content-between align-items-center mb-2">
@@ -61,9 +51,9 @@
     {% endif %}
   </div>
 
-  {# navegación semanal #}
   <form method="get" action="{{ url_for('web.horarios_publico') }}" class="d-flex gap-2">
     <input type="hidden" name="view" value="week">
+
     <a class="btn btn-sm btn-outline-secondary"
        href="{{ url_for('web.horarios_publico', view='week', fecha=prev_date.isoformat()) }}">
       ←
@@ -79,7 +69,6 @@
 </div>
 
 <div class="cal-wrap shadow-sm">
-  {# Header días #}
   <div class="cal-head">
     <div class="cal-row">
       <div class="cal-cell cal-time" style="border-right:1px solid #e9ecef;border-bottom:0;">
@@ -100,7 +89,6 @@
     </div>
   </div>
 
-  {# Grid horas #}
   <div class="cal-grid">
     {% for t in time_labels %}
       <div class="cal-row">
@@ -122,28 +110,64 @@
 
               {% set is_cliente = (session.get("user_role") == "cliente") %}
               {% set is_entrenador = (session.get("user_role") == "entrenador") %}
+              {% set is_cajero = (session.get("user_role") == "cajero") %}
+              {% set is_admin  = (session.get("user_role") == "admin") %}
+
               {% set ya_reservado = (mis_slot_ids is defined and (s._id in mis_slot_ids)) %}
 
-              {# ✅ clase por estado #}
+              {# ✅ reserva del cliente para ESTE día (si existe) #}
+              {% set res_dia = (reserva_por_fecha.get(key) if reserva_por_fecha is defined else none) %}
+              {% set reserva_id_dia = (res_dia.get('reserva_id') if res_dia else '') %}
+              {% set slot_reservado_dia = (res_dia.get('slot_id') if res_dia else '') %}
+              {% set tiene_reserva_dia = (reserva_id_dia != '') %}
+
               {% set estado_class = "slot-open" %}
               {% if is_partial %}{% set estado_class = "slot-partial" %}{% endif %}
               {% if is_full %}{% set estado_class = "slot-full" %}{% endif %}
 
-              {# ✅ CLIENTE: si ya reservó -> verde #}
+              {# ==========================
+                 ✅ CLIENTE: reservado / reservar / cambiar
+                 ========================== #}
               {% if is_cliente and ya_reservado %}
                 <div class="slot-pill slot-mine">
                   <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
                   <div class="cap">Reservado por ti</div>
                 </div>
 
-              {# ✅ CLIENTE: puede reservar si hay cupo #}
               {% elif is_cliente and cupo_ok %}
+              {# ✅ si ya tiene reserva ese día, mandamos reserva_id para que el modal haga "cambio" #}
+              {% set res_dia = (reserva_por_fecha.get(key) if reserva_por_fecha is defined else none) %}
+              {% set reserva_id_dia = (res_dia.get('reserva_id') if res_dia else '') %}
+
+              <button
+                type="button"
+                class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
+                data-bs-toggle="modal"
+                data-bs-target="#modalReservar"
+                data-slot-id="{{ s._id }}"
+                data-fecha="{{ key }}"
+                data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                data-fin="{{ s.fin.strftime('%H:%M') }}"
+                data-reserva-id="{{ reserva_id_dia }}"
+              >
+                <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
+
+                {% if reserva_id_dia %}
+                  <div class="text-muted small mt-1">Clic para cambiar tu reserva (elige entrenador)</div>
+                {% else %}
+                  <div class="text-muted small mt-1">Clic para reservar</div>
+                {% endif %}
+              </button>
+
+
+              {% elif is_cliente and cupo_ok and tiene_reserva_dia %}
+                {# ✅ YA tiene reserva ese día -> CAMBIAR (NO abre modal) #}
                 <button
                   type="button"
-                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
-                  data-bs-toggle="modal"
-                  data-bs-target="#modalReservar"
-                  data-slot-id="{{ s._id }}"
+                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none btn-cambiar-slot"
+                  data-reserva-id="{{ reserva_id_dia }}"
+                  data-nuevo-slot-id="{{ s._id }}"
                   data-fecha="{{ key }}"
                   data-inicio="{{ s.inicio.strftime('%H:%M') }}"
                   data-fin="{{ s.fin.strftime('%H:%M') }}"
@@ -156,15 +180,17 @@
                   {% elif is_partial %}
                     <div class="text-muted small mt-1">Ya hay reservas</div>
                   {% else %}
-                    <div class="text-muted small mt-1">Clic para reservar</div>
+                    <div class="text-muted small mt-1">Clic para cambiar tu reserva</div>
                   {% endif %}
                 </button>
 
-              {# ✅ ENTRENADOR: ver alumnos (solo sus slots filtrados por backend) #}
+              {# ==========================
+                 ✅ ENTRENADOR
+                 ========================== #}
               {% elif is_entrenador %}
                 <button
                   type="button"
-                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none btn-ver-alumnos"
+                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
                   data-bs-toggle="modal"
                   data-bs-target="#modalAlumnos"
                   data-slot-id="{{ s._id }}"
@@ -177,7 +203,9 @@
                   <div class="text-muted small mt-1">Clic para ver alumnos</div>
                 </button>
 
-              {# ✅ ADMIN/CAJERO (y cliente cuando no puede): solo muestra estado/colores #}
+              {# ==========================
+                 ✅ OTROS ROLES
+                 ========================== #}
               {% else %}
                 <div class="slot-pill {{ estado_class }}">
                   <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
@@ -187,6 +215,22 @@
                     <div class="small mt-1">Lleno</div>
                   {% elif is_partial %}
                     <div class="text-muted small mt-1">Con reservas</div>
+                  {% endif %}
+
+                  {# ✅ ADMIN o CAJERO: ver reservas del slot #}
+                  {% if (is_cajero or is_admin) and usados > 0 %}
+                    <button
+                      type="button"
+                      class="btn btn-sm btn-outline-dark mt-2 w-100"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalReservasStaff"
+                      data-slot-id="{{ s._id }}"
+                      data-fecha="{{ key }}"
+                      data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                      data-fin="{{ s.fin.strftime('%H:%M') }}"
+                    >
+                      <i class="bi bi-people"></i> Ver reservas
+                    </button>
                   {% endif %}
                 </div>
               {% endif %}
@@ -217,6 +261,8 @@
         <div class="modal-body">
           <input type="hidden" name="slot_id" id="inpSlotId">
           <input type="hidden" name="fecha_ref" id="inpFechaRef" value="{{ fecha.isoformat() }}">
+          <input type="hidden" name="reserva_id" id="inpReservaId" value="">
+
 
           <label class="form-label">Entrenador</label>
           <select class="form-select" name="entrenador_id" required>
@@ -233,7 +279,7 @@
 
         <div class="modal-footer">
           <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-          <button class="btn btn-primary" type="submit">
+          <button class="btn btn-primary" type="submit" id="btnSubmitReservar">
             <i class="bi bi-check2-circle"></i> Reservar
           </button>
         </div>
@@ -242,9 +288,36 @@
   </div>
 </div>
 
+{# ✅ FORM OCULTO PARA CAMBIAR RESERVA (CLIENTE) #}
+<form method="post" id="formCambiarReserva" class="d-none">
+  <input type="hidden" name="slot_id" id="inpNuevoSlotId">
+  <input type="hidden" name="fecha_ref" value="{{ fecha.isoformat() }}">
+</form>
+
 <script>
-  const modal = document.getElementById('modalReservar');
-  if (modal) {
+  // --- modal reservar ---
+  (function(){
+    const modal = document.getElementById('modalReservar');
+    if (!modal) return;
+
+    const form = document.getElementById('formReservar');
+    const inpSlotId = document.getElementById('inpSlotId');
+    const inpReservaId = document.getElementById('inpReservaId');
+    const txtSlotInfo = document.getElementById('txtSlotInfo');
+
+    const aviso = document.getElementById('txtCambioAviso');
+    const txtBtn = document.getElementById('txtBtnAccion');
+    const btnSubmit = document.getElementById('btnSubmitReservar');
+
+    // URLs (ajusta si tu endpoint cambia)
+    const URL_RESERVAR = "{{ url_for('web.cliente_reservar') }}";
+    // Si tienes endpoint dedicado para cambiar:
+    const URL_CAMBIAR_TPL = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
+
+    // evita doble binding
+    if (form && form.dataset.bound === "1") return;
+    if (form) form.dataset.bound = "1";
+
     modal.addEventListener('show.bs.modal', function (event) {
       const btn = event.relatedTarget;
       if (!btn) return;
@@ -253,17 +326,83 @@
       const fecha  = btn.getAttribute('data-fecha') || '';
       const inicio = btn.getAttribute('data-inicio') || '';
       const fin    = btn.getAttribute('data-fin') || '';
+      const reservaId = btn.getAttribute('data-reserva-id') || '';
 
-      document.getElementById('inpSlotId').value = slotId;
-      document.getElementById('txtSlotInfo').textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+      if (inpSlotId) inpSlotId.value = slotId;
+      if (txtSlotInfo) txtSlotInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+
+      // ✅ si hay reservaId => es cambio
+      if (inpReservaId) inpReservaId.value = reservaId;
+
+      const esCambio = !!reservaId;
+
+      if (aviso) aviso.classList.toggle('d-none', !esCambio);
+      if (txtBtn) txtBtn.textContent = esCambio ? "Cambiar" : "Reservar";
+
+      // ✅ action del form
+      if (form) {
+        if (esCambio) {
+          // si tienes endpoint dedicado:
+          form.action = URL_CAMBIAR_TPL.replace("__RID__", encodeURIComponent(reservaId));
+          // si NO tienes endpoint dedicado y haces todo en /cliente/reservar,
+          // comenta la línea de arriba y usa:
+          // form.action = URL_RESERVAR;
+        } else {
+          form.action = URL_RESERVAR;
+        }
+      }
     });
-  }
+
+    // confirmación solo cuando es cambio
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        const reservaId = (inpReservaId && inpReservaId.value) ? inpReservaId.value : "";
+        if (reservaId) {
+          if (!confirm("¿Seguro deseas cambiar tu reserva a este horario?")) {
+            e.preventDefault();
+            return false;
+          }
+        }
+      });
+    }
+  })();
+
+  // --- cambiar reserva (clic en otro horario) ---
+  (function(){
+    const form = document.getElementById("formCambiarReserva");
+    const inpNuevo = document.getElementById("inpNuevoSlotId");
+    if (!form || !inpNuevo) return;
+
+    // ⚠️ Debe existir este endpoint en tu Flask:
+    // @web_bp.post("/cliente/reservas/<reserva_id>/cambiar")
+    const urlTpl = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-cambiar-slot");
+      if (!btn) return;
+
+      const reservaId = btn.getAttribute("data-reserva-id") || "";
+      const nuevoSlotId = btn.getAttribute("data-nuevo-slot-id") || "";
+      const fecha = btn.getAttribute("data-fecha") || "";
+      const inicio = btn.getAttribute("data-inicio") || "";
+      const fin = btn.getAttribute("data-fin") || "";
+
+      if (!reservaId || !nuevoSlotId) return;
+
+      if (!confirm(`Ya tienes una reserva el ${fecha}.\n¿Deseas cambiarla a ${inicio} - ${fin}?`)) {
+        return;
+      }
+
+      inpNuevo.value = nuevoSlotId;
+      form.action = urlTpl.replace("__RID__", encodeURIComponent(reservaId));
+      form.submit();
+    });
+  })();
 </script>
 {% endif %}
 
 {# ===========================
    ✅ MODAL ALUMNOS (ENTRENADOR)
-   Requiere endpoint: /entrenador/slot-alumnos?slot_id=...
    =========================== #}
 {% if session.get("user_role") == "entrenador" %}
 <div class="modal fade" id="modalAlumnos" tabindex="-1" aria-hidden="true">
@@ -290,12 +429,14 @@
 </div>
 
 <script>
-  const modalAlumnos = document.getElementById('modalAlumnos');
-  const alumnosList = document.getElementById('alumnosList');
-  const alumnosStatus = document.getElementById('alumnosStatus');
-  const txtInfo = document.getElementById('txtAlumnosSlotInfo');
+  (function(){
+    const modalAlumnos = document.getElementById('modalAlumnos');
+    const alumnosList = document.getElementById('alumnosList');
+    const alumnosStatus = document.getElementById('alumnosStatus');
+    const txtInfo = document.getElementById('txtAlumnosSlotInfo');
 
-  if (modalAlumnos) {
+    if (!modalAlumnos) return;
+
     modalAlumnos.addEventListener('show.bs.modal', async function (event) {
       const btn = event.relatedTarget;
       if (!btn) return;
@@ -337,7 +478,177 @@
         alumnosStatus.textContent = 'Error de red';
       }
     });
+  })();
+</script>
+{% endif %}
+
+{# ===========================
+   ✅ MODAL RESERVAS (ADMIN + CAJERO)
+   =========================== #}
+{% if session.get("user_role") in ["cajero", "admin"] %}
+<div class="modal fade" id="modalReservasStaff" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-0">Reservas del horario</h5>
+          <div class="text-muted small" id="txtReservasSlotInfo">-</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+
+      <div class="modal-body">
+        <div id="reservasStatus" class="text-muted small mb-2"></div>
+
+        <div class="table-responsive">
+          <table class="table table-sm align-middle mb-0">
+            <thead class="table-light">
+              <tr>
+                <th>Cliente</th>
+                <th>Cédula</th>
+                <th>Entrenador</th>
+                <th>Estado</th>
+                <th class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="reservasTbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  const modalReservas   = document.getElementById('modalReservasStaff');
+  const reservasTbody   = document.getElementById('reservasTbody');
+  const reservasStatus  = document.getElementById('reservasStatus');
+  const txtReservasInfo = document.getElementById('txtReservasSlotInfo');
+
+  if (!modalReservas || !reservasTbody) return;
+
+  // evita duplicar listeners
+  if (reservasTbody.dataset.bound === "1") return;
+  reservasTbody.dataset.bound = "1";
+
+  async function cargarReservas(slotId, fecha, inicio, fin){
+    if (txtReservasInfo) {
+      txtReservasInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin} | Slot: ${slotId}`;
+    }
+
+    reservasTbody.innerHTML = '';
+    if (reservasStatus) reservasStatus.textContent = 'Cargando...';
+
+    try {
+      const resp = await fetch(`/staff/slot-reservas?slot_id=${encodeURIComponent(slotId)}`);
+      const data = await resp.json();
+
+      if (!resp.ok || !data.ok) {
+        if (reservasStatus) reservasStatus.textContent = (data && data.error) ? data.error : 'Error al cargar reservas';
+        return;
+      }
+
+      const rows = data.reservas || [];
+      if (reservasStatus) reservasStatus.textContent = `${rows.length} reserva(s)`;
+
+      if (rows.length === 0) {
+        reservasTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Sin reservas</td></tr>`;
+        return;
+      }
+
+      for (const r of rows) {
+        const estado = (r.estado || '').toLowerCase();
+        const yaCancelada = (estado === 'cancelada');
+
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td class="fw-semibold">${(r.cliente || '-')}</td>
+          <td>${(r.identificacion || '-')}</td>
+          <td>${(r.entrenador || '-')}</td>
+          <td>
+            <span class="badge ${yaCancelada ? 'text-bg-secondary' : 'text-bg-success'}">
+              ${r.estado || '-'}
+            </span>
+          </td>
+          <td class="text-end">
+            <button
+              type="button"
+              class="btn btn-sm btn-outline-danger btn-cancelar-reserva"
+              data-reserva-id="${r.reserva_id}"
+              ${yaCancelada ? 'disabled' : ''}
+            >
+              <i class="bi bi-x-circle"></i> Cancelar
+            </button>
+          </td>
+        `;
+        reservasTbody.appendChild(tr);
+      }
+    } catch (e) {
+      if (reservasStatus) reservasStatus.textContent = 'Error de red';
+    }
   }
+
+  modalReservas.addEventListener('show.bs.modal', function (event) {
+    const btn = event.relatedTarget;
+    if (!btn) return;
+
+    const slotId = btn.getAttribute('data-slot-id') || '';
+    const fecha  = btn.getAttribute('data-fecha') || '';
+    const inicio = btn.getAttribute('data-inicio') || '';
+    const fin    = btn.getAttribute('data-fin') || '';
+
+    if (!slotId) return;
+    cargarReservas(slotId, fecha, inicio, fin);
+  });
+
+  reservasTbody.addEventListener("click", async (e) => {
+    const btn = e.target.closest(".btn-cancelar-reserva");
+    if (!btn) return;
+
+    const reservaId = btn.getAttribute("data-reserva-id");
+    if (!reservaId) return;
+
+    if (!confirm("¿Cancelar esta reserva?")) return;
+
+    btn.disabled = true;
+    const oldHtml = btn.innerHTML;
+    btn.innerHTML = "Cancelando...";
+
+    try {
+      const resp = await fetch(`/staff/reservas/${encodeURIComponent(reservaId)}/cancelar`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+
+      const data = await resp.json();
+      if (!resp.ok || !data.ok) {
+        alert((data && data.error) ? data.error : "No se pudo cancelar");
+        btn.disabled = false;
+        btn.innerHTML = oldHtml;
+        return;
+      }
+
+      const tr = btn.closest("tr");
+      const badge = tr ? tr.querySelector("td:nth-child(4) .badge") : null;
+      if (badge) {
+        badge.className = "badge text-bg-secondary";
+        badge.textContent = "cancelada";
+      }
+      btn.innerHTML = `<i class="bi bi-x-circle"></i> Cancelada`;
+      btn.disabled = true;
+
+    } catch (err) {
+      alert("Error de red");
+      btn.disabled = false;
+      btn.innerHTML = oldHtml;
+    }
+  });
+})();
 </script>
 {% endif %}
 
