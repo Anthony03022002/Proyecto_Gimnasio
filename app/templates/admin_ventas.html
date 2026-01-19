@@ -1,268 +1,675 @@
-{% extends "base.html" %}
-{% block title %}Admin - Ventas{% endblock %}
-{% block content %}
-
-{% set active = "admin_ventas" %}
-
-<div class="row g-3">
-
-  {# CONTENIDO PRINCIPAL #}
-  <div class="col-12 col-lg-9 mb-3">
-
-    {# Header móvil con botón menú #}
-    <div class="d-lg-none mb-3 d-flex justify-content-between align-items-center">
-      <h3 class="mb-0">Ventas</h3>
-      <button
-        class="btn btn-outline-primary btn-sm"
-        type="button"
-        data-bs-toggle="offcanvas"
-        data-bs-target="#adminMenuOffcanvas"
-        aria-controls="adminMenuOffcanvas"
-      >
-        <i class="bi bi-list"></i> Menú
-      </button>
-    </div>
-
-    {# Header desktop #}
-    <div class="d-none d-lg-block">
-      <div class="d-flex justify-content-between align-items-center mb-2">
-        <h3 class="mb-0">Ventas</h3>
-        <a href="{{ url_for('web.admin_dashboard') }}" class="btn btn-outline-secondary btn-sm">
-          <i class="bi bi-arrow-left"></i> Volver al dashboard
-        </a>
-      </div>
-    </div>
-
-    <p class="text-muted mb-3">Listado de ventas con filtros.</p>
-
-    <div class="card shadow-sm">
-
-      <div class="card-header">
-        <div class="d-flex flex-column flex-md-row gap-2 justify-content-between align-items-md-center">
-          <span class="fw-semibold">Todas las ventas</span>
-          <span class="text-muted small">
-            {% if total is defined %}{{ total }} registros{% endif %}
-          </span>
-        </div>
-      </div>
-
-      {# ✅ FILTROS #}
-      <div class="p-3 border-bottom">
-        <form class="row g-2" method="get" action="{{ url_for('web.admin_ventas_listado') }}">
-          <div class="col-12 col-md-6">
-            <label class="form-label small text-muted mb-1">Cliente (nombre / apellido / identificación)</label>
-            <input
-              class="form-control"
-              name="q"
-              placeholder="Ej: Anthony, Guamán, 1753..."
-              value="{{ q or '' }}"
-            >
-          </div>
-
-          <div class="col-6 col-md-3">
-            <label class="form-label small text-muted mb-1">Desde</label>
-            <input type="date" class="form-control" name="desde" value="{{ desde or '' }}">
-          </div>
-
-          <div class="col-6 col-md-3">
-            <label class="form-label small text-muted mb-1">Hasta</label>
-            <input type="date" class="form-control" name="hasta" value="{{ hasta or '' }}">
-          </div>
-
-          <div class="col-12 d-flex justify-content-end gap-2 mt-1">
-            <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('web.admin_ventas_listado') }}">
-              <i class="bi bi-x-circle"></i> Limpiar
-            </a>
-            <button class="btn btn-outline-primary btn-sm" type="submit">
-              <i class="bi bi-funnel"></i> Filtrar
-            </button>
-          </div>
-        </form>
-      </div>
-
-      {# ✅ TABLA #}
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Fecha</th>
-                <th>Cliente</th>
-                <th>Identificación</th>
-                <th>Teléfono</th>
-                <th>Vendedor</th>
-                <th class="text-end">Meses</th>
-                <th>Desde</th>
-                <th>Hasta</th>
-                <th class="text-end">Acciones</th>
-              </tr>
-            </thead>
-            <tbody>
-              {% if ventas %}
-                {% for v in ventas %}
-                <tr>
-                  <td>
-                    {% if v.fecha %}
-                      {{ v.fecha.strftime('%d/%m/%Y') }}
-                    {% else %}-{% endif %}
-                  </td>
-
-                  <td>
-                    {{ v.cliente_nombre or '-' }} {{ v.cliente_apellido or '' }}
-                  </td>
-
-                  <td>
-                    {{ v.cliente_identificacion or '-' }}
-                  </td>
-
-                  <td>
-                    {{ v.cliente_telefono or '-' }}
-                  </td>
-
-                  <td>
-                    {{ v.vendedor or '-' }}
-                  </td>
-
-                  <td class="text-end">
-                    {% if v.membresia and v.membresia.meses is not none %}
-                      {{ v.membresia.meses }}
-                    {% else %}-{% endif %}
-                  </td>
-
-                  <td>
-                    {% if v.membresia and v.membresia.fecha_desde %}
-                      {{ v.membresia.fecha_desde.strftime('%d/%m/%Y') }}
-                    {% else %}-{% endif %}
-                  </td>
-
-                  <td>
-                    {% if v.membresia and v.membresia.fecha_hasta %}
-                      {{ v.membresia.fecha_hasta.strftime('%d/%m/%Y') }}
-                    {% else %}-{% endif %}
-                  </td>
-
-                  <td class="text-end">
-                    {# ✅ EDITAR con MODAL #}
-                    <button
-                      type="button"
-                      class="btn btn-sm btn-outline-primary btn-edit-venta"
-                      data-bs-toggle="modal"
-                      data-bs-target="#modalEditarVenta"
-
-                      data-id="{{ v._id }}"
-                      data-fecha="{{ v.fecha.strftime('%Y-%m-%d') if v.fecha else '' }}"
-                      data-vendedor="{{ v.vendedor or '' }}"
-                      data-ident="{{ v.cliente_identificacion or '' }}"
-                      data-cliente="{{ (v.cliente_nombre or '') ~ ' ' ~ (v.cliente_apellido or '') }}"
-
-                      data-meses="{% if v.membresia and v.membresia.meses is not none %}{{ v.membresia.meses }}{% endif %}"
-                      data-desde="{{ v.membresia.fecha_desde.strftime('%Y-%m-%d') if v.membresia and v.membresia.fecha_desde else '' }}"
-                      data-hasta="{{ v.membresia.fecha_hasta.strftime('%Y-%m-%d') if v.membresia and v.membresia.fecha_hasta else '' }}"
-                      title="Editar"
-                    >
-                      <i class="bi bi-pencil"></i>
-                    </button>
-
-                    {# ✅ ELIMINAR #}
-                    <form class="d-inline"
-                          method="post"
-                          action="{{ url_for('web.admin_venta_delete', venta_id=v._id) }}"
-                          onsubmit="return confirm('¿Eliminar esta venta?');">
-                      <button class="btn btn-sm btn-outline-danger" type="submit" title="Eliminar">
-                        <i class="bi bi-trash"></i>
-                      </button>
-                    </form>
-                  </td>
-
-                </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="9" class="text-center text-muted py-3">
-                    No hay ventas con esos filtros.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
-
-        <div class="px-3 py-2 text-muted small d-flex justify-content-between align-items-center">
-          <span>Mostrando 20 por página (más recientes primero).</span>
-          {% if page is defined and total_pages is defined %}
-            <span>Página {{ page }} de {{ total_pages }}</span>
-          {% endif %}
-        </div>
-
-        {# ✅ PAGINACIÓN #}
-        {% if total_pages is defined and total_pages > 1 %}
-        <div class="p-3 pt-0">
-          <nav aria-label="Paginación ventas">
-            <ul class="pagination pagination-sm mb-0 justify-content-end">
-
-              <li class="page-item {% if page <= 1 %}disabled{% endif %}">
-                <a class="page-link"
-                   href="{{ url_for('web.admin_ventas_listado', page=page-1, q=q, desde=desde, hasta=hasta) }}">
-                  Anterior
-                </a>
-              </li>
-
-              {% set start_p = page - 2 %}
-              {% set end_p = page + 2 %}
-              {% if start_p < 1 %}{% set start_p = 1 %}{% endif %}
-              {% if end_p > total_pages %}{% set end_p = total_pages %}{% endif %}
-
-              {% for p in range(start_p, end_p + 1) %}
-                <li class="page-item {% if p == page %}active{% endif %}">
-                  <a class="page-link"
-                     href="{{ url_for('web.admin_ventas_listado', page=p, q=q, desde=desde, hasta=hasta) }}">
-                    {{ p }}
-                  </a>
-                </li>
-              {% endfor %}
-
-              <li class="page-item {% if page >= total_pages %}disabled{% endif %}">
-                <a class="page-link"
-                   href="{{ url_for('web.admin_ventas_listado', page=page+1, q=q, desde=desde, hasta=hasta) }}">
-                  Siguiente
-                </a>
-              </li>
-
-            </ul>
-          </nav>
-        </div>
-        {% endif %}
-
-      </div>
-    </div>
-  </div>
-
-  {# SIDEBAR (DESKTOP) #}
-  <div class="d-none d-lg-block col-lg-3">
-    {% include "partials/sidebar_admin.html" %}
-  </div>
-
-</div>
-
-{# OFFCANVAS (MÓVIL) #}
-<div
-  class="offcanvas offcanvas-end"
-  tabindex="-1"
-  id="adminMenuOffcanvas"
-  aria-labelledby="adminMenuOffcanvasLabel"
+{% extends "base_admin.html" %} {% block title %}Admin - Ventas{% endblock %} 
+{%
+block header %}
+<header
+  class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5"
 >
-  <div class="offcanvas-header">
-    <h5 class="offcanvas-title" id="adminMenuOffcanvasLabel">Menú</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas" aria-label="Cerrar"></button>
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Ventas</h2>
+    </div>
   </div>
-  <div class="offcanvas-body">
-    {% include "partials/sidebar_admin.html" %}
+</header>
+{% endblock %}
+ {% block content %} {% set active = "admin_ventas" %}
+
+<style>
+  /* =========================
+     UX/UI: Ventas (Dark)
+     ========================= */
+  :root {
+    --card-bg: rgba(35, 37, 39, 0.92);
+    --card-border: rgba(255, 255, 255, 0.06);
+    --muted: rgba(255, 255, 255, 0.6);
+    --muted-2: rgba(255, 255, 255, 0.45);
+    --text: rgba(255, 255, 255, 0.92);
+    --row-hover: rgba(255, 255, 255, 0.04);
+    --row-alt: rgba(255, 255, 255, 0.02);
+    --header-bg: rgba(255, 255, 255, 0.05);
+    --divider: rgba(255, 255, 255, 0.07);
+  }
+
+  .ventas-wrap {
+    padding: 18px 20px;
+  }
+  @media (min-width: 768px) {
+    .ventas-wrap {
+      padding: 24px 32px;
+    }
+  }
+
+  /* Card principal */
+  .ventas-card {
+    background: var(--card-bg);
+    border: 1px solid var(--card-border);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 14px 40px rgba(0, 0, 0, 0.35);
+  }
+
+  .ventas-topbar {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--divider);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+    justify-content: space-between;
+  }
+  .ventas-title {
+    color: var(--text);
+    font-weight: 800;
+    letter-spacing: 0.2px;
+  }
+  .ventas-sub {
+    color: var(--muted);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .ventas-count {
+    color: var(--muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  /* Filtros */
+  .ventas-filters {
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--divider);
+    background: rgba(255, 255, 255, 0.02);
+  }
+
+  /* Inputs (dark) */
+  .ventas-card .form-control,
+  .ventas-card .form-select {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: var(--text) !important;
+    border-radius: 12px !important;
+    height: 44px;
+    transition:
+      border-color 0.15s ease,
+      background 0.15s ease,
+      box-shadow 0.15s ease;
+  }
+  .ventas-card .form-control::placeholder {
+    color: var(--muted-2) !important;
+  }
+
+  .ventas-card .form-control:focus,
+  .ventas-card .form-select:focus {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.08) !important;
+  }
+
+  input[type="date"].form-control::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.8;
+  }
+
+  .ventas-card .form-label {
+    color: var(--muted);
+    font-size: 12px;
+    font-weight: 700;
+    margin-bottom: 6px;
+  }
+
+  /* Botones */
+  .btn-core {
+    height: 44px;
+    border-radius: 12px;
+    font-weight: 800;
+    letter-spacing: 0.2px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 0 14px;
+  }
+  .btn-core-outline {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.85);
+  }
+  .btn-core-outline:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba(255, 255, 255, 0.18);
+    color: #fff;
+  }
+  .btn-core-primary {
+    background: rgba(59, 130, 246, 0.18);
+    border: 1px solid rgba(59, 130, 246, 0.35);
+    color: rgba(191, 219, 254, 1);
+  }
+  .btn-core-primary:hover {
+    background: rgba(59, 130, 246, 0.26);
+    border-color: rgba(59, 130, 246, 0.45);
+    color: #fff;
+  }
+
+  /* Tabla: corrige el “blanco feo” + mejor legibilidad */
+  .table-wrap {
+    background: transparent;
+  }
+  .table-responsive {
+    background: transparent;
+    border-top: 0;
+  }
+
+  table.table-core {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    color: var(--text);
+    background: transparent;
+    margin: 0;
+  }
+
+  /* Header sticky */
+  .table-core thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: var(--header-bg);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid var(--divider);
+    padding: 14px 14px;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(255, 255, 255, 0.7);
+    white-space: nowrap;
+  }
+
+  .table-core tbody td {
+    padding: 14px 14px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.88);
+    background: transparent; /* ✅ quita blanco */
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+
+  /* Zebra + hover */
+  .table-core tbody tr:nth-child(even) {
+    background: var(--row-alt);
+  }
+  .table-core tbody tr:hover {
+    background: var(--row-hover);
+  }
+
+  /* Columnas */
+  .td-fecha {
+    font-weight: 800;
+    color: rgba(255, 255, 255, 0.92);
+  }
+  .td-cliente {
+    font-weight: 800;
+    color: #fff;
+  }
+  .td-muted {
+    color: rgba(255, 255, 255, 0.62);
+  }
+  .td-right {
+    text-align: right;
+  }
+
+  /* Badge meses */
+  .badge-meses {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    background: rgba(59, 130, 246, 0.1);
+    border: 1px solid rgba(59, 130, 246, 0.28);
+    color: rgba(191, 219, 254, 1);
+  }
+
+  /* Acciones (icon buttons) */
+  .btn-icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.92);
+    transition:
+      background 0.15s ease,
+      transform 0.1s ease,
+      border-color 0.15s ease;
+  }
+  .btn-icon:hover {
+    background: rgba(255, 255, 255, 0.1);
+    border-color: rgba(255, 255, 255, 0.18);
+    transform: translateY(-1px);
+  }
+  .btn-icon-danger {
+    background: rgba(239, 68, 68, 0.1);
+    border-color: rgba(239, 68, 68, 0.22);
+    color: rgba(252, 165, 165, 1);
+  }
+  .btn-icon-danger:hover {
+    background: rgba(239, 68, 68, 0.16);
+    border-color: rgba(239, 68, 68, 0.3);
+  }
+
+  /* Footer debajo tabla */
+  .ventas-footer {
+    padding: 12px 18px;
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+    align-items: center;
+    color: var(--muted);
+    font-size: 12px;
+    border-top: 1px solid var(--divider);
+    background: rgba(255, 255, 255, 0.015);
+  }
+
+  /* Paginación (dark) */
+  .pagination .page-link {
+    background: rgba(255, 255, 255, 0.05) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    color: rgba(255, 255, 255, 0.85) !important;
+  }
+  .pagination .page-link:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: rgba(255, 255, 255, 0.16) !important;
+  }
+  .pagination .page-item.active .page-link {
+    background: rgba(255, 255, 255, 0.16) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    color: #fff !important;
+  }
+  .pagination .page-item.disabled .page-link {
+    opacity: 0.45;
+  }
+
+  /* Scrollbar horizontal: más “pro” */
+  .table-responsive::-webkit-scrollbar {
+    height: 10px;
+  }
+  .table-responsive::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.14);
+    border-radius: 999px;
+  }
+  .table-responsive::-webkit-scrollbar-track {
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 999px;
+  }
+
+  /* ===== Modal dark (Ventas) ===== */
+  #modalEditarVenta.modal {
+    z-index: 2000;
+  }
+  .modal-backdrop {
+    z-index: 1990;
+  }
+
+  /* Fondo del modal */
+  #modalEditarVenta .modal-content {
+    background: rgba(35, 37, 39, 0.98) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 24px 80px rgba(0, 0, 0, 0.65) !important;
+    overflow: hidden;
+  }
+
+  /* Header/Footer */
+  #modalEditarVenta .modal-header,
+  #modalEditarVenta .modal-footer {
+    background: rgba(255, 255, 255, 0.02) !important;
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+
+  #modalEditarVenta .modal-title {
+    color: #fff !important;
+    font-weight: 900;
+    letter-spacing: 0.2px;
+  }
+
+  /* Texto secundario dentro del modal */
+  #modalEditarVenta .text-muted,
+  #modalEditarVenta .form-text {
+    color: rgba(255, 255, 255, 0.55) !important;
+  }
+
+  /* Botón cerrar */
+  #modalEditarVenta .btn-close {
+    filter: invert(1);
+    opacity: 0.85;
+  }
+  #modalEditarVenta .btn-close:hover {
+    opacity: 1;
+  }
+
+  /* Divisor hr */
+  #modalEditarVenta hr {
+    border-color: rgba(255, 255, 255, 0.1) !important;
+    opacity: 1 !important;
+  }
+
+  /* Labels */
+  #modalEditarVenta .form-label {
+    color: rgba(255, 255, 255, 0.7) !important;
+    font-weight: 800;
+    font-size: 12px;
+    margin-bottom: 6px;
+  }
+
+  /* Inputs/selects dark */
+  #modalEditarVenta .form-control,
+  #modalEditarVenta .form-select {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border: 1px solid rgba(255, 255, 255, 0.12) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    border-radius: 12px !important;
+    height: 44px;
+  }
+
+  #modalEditarVenta .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.45) !important;
+  }
+
+  #modalEditarVenta .form-control:focus,
+  #modalEditarVenta .form-select:focus {
+    background: rgba(255, 255, 255, 0.08) !important;
+    border-color: rgba(255, 255, 255, 0.22) !important;
+    box-shadow: 0 0 0 0.2rem rgba(255, 255, 255, 0.08) !important;
+    outline: none !important;
+  }
+
+  /* Date icon */
+  #modalEditarVenta
+    input[type="date"].form-control::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.8;
+  }
+
+  /* ✅ Fix selects: opciones visibles en tema oscuro */
+  #modalEditarVenta .form-select {
+    color-scheme: dark;
+  }
+  #modalEditarVenta .form-select option,
+  #modalEditarVenta .form-select optgroup {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+
+  /* Botones del footer (más pro) */
+  #modalEditarVenta .modal-footer .btn {
+    border-radius: 12px;
+    height: 44px;
+    font-weight: 800;
+    padding: 0 14px;
+  }
+
+  /* Mobile: reduce paddings y permite scroll cómodo */
+  @media (max-width: 576px) {
+    .ventas-topbar {
+      padding: 14px 14px;
+    }
+    .ventas-filters {
+      padding: 14px 14px;
+    }
+    .table-core thead th,
+    .table-core tbody td {
+      padding: 12px 10px;
+    }
+    .ventas-footer {
+      padding: 12px 14px;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+</style>
+
+<div class="ventas-wrap">
+  <div class="ventas-card">
+    <!-- Top bar -->
+    <div class="ventas-topbar">
+      <div>
+        <div class="ventas-title">Todas las ventas</div>
+        <div class="ventas-sub">Listado de ventas con filtros.</div>
+      </div>
+      <div class="ventas-count">
+        {% if total is defined %}{{ total }} registros{% endif %}
+      </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="ventas-filters">
+      <form
+        class="row g-3 align-items-end"
+        method="get"
+        action="{{ url_for('web.admin_ventas_listado') }}"
+      >
+        <div class="col-12 col-md-6">
+          <label class="form-label"
+            >Cliente (nombre / apellido / identificación)</label
+          >
+          <input
+            class="form-control"
+            name="q"
+            placeholder="Ej: Anthony, Guamán, 1753..."
+            value="{{ q or '' }}"
+          />
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Desde</label>
+          <input
+            type="date"
+            class="form-control"
+            name="desde"
+            value="{{ desde or '' }}"
+          />
+        </div>
+
+        <div class="col-6 col-md-3">
+          <label class="form-label">Hasta</label>
+          <input
+            type="date"
+            class="form-control"
+            name="hasta"
+            value="{{ hasta or '' }}"
+          />
+        </div>
+
+        <div class="col-12 d-flex justify-content-end gap-2">
+          <a
+            class="btn-core btn-core-outline"
+            href="{{ url_for('web.admin_ventas_listado') }}"
+          >
+            <i class="bi bi-x-circle"></i> Limpiar
+          </a>
+          <button class="btn-core btn-core-primary" type="submit">
+            <i class="bi bi-funnel"></i> Filtrar
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Tabla -->
+    <div class="table-wrap">
+      <div class="table-responsive">
+        <table class="table-core">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Cliente</th>
+              <th>Identificación</th>
+              <th>Teléfono</th>
+              <th>Vendedor</th>
+              <th class="td-right">Meses</th>
+              <th>Desde</th>
+              <th>Hasta</th>
+              <th class="td-right">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% if ventas %} {% for v in ventas %}
+            <tr>
+              <td class="td-fecha">
+                {% if v.fecha %}{{ v.fecha.strftime('%d/%m/%Y') }}{% else %}-{%
+                endif %}
+              </td>
+
+              <td class="td-cliente">
+                {{ v.cliente_nombre or '-' }} {{ v.cliente_apellido or '' }}
+              </td>
+
+              <td class="td-muted">{{ v.cliente_identificacion or '-' }}</td>
+
+              <td class="td-muted">{{ v.cliente_telefono or '-' }}</td>
+
+              <td class="td-muted">{{ v.vendedor or '-' }}</td>
+
+              <td class="td-right">
+                {% if v.membresia and v.membresia.meses is not none %}
+                <span class="badge-meses">{{ v.membresia.meses }} mes(es)</span>
+                {% else %}-{% endif %}
+              </td>
+
+              <td class="td-muted">
+                {% if v.membresia and v.membresia.fecha_desde %} {{
+                v.membresia.fecha_desde.strftime('%d/%m/%Y') }} {% else %}-{%
+                endif %}
+              </td>
+
+              <td class="td-muted">
+                {% if v.membresia and v.membresia.fecha_hasta %} {{
+                v.membresia.fecha_hasta.strftime('%d/%m/%Y') }} {% else %}-{%
+                endif %}
+              </td>
+
+              <td class="td-right">
+                <div class="d-inline-flex gap-2">
+                  <!-- Editar -->
+                  <button
+                    type="button"
+                    class="btn-icon btn-edit-venta"
+                    data-bs-toggle="modal"
+                    data-bs-target="#modalEditarVenta"
+                    data-id="{{ v._id }}"
+                    data-fecha="{{ v.fecha.strftime('%Y-%m-%d') if v.fecha else '' }}"
+                    data-vendedor="{{ v.vendedor or '' }}"
+                    data-ident="{{ v.cliente_identificacion or '' }}"
+                    data-cliente="{{ (v.cliente_nombre or '') ~ ' ' ~ (v.cliente_apellido or '') }}"
+                    data-meses="{% if v.membresia and v.membresia.meses is not none %}{{ v.membresia.meses }}{% endif %}"
+                    data-desde="{{ v.membresia.fecha_desde.strftime('%Y-%m-%d') if v.membresia and v.membresia.fecha_desde else '' }}"
+                    data-hasta="{{ v.membresia.fecha_hasta.strftime('%Y-%m-%d') if v.membresia and v.membresia.fecha_hasta else '' }}"
+                    title="Editar"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+
+                  <!-- Eliminar -->
+                  <form
+                    class="d-inline"
+                    method="post"
+                    action="{{ url_for('web.admin_venta_delete', venta_id=v._id) }}"
+                    onsubmit="return confirm('¿Eliminar esta venta?');"
+                  >
+                    <button
+                      class="btn-icon btn-icon-danger"
+                      type="submit"
+                      title="Eliminar"
+                    >
+                      <i class="bi bi-trash"></i>
+                    </button>
+                  </form>
+                </div>
+              </td>
+            </tr>
+            {% endfor %} {% else %}
+            <tr>
+              <td
+                colspan="9"
+                class="td-muted"
+                style="padding: 18px; text-align: center"
+              >
+                No hay ventas con esos filtros.
+              </td>
+            </tr>
+            {% endif %}
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Footer -->
+      <div class="ventas-footer">
+        <span>Mostrando 20 por página (más recientes primero).</span>
+        {% if page is defined and total_pages is defined %}
+        <span>Página {{ page }} de {{ total_pages }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Paginación -->
+      {% if total_pages is defined and total_pages > 1 %}
+      <div style="padding: 14px 18px; padding-top: 0">
+        <nav aria-label="Paginación ventas">
+          <ul class="pagination pagination-sm mb-0 justify-content-end">
+            <li class="page-item {% if page <= 1 %}disabled{% endif %}">
+              <a
+                class="page-link"
+                href="{{ url_for('web.admin_ventas_listado', page=page-1, q=q, desde=desde, hasta=hasta) }}"
+              >
+                Anterior
+              </a>
+            </li>
+
+            {% set start_p = page - 2 %} {% set end_p = page + 2 %} {% if
+            start_p < 1 %}{% set start_p = 1 %}{% endif %} {% if end_p >
+            total_pages %}{% set end_p = total_pages %}{% endif %} {% for p in
+            range(start_p, end_p + 1) %}
+            <li class="page-item {% if p == page %}active{% endif %}">
+              <a
+                class="page-link"
+                href="{{ url_for('web.admin_ventas_listado', page=p, q=q, desde=desde, hasta=hasta) }}"
+              >
+                {{ p }}
+              </a>
+            </li>
+            {% endfor %}
+
+            <li
+              class="page-item {% if page >= total_pages %}disabled{% endif %}"
+            >
+              <a
+                class="page-link"
+                href="{{ url_for('web.admin_ventas_listado', page=page+1, q=q, desde=desde, hasta=hasta) }}"
+              >
+                Siguiente
+              </a>
+            </li>
+          </ul>
+        </nav>
+      </div>
+      {% endif %}
+    </div>
   </div>
 </div>
 
-{# ===========================
-   ✅ MODAL EDITAR VENTA
-   =========================== #}
+{# =========================== ✅ MODAL EDITAR VENTA ===========================
+#}
 <div class="modal fade" id="modalEditarVenta" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-scrollable">
     <div class="modal-content">
@@ -272,15 +679,24 @@
             <h5 class="modal-title mb-0">Editar venta</h5>
             <div class="text-muted small" id="txtVentaCliente">Cliente: -</div>
           </div>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+          <button
+            type="button"
+            class="btn-close"
+            data-bs-dismiss="modal"
+            aria-label="Cerrar"
+          ></button>
         </div>
 
         <div class="modal-body">
           <div class="row g-3">
-
             <div class="col-12 col-md-4">
               <label class="form-label">Fecha (venta)</label>
-              <input type="date" class="form-control" name="fecha" id="inpFecha">
+              <input
+                type="date"
+                class="form-control"
+                name="fecha"
+                id="inpFecha"
+              />
               <div class="form-text">Si lo dejas vacío, no cambia.</div>
             </div>
 
@@ -289,39 +705,68 @@
               <select class="form-select" name="vendedor" id="selVendedor">
                 <option value="">-- Selecciona --</option>
                 {% for c in cajeros %}
-                  <option value="{{ c.username }}">{{ c.username }}</option>
+                <option value="{{ c.username }}">{{ c.username }}</option>
                 {% endfor %}
               </select>
             </div>
 
             <div class="col-12 col-md-4">
               <label class="form-label">Identificación cliente</label>
-              <input type="text" class="form-control" name="cliente_identificacion" id="inpIdent" required>
-              <div class="form-text">Cambiar esto reasigna la venta a otro cliente.</div>
+              <input
+                type="text"
+                class="form-control"
+                name="cliente_identificacion"
+                id="inpIdent"
+                required
+              />
+              <div class="form-text">
+                Cambiar esto reasigna la venta a otro cliente.
+              </div>
             </div>
 
-            <hr class="my-2">
+            <hr class="my-2" />
 
             <div class="col-12 col-md-4">
               <label class="form-label">Meses</label>
-              <input type="number" min="0" class="form-control" name="meses" id="inpMeses">
+              <input
+                type="number"
+                min="0"
+                class="form-control"
+                name="meses"
+                id="inpMeses"
+              />
             </div>
 
             <div class="col-12 col-md-4">
               <label class="form-label">Desde</label>
-              <input type="date" class="form-control" name="fecha_desde" id="inpDesde">
+              <input
+                type="date"
+                class="form-control"
+                name="fecha_desde"
+                id="inpDesde"
+              />
             </div>
 
             <div class="col-12 col-md-4">
               <label class="form-label">Hasta</label>
-              <input type="date" class="form-control" name="fecha_hasta" id="inpHasta">
+              <input
+                type="date"
+                class="form-control"
+                name="fecha_hasta"
+                id="inpHasta"
+              />
             </div>
-
           </div>
         </div>
 
         <div class="modal-footer">
-          <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+          <button
+            class="btn btn-outline-secondary"
+            type="button"
+            data-bs-dismiss="modal"
+          >
+            Cancelar
+          </button>
           <button class="btn btn-primary" type="submit">
             <i class="bi bi-save"></i> Guardar cambios
           </button>
@@ -332,37 +777,35 @@
 </div>
 
 <script>
-  // plantilla de URL para POST editar
-  const editUrlTemplate = "{{ url_for('web.admin_venta_edit_post', venta_id='__VID__') }}";
+  const editUrlTemplate =
+    "{{ url_for('web.admin_venta_edit_post', venta_id='__VID__') }}";
 
-  const modal = document.getElementById('modalEditarVenta');
-  modal.addEventListener('show.bs.modal', function (event) {
+  const modal = document.getElementById("modalEditarVenta");
+  modal.addEventListener("show.bs.modal", function (event) {
     const btn = event.relatedTarget;
     if (!btn) return;
 
-    const id = btn.getAttribute('data-id') || '';
-    const fecha = btn.getAttribute('data-fecha') || '';
-    const vendedor = btn.getAttribute('data-vendedor') || '';
-    const ident = btn.getAttribute('data-ident') || '';
-    const clienteTxt = btn.getAttribute('data-cliente') || '-';
-    const meses = btn.getAttribute('data-meses') || '';
-    const desde = btn.getAttribute('data-desde') || '';
-    const hasta = btn.getAttribute('data-hasta') || '';
+    const id = btn.getAttribute("data-id") || "";
+    const fecha = btn.getAttribute("data-fecha") || "";
+    const vendedor = btn.getAttribute("data-vendedor") || "";
+    const ident = btn.getAttribute("data-ident") || "";
+    const clienteTxt = btn.getAttribute("data-cliente") || "-";
+    const meses = btn.getAttribute("data-meses") || "";
+    const desde = btn.getAttribute("data-desde") || "";
+    const hasta = btn.getAttribute("data-hasta") || "";
 
-    // set action
-    const form = document.getElementById('formEditarVenta');
-    form.action = editUrlTemplate.replace('__VID__', id);
+    const form = document.getElementById("formEditarVenta");
+    form.action = editUrlTemplate.replace("__VID__", id);
 
-    // fill inputs
-    document.getElementById('txtVentaCliente').textContent = 'Cliente: ' + clienteTxt;
-    document.getElementById('inpFecha').value = fecha;
-    document.getElementById('inpIdent').value = ident;
-    document.getElementById('inpMeses').value = meses;
-    document.getElementById('inpDesde').value = desde;
-    document.getElementById('inpHasta').value = hasta;
+    document.getElementById("txtVentaCliente").textContent =
+      "Cliente: " + clienteTxt;
+    document.getElementById("inpFecha").value = fecha;
+    document.getElementById("inpIdent").value = ident;
+    document.getElementById("inpMeses").value = meses;
+    document.getElementById("inpDesde").value = desde;
+    document.getElementById("inpHasta").value = hasta;
 
-    // select vendedor
-    const sel = document.getElementById('selVendedor');
+    const sel = document.getElementById("selVendedor");
     sel.value = vendedor;
   });
 </script>

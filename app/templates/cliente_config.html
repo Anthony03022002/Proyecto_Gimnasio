@@ -1,92 +1,157 @@
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 {% block title %}Configuración{% endblock %}
-{% block content %}
 {% set active = "cliente_config" %}
 
-<div class="row g-3">
-  <div class="col-12 col-lg-9">
-
-    <div class="d-lg-none mb-3 d-flex justify-content-between align-items-center">
-      <h3 class="mb-0">Configuración</h3>
-      <button class="btn btn-outline-primary btn-sm" type="button"
-              data-bs-toggle="offcanvas" data-bs-target="#menuOffcanvas">
-        <i class="bi bi-list"></i> Menú
-      </button>
+{% block header %}
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Configuración</h2>
+      <p class="text-xs text-secondary mt-0.5">Edita tu información personal.</p>
     </div>
+  </div>
 
-    <div class="d-none d-lg-block">
-      <h3 class="mb-2">Configuración</h3>
-    </div>
+  <div class="flex items-center gap-2">
+    <a
+      href="{{ url_for('web.cliente_dashboard') }}"
+      class="inline-flex items-center gap-2 px-4 py-2 rounded-lg
+             bg-white/5 hover:bg-white/10 border border-white/10
+             text-sm font-semibold text-white transition-colors"
+    >
+      <span class="material-symbols-outlined text-sm">arrow_back</span>
+      Volver
+    </a>
+  </div>
+</header>
+{% endblock %}
 
-    <p class="text-muted mb-3">Edita tu información personal.</p>
+{% block content %}
 
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <form method="post" action="{{ url_for('web.cliente_config_post') }}" class="row g-3">
+<div class="max-w-6xl mx-auto px-6 md:px-8 py-6">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Usuario</label>
-            <input class="form-control" value="{{ username or '' }}" disabled>
-            <div class="form-text">El usuario no se puede modificar.</div>
+    <div class="lg:col-span-9 space-y-6">
+
+      <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+        <div class="p-6 border-b border-white/5 flex items-center justify-between">
+          <div>
+            <h3 class="text-lg font-bold text-white">Datos del perfil</h3>
+            <p class="text-xs text-secondary mt-1">Actualiza tu información (el usuario no se puede cambiar).</p>
           </div>
+        </div>
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Identificación</label>
-            <input class="form-control" name="identificacion" value="{{ cliente.identificacion or '' }}" required>
-          </div>
+        <div class="p-6">
+          <form method="post" action="{{ url_for('web.cliente_config_post') }}" class="grid grid-cols-1 md:grid-cols-12 gap-4">
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Nombre</label>
-            <input class="form-control" name="nombre" value="{{ cliente.nombre or '' }}" required>
-          </div>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Usuario</label>
+              <input
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white placeholder:text-secondary/70 outline-none opacity-80 cursor-not-allowed"
+                value="{{ username or '' }}"
+                disabled
+              >
+              <p class="text-[11px] text-secondary mt-2">El usuario no se puede modificar.</p>
+            </div>
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Apellido</label>
-            <input class="form-control" name="apellido" value="{{ cliente.apellido or '' }}">
-          </div>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Identificación</label>
+              <input
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white placeholder:text-secondary/70 outline-none
+                       focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                name="identificacion"
+                value="{{ cliente.identificacion or '' }}"
+                required
+              >
+            </div>
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Email</label>
-            <input class="form-control" name="email" value="{{ cliente.email or '' }}" placeholder="correo@dominio.com">
-          </div>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Nombre</label>
+              <input
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white placeholder:text-secondary/70 outline-none
+                       focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                name="nombre"
+                value="{{ cliente.nombre or '' }}"
+                required
+              >
+            </div>
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Teléfono</label>
-            <input class="form-control" name="telefono" value="{{ cliente.telefono or '' }}" placeholder="09...">
-          </div>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Apellido</label>
+              <input
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white placeholder:text-secondary/70 outline-none
+                       focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                name="apellido"
+                value="{{ cliente.apellido or '' }}"
+              >
+            </div>
 
-          <div class="col-12 col-md-6">
-            <label class="form-label">Fecha de nacimiento</label>
-            <input type="date" class="form-control" name="fecha_nacimiento" value="{{ fecha_nacimiento_val }}">
-          </div>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Email</label>
+              <input
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white placeholder:text-secondary/70 outline-none
+                       focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                name="email"
+                value="{{ cliente.email or '' }}"
+                placeholder="correo@dominio.com"
+              >
+            </div>
 
-          <div class="col-12 d-flex justify-content-end gap-2">
-            <a class="btn btn-outline-secondary" href="{{ url_for('web.cliente_dashboard') }}">
-              <i class="bi bi-arrow-left"></i> Volver
-            </a>
-            <button class="btn btn-primary" type="submit">
-              <i class="bi bi-check2-circle"></i> Guardar cambios
-            </button>
-          </div>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Teléfono</label>
+              <input
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white placeholder:text-secondary/70 outline-none
+                       focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                name="telefono"
+                value="{{ cliente.telefono or '' }}"
+                placeholder="09..."
+              >
+            </div>
 
-        </form>
+            <div class="md:col-span-6">
+              <label class="text-xs font-semibold text-secondary">Fecha de nacimiento</label>
+              <input
+                type="date"
+                class="mt-1 w-full px-4 py-2.5 rounded-xl bg-white/5 border border-white/10
+                       text-white outline-none
+                       focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                name="fecha_nacimiento"
+                value="{{ fecha_nacimiento_val }}"
+              >
+            </div>
+
+            <div class="md:col-span-12 flex flex-wrap justify-end gap-2 pt-2">
+              <a
+                class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10
+                       text-sm font-semibold text-white/90 transition-colors"
+                href="{{ url_for('web.cliente_dashboard') }}"
+              >
+                Volver
+              </a>
+              <button
+                class="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90
+                       text-sm font-semibold text-white transition-colors"
+                type="submit"
+              >
+                Guardar cambios
+              </button>
+            </div>
+
+          </form>
+        </div>
       </div>
+
     </div>
 
-  </div>
+    <div class="hidden lg:block lg:col-span-3">
+      {% include "partials/sidebar_admin.html" %}
+    </div>
 
-  <div class="d-none d-lg-block col-lg-3">
-    {% include "partials/sidebar_admin.html" %}
-  </div>
-</div>
-
-<div class="offcanvas offcanvas-end" tabindex="-1" id="menuOffcanvas">
-  <div class="offcanvas-header">
-    <h5 class="offcanvas-title">Menú</h5>
-    <button type="button" class="btn-close" data-bs-dismiss="offcanvas"></button>
-  </div>
-  <div class="offcanvas-body">
-    {% include "partials/sidebar_admin.html" %}
   </div>
 </div>
 

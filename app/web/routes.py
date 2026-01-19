@@ -8,6 +8,7 @@ from bson import ObjectId
 from flask import abort, jsonify, render_template, redirect, send_file, url_for, request, session, flash
 
 from app.services.alertas_clientes import obtener_clientes_por_vencer
+from app.services.bloques import _get_blocks_for_date, _open_time_for_block, _slot_block_num, _turno_permite
 from app.services.indicadores import _as_float_form, _build_kpi_and_chart
 from . import web_bp
 from app.services.user_service import get_users_collection, create_cajero, list_cajeros, reset_password_cliente, update_cajero, reset_password_cajero, delete_cajero, create_entrenador, list_entrenadores, update_entrenador, reset_password_entrenador, delete_entrenador
@@ -17,6 +18,7 @@ from datetime import date, datetime, timedelta, timezone, time as dtime
 import time as pytime
 import app.extensions as extensions
 from app.services.horarios_semanales import (
+    TZ_EC,
     eliminar_plantilla,
     get_config_semanal,
     listar_plantillas,
@@ -63,7 +65,7 @@ def _parse_date_yyyy_mm_dd(s: str):
     if not s:
         return None
     try:
-        dt = datetime.fromisoformat(s.strip())  # 'YYYY-MM-DD'
+        dt = datetime.fromisoformat(s.strip()) 
         return dt.replace(tzinfo=timezone.utc)
     except Exception:
         return None
@@ -84,9 +86,7 @@ def login_required(role=None):
 
 @web_bp.get("/")
 def home():
-    if "user_role" in session:
-        return redirect(url_for(f"web.{session['user_role']}_dashboard"))
-    return redirect(url_for("web.login"))
+    return render_template("home.html")
 
 
 @web_bp.get("/login")
@@ -2926,7 +2926,6 @@ def cliente_progreso_ver_foto(foto_id):
     if not doc:
         abort(404)
 
-    # ✅ permiso: solo el dueño
     if doc.get("cliente_id") != cliente_oid:
         abort(403)
 
@@ -2934,7 +2933,6 @@ def cliente_progreso_ver_foto(foto_id):
     if not os.path.exists(abs_path):
         abort(404)
 
-    # inline para mostrar en galería (no descargar)
     return send_file(abs_path, as_attachment=False)
 
 
@@ -2959,12 +2957,10 @@ def cliente_progreso_eliminar_foto(foto_id):
         flash("Foto no encontrada.", "warning")
         return redirect(url_for("web.cliente_progreso"))
 
-    # ✅ permiso: solo el dueño
     if doc.get("cliente_id") != cliente_oid:
         flash("No tienes permisos para eliminar esta foto.", "danger")
         return redirect(url_for("web.cliente_progreso"))
 
-    # borrar archivo físico
     rel_path = doc.get("rel_path")
     if rel_path:
         abs_path = os.path.join(os.getcwd(), rel_path)
@@ -2983,6 +2979,7 @@ def cliente_progreso_eliminar_foto(foto_id):
 @web_bp.get("/horarios")
 @login_required()
 def horarios_publico():
+    primera_vez = False
     db = extensions.mongo_db
     if db is None:
         raise RuntimeError("mongo_db no está inicializado.")
@@ -3006,13 +3003,12 @@ def horarios_publico():
     if view != "week":
         view = "week"
 
-    # ✅ AHORA sí: week_dates existe antes de usarlo
     start = week_start(d)  # lunes
     week_dates = [start + timedelta(days=i) for i in range(7)]
     prev_date = start - timedelta(days=7)
     next_date = start + timedelta(days=7)
 
-    cfg = get_config_semanal()
+    cfg = get_config_semanal() or {}
     intervalo_minutos = int(cfg.get("intervalo_minutos", 60))
     cupo_maximo = int(cfg.get("cupo_maximo", 10))
 
@@ -3023,10 +3019,20 @@ def horarios_publico():
         users_col.find({"role": "entrenador", "activo": True}, {"username": 1}).sort("username", 1)
     )
 
+    # ✅ turno del cliente para permitir bloques (manana/tarde/full)
+    now_ec = datetime.now(TZ_EC)
+    turno_cliente = "full"
+    if session.get("user_role") == "cliente" and session.get("user_id"):
+        try:
+            uid = ObjectId(session["user_id"])
+            udoc = users_col.find_one({"_id": uid}, {"turno": 1})
+            turno_cliente = (udoc or {}).get("turno") or "full"
+        except Exception:
+            turno_cliente = "full"
+
     mis_slot_ids = set()
     reserva_por_fecha = {}
 
-    # ✅ SOLO UNA VEZ (quitamos el duplicado que tenías)
     if session.get("user_role") == "cliente" and session.get("user_id"):
         cid = ObjectId(session["user_id"])
 
@@ -3060,13 +3066,15 @@ def horarios_publico():
             day_cfg = (cfg.get("dias") or {}).get(day_key, {"activo": False, "plantilla_id": None})
 
             bloques = resolver_bloques_del_dia(day_cfg)
-            slots = construir_slots_para_fecha(wd, bloques, intervalo_minutos, cupo_maximo)
+            cupo_dia = int(day_cfg.get("cupo_maximo", cupo_maximo))
+
+            slots = construir_slots_para_fecha(wd, bloques, intervalo_minutos, cupo_dia)
 
             for s in slots:
                 if "key" not in s:
                     s["key"] = s["inicio"].strftime("%H:%M")
                 if "cupo_maximo" not in s:
-                    s["cupo_maximo"] = int(cupo_maximo)
+                    s["cupo_maximo"] = int(cupo_dia)
                 if "cupo_restante" not in s:
                     s["cupo_restante"] = int(s["cupo_maximo"])
 
@@ -3112,7 +3120,6 @@ def horarios_publico():
                 slot_ids_entrenador.add(sid)
                 slot_count_entrenador[sid] = int(row.get("total", 0))
 
-            # para entrenador no necesito cargar lista de entrenadores en modal
             entrenadores = []
 
     # ✅ construir slot_map que usa el HTML
@@ -3124,6 +3131,15 @@ def horarios_publico():
         fecha_key = day.get("date")
         if not fecha_key or fecha_key not in slot_map:
             continue
+
+        # fecha como date()
+        try:
+            slot_date_obj = datetime.strptime(fecha_key, "%Y-%m-%d").date()
+        except Exception:
+            continue
+
+        # bloques del día para clasificar slots y ventana
+        b1, b2 = _get_blocks_for_date(cfg, slot_date_obj, weekday_map)
 
         for s in (day.get("slots") or []):
             key = s.get("key") or s["inicio"].strftime("%H:%M")
@@ -3137,12 +3153,38 @@ def horarios_publico():
             cupo_max = int(s.get("cupo_maximo", cupo_maximo))
             cupo_usado = slot_count_entrenador.get(slot_id, 0) if solo_mis_reservas else 0
 
+            # ✅ calcular bloque (1/2) y reservable por ventana+turno
+            block_num = _slot_block_num(s["inicio"], b1, b2)
+
+            reservable = True
+            if session.get("user_role") == "cliente":
+                primera_vez = (reservas_col.count_documents({"cliente_id": cid, "estado": "confirmada"}) == 0)
+                if block_num is None:
+                    reservable = False
+                elif not _turno_permite(turno_cliente, block_num):
+                    reservable = False
+                else:
+                    ot = _open_time_for_block(cfg, slot_date_obj, block_num, weekday_map)
+                    slot_start = s["inicio"]
+                    if slot_start.tzinfo is None:
+                        slot_start = slot_start.replace(tzinfo=TZ_EC)
+
+                    # ventana abierta y el slot aún no inicia
+                    if (ot is None) or (now_ec < ot) or (now_ec >= slot_start):
+                        reservable = False
+
             slot_map[fecha_key][key] = {
                 "_id": slot_id,
                 "inicio": s["inicio"],
                 "fin": s["fin"],
                 "cupo_maximo": cupo_max,
                 "cupo_usado": cupo_usado,
+                
+
+                # ✅ nuevos campos para el template
+                "bloque": block_num,          # 1/2/None
+                "reservable": reservable,     # True/False (solo cliente)
+                "turno_cliente": turno_cliente,  # útil si quieres mostrarlo
             }
 
             all_slots.append({"inicio": s["inicio"], "fin": s["fin"]})
@@ -3200,6 +3242,7 @@ def horarios_publico():
         week_dates=week_dates,
         slot_map=slot_map,
         time_labels=time_labels,
+        primera_vez = primera_vez,
         intervalo_minutos=intervalo_minutos,
         prev_date=prev_date,
         next_date=next_date,
@@ -3207,7 +3250,10 @@ def horarios_publico():
         entrenadores=entrenadores,
         mis_slot_ids=mis_slot_ids,
         solo_mis_reservas=solo_mis_reservas,
+        turno_cliente=turno_cliente,
+        now_ec=now_ec,
     )
+
 
 
 @web_bp.get("/admin/horarios")
@@ -3235,7 +3281,6 @@ def admin_horarios():
 @login_required(role="admin")
 def admin_horarios_asignar():
     dias = request.form.getlist("dias")
-
     plantilla_id = request.form.get("plantilla_id")
 
     if not dias:
@@ -3250,29 +3295,45 @@ def admin_horarios_asignar():
         flash("El horario seleccionado no existe.", "danger")
         return redirect(url_for("web.admin_horarios"))
 
-    asignar_plantilla_a_dias(dias, plantilla_id)
+    intervalo_raw = (request.form.get("intervalo_minutos") or "").strip()
+    cupo_raw      = (request.form.get("cupo_maximo") or "").strip()
 
-    intervalo_raw = request.form.get("intervalo_minutos")
-    cupo_raw = request.form.get("cupo_maximo")
+    cfg = get_config_semanal() or {}
+    intervalo_default = int(cfg.get("intervalo_minutos", 60))
+    cupo_default      = int(cfg.get("cupo_maximo", 10))
 
-    cfg = get_config_semanal()
     dias_dict = cfg.get("dias") or {k: {"activo": False, "plantilla_id": None} for k in DIAS}
 
+    # validar intervalo (global)
     try:
-        intervalo_i = int(intervalo_raw) if intervalo_raw else int(cfg.get("intervalo_minutos", 60))
-        cupo_i = int(cupo_raw) if cupo_raw else int(cfg.get("cupo_maximo", 10))
-
+        intervalo_i = int(intervalo_raw) if intervalo_raw else intervalo_default
         if intervalo_i not in (30, 60):
             raise ValueError()
-        if cupo_i < 1:
-            raise ValueError()
-
-        cfg2 = get_config_semanal()
-        guardar_config_semanal(intervalo_i, cupo_i, cfg2.get("dias") or dias_dict)
-
-    except ValueError:
-        flash("Intervalo o cupo inválido.", "danger")
+    except Exception:
+        flash("Intervalo inválido (solo 30 o 60).", "danger")
         return redirect(url_for("web.admin_horarios"))
+
+    # validar cupo (pero OJO: será por día seleccionado, NO global)
+    cupo_i = None
+    if cupo_raw:
+        try:
+            cupo_i = int(cupo_raw)
+            if cupo_i < 1:
+                raise ValueError()
+        except Exception:
+            flash("Cupo máximo inválido.", "danger")
+            return redirect(url_for("web.admin_horarios"))
+
+    # ✅ asignar plantilla + (opcional) cupo por día
+    for dkey in dias:
+        dias_dict.setdefault(dkey, {"activo": False, "plantilla_id": None})
+        dias_dict[dkey]["activo"] = True
+        dias_dict[dkey]["plantilla_id"] = plantilla_id  # o ObjectId si tú guardas oid
+
+        if cupo_i is not None:
+            dias_dict[dkey]["cupo_maximo"] = cupo_i  # override SOLO este día
+
+    guardar_config_semanal(intervalo_i, cupo_default, dias_dict)
 
     flash("Horarios asignados correctamente.", "success")
     return redirect(url_for("web.admin_horarios"))
@@ -3385,14 +3446,23 @@ def cliente_reservar():
     if not entrenador_doc:
         flash("Entrenador no encontrado o inactivo.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+    
+    
 
     try:
         cliente_id = ObjectId(session["user_id"])
     except Exception:
         flash("Sesión inválida.", "danger")
         return redirect(url_for("web.logout"))
+    
+    primera_vez = (reservas_col.count_documents({"cliente_id": cliente_id, "estado": "confirmada"}) == 0)
 
-    # ✅ 1 reserva por día (solo confirmadas cuentan)
+
+
+    ucli = users_col.find_one({"_id": cliente_id}, {"turno": 1})
+    turno_cliente = (ucli or {}).get("turno") or "full"  
+
+
     ya_hoy = reservas_col.find_one({
         "cliente_id": cliente_id,
         "estado": "confirmada",
@@ -3406,6 +3476,12 @@ def cliente_reservar():
     if reservas_col.find_one({"cliente_id": cliente_id, "slot_id": slot_id, "estado": "confirmada"}):
         flash("Ya tienes una reserva en ese horario.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+    
+    if not primera_vez:
+    # ✅ aquí va tu validación de ventana (mañana/tarde)
+    # si no cumple -> flash y redirect
+        pass
+
 
     # week_id (lunes de esa semana)
     try:
@@ -3415,12 +3491,9 @@ def cliente_reservar():
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
 
     # ==========================================================
-    # ✅ NUEVO: validar que el slot exista y leer cupo_maximo real
+    # ✅ validar que el slot exista + leer datos del slot
     # ==========================================================
-    doc_week = semanas_col.find_one(
-        {"_id": week_id},
-        {"days": 1}
-    )
+    doc_week = semanas_col.find_one({"_id": week_id}, {"days": 1})
     if not doc_week:
         flash("Semana no encontrada. Intenta recargar.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
@@ -3430,7 +3503,6 @@ def cliente_reservar():
         if dd.get("date") == fecha_key:
             day_doc = dd
             break
-
     if not day_doc:
         flash("Día no encontrado en el horario.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
@@ -3441,32 +3513,71 @@ def cliente_reservar():
         if k == slot_key:
             slot_doc = ss
             break
-
     if not slot_doc:
         flash("Ese horario no existe.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # cupo máximo del slot (si no hay, usa config)
+    # ==========================================================
+    # ✅ NUEVO: validar ventana de apertura y turno (seguro backend)
+    # ==========================================================
+    cfg = get_config_semanal() or {}
+
+    try:
+        slot_date_obj = datetime.strptime(fecha_key, "%Y-%m-%d").date()
+    except Exception:
+        flash("Fecha inválida.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+    
+    weekday_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+
+
+    b1, b2 = _get_blocks_for_date(cfg, slot_date_obj, weekday_map)
+
+
+    slot_start = slot_doc.get("inicio")
+    if not slot_start:
+        flash("Horario inválido (sin inicio).", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    # normaliza tz
+    if slot_start.tzinfo is None:
+        slot_start = slot_start.replace(tzinfo=TZ_EC)
+
+    block_num = _slot_block_num(slot_start, b1, b2)
+    if block_num is None:
+        flash("Este horario no está disponible para reservas.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    if not _turno_permite(turno_cliente, block_num):
+        flash("Tu turno no permite reservar este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    now_ec = datetime.now(TZ_EC)
+    open_dt = _open_time_for_block(cfg, slot_date_obj, block_num, weekday_map)
+
+    if now_ec < open_dt:
+        # mensaje amigable
+        flash("Aún no se habilitan reservas para este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    if now_ec >= slot_start:
+        flash("Este horario ya inició. No puedes reservarlo.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+
     cupo_max = int(slot_doc.get("cupo_maximo") or 0)
     if cupo_max <= 0:
-        # fallback a config general si fuese necesario
-        cfg = get_config_semanal()
         cupo_max = int(cfg.get("cupo_maximo", 10))
 
-    # ==========================================================
-    # ✅ NUEVO: cupos reales desde reservas confirmadas (NO canceladas)
-    # ==========================================================
     usados = reservas_col.count_documents({
         "slot_id": slot_id,
         "estado": "confirmada",
         "cancelada": {"$ne": True},
     })
-
     if usados >= cupo_max:
         flash("Ese horario ya no tiene cupos.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ insertar reserva (ya no tocamos cupo_restante)
     try:
         reservas_col.insert_one({
             "cliente_id": cliente_id,
@@ -4331,7 +4442,7 @@ def eliminar_plan_imagenes(plan_id):
     elif role == "cliente":
         if doc.get("cliente_id") != uid:
             abort(403)
-        redirect_to = url_for("web.cliente_membresia_page")  # ajusta
+        redirect_to = url_for("web.cliente_membresia_page")  
     else:
         abort(403)
 

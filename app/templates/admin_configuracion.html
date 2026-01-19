@@ -1,25 +1,98 @@
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 {% block title %}Configuración - Admin{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
 
-  <div class="d-flex flex-wrap justify-content-between align-items-center mb-3 gap-2">
+{# Paleta (la misma que usaste en publicidad)
+   --card-bg: rgba(35, 37, 39, 0.92)
+   --card-border: rgba(255,255,255,0.06)
+   --muted: rgba(255,255,255,0.6)
+   --muted-2: rgba(255,255,255,0.45)
+   --text: rgba(255,255,255,0.92)
+   --row-hover: rgba(255,255,255,0.04)
+   --header-bg: rgba(255,255,255,0.05)
+   --divider: rgba(255,255,255,0.07)
+#}
+
+<style>
+  /* Tabs bootstrap -> estilo "pill" oscuro */
+  .cfg-tabs.nav-tabs { border-bottom: 1px solid rgba(255,255,255,0.07); }
+  .cfg-tabs .nav-link {
+    border: 0 !important;
+    color: rgba(255,255,255,0.60) !important;
+    background: transparent !important;
+    border-radius: 12px !important;
+    padding: .65rem 1rem !important;
+    margin-right: .5rem !important;
+    transition: background .15s ease, color .15s ease;
+  }
+  .cfg-tabs .nav-link:hover {
+    background: rgba(255,255,255,0.04) !important;
+    color: rgba(255,255,255,0.92) !important;
+  }
+  .cfg-tabs .nav-link.active {
+    background: rgba(255,255,255,0.05) !important;
+    color: rgba(255,255,255,0.92) !important;
+    box-shadow: inset 0 0 0 1px rgba(255,255,255,0.06);
+  }
+
+  /* Inputs bootstrap -> look oscuro */
+  .cfg-input.form-control {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid rgba(255,255,255,0.07) !important;
+    color: rgba(255,255,255,0.92) !important;
+    border-radius: 12px !important;
+    padding: .7rem .9rem !important;
+  }
+  .cfg-input.form-control:focus {
+    border-color: #B8860B !important;
+    box-shadow: 0 0 0 .2rem rgba(184,134,11,.25) !important;
+  }
+  .cfg-input.form-control::placeholder { color: rgba(255,255,255,0.45) !important; }
+
+  .cfg-label.form-label { color: rgba(255,255,255,0.60) !important; font-weight: 600; }
+  .cfg-help.form-text { color: rgba(255,255,255,0.45) !important; }
+
+  /* Alerts bootstrap -> estilo oscuro */
+  .cfg-alert.alert {
+    border: 1px solid rgba(255,255,255,0.06) !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,0.03) !important;
+    color: rgba(255,255,255,0.92) !important;
+  }
+</style>
+
+<div class="p-6 md:p-8 max-w-6xl mx-auto space-y-6">
+
+  <div class="flex flex-wrap justify-between items-center gap-3">
     <div>
-      <h3 class="mb-0">Configuración</h3>
-      <small class="text-muted">Administra tu perfil, seguridad y configuración del sistema.</small>
+      <h3 class="text-2xl font-bold text-[rgba(255,255,255,0.92)] mb-1">Configuración</h3>
+      <div class="text-sm text-[rgba(255,255,255,0.45)]">
+        Administra tu perfil, seguridad y configuración del sistema.
+      </div>
     </div>
-    <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('web.admin_dashboard') }}">
+
+    <a
+      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg
+             border border-[rgba(255,255,255,0.06)]
+             text-[rgba(255,255,255,0.60)]
+             hover:text-[rgba(255,255,255,0.92)]
+             hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+      href="{{ url_for('web.admin_dashboard') }}"
+    >
       <i class="bi bi-arrow-left"></i> Volver
     </a>
   </div>
 
-  {# mensajes flash #}
+  {# mensajes flash (los de tu base seguramente ya están) #}
 
-  <div class="card shadow-sm border-0">
-    <div class="card-body">
+  <div class="rounded-2xl overflow-hidden shadow-sm
+              bg-[rgba(35,37,39,0.92)]
+              border border-[rgba(255,255,255,0.06)]">
 
-      <ul class="nav nav-tabs" id="tabsConfig" role="tablist">
+    <div class="p-6">
+
+      <ul class="nav nav-tabs cfg-tabs" id="tabsConfig" role="tablist">
         <li class="nav-item" role="presentation">
           <button class="nav-link active" id="tab-perfil-btn" data-bs-toggle="tab" data-bs-target="#tab-perfil"
                   type="button" role="tab" aria-controls="tab-perfil" aria-selected="true">
@@ -40,7 +113,7 @@
         </li>
       </ul>
 
-      <div class="tab-content pt-3" id="tabsConfigContent">
+      <div class="tab-content pt-4" id="tabsConfigContent">
 
         <!-- =========================
              PERFIL
@@ -49,77 +122,96 @@
 
           <form method="POST" action="{{ url_for('web.admin_configuracion_perfil') }}" class="row g-3">
             <div class="col-12 col-md-4">
-              <label class="form-label">Username</label>
-              <input class="form-control" name="username" value="{{ admin.username }}" required>
-              <div class="form-text">Este username se usa para iniciar sesión.</div>
+              <label class="form-label cfg-label">Username</label>
+              <input class="form-control cfg-input" name="username" value="{{ admin.username }}" required>
+              <div class="form-text cfg-help">Este username se usa para iniciar sesión.</div>
             </div>
 
             <div class="col-12 col-md-4">
-              <label class="form-label">Nombre</label>
-              <input class="form-control" name="nombre" value="{{ admin.nombre or '' }}">
+              <label class="form-label cfg-label">Nombre</label>
+              <input class="form-control cfg-input" name="nombre" value="{{ admin.nombre or '' }}">
             </div>
 
             <div class="col-12 col-md-4">
-              <label class="form-label">Teléfono</label>
-              <input class="form-control" name="telefono" value="{{ admin.telefono or '' }}">
+              <label class="form-label cfg-label">Teléfono</label>
+              <input class="form-control cfg-input" name="telefono" value="{{ admin.telefono or '' }}">
             </div>
 
             <div class="col-12">
-              <label class="form-label">Email</label>
-              <input class="form-control" type="email" name="email" value="{{ admin.email or '' }}">
+              <label class="form-label cfg-label">Email</label>
+              <input class="form-control cfg-input" type="email" name="email" value="{{ admin.email or '' }}">
             </div>
 
             <div class="col-12 d-flex gap-2">
-              <button class="btn btn-primary">
+              <button
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-white
+                       bg-[#B8860B] hover:opacity-90 transition-all shadow-lg shadow-[#B8860B]/20"
+              >
                 <i class="bi bi-save"></i> Guardar perfil
               </button>
             </div>
           </form>
 
-          <hr class="my-4">
+          <hr class="my-4 border-[rgba(255,255,255,0.07)]">
 
-          <div class="alert alert-info mb-0">
+          <div class="cfg-alert alert mb-0">
             <i class="bi bi-info-circle me-1"></i>
             Si cambias el <b>username</b>, la sesión se actualizará automáticamente.
           </div>
         </div>
 
+        <!-- =========================
+             SEGURIDAD
+        ========================== -->
         <div class="tab-pane fade" id="tab-seguridad" role="tabpanel" aria-labelledby="tab-seguridad-btn">
 
           <form method="POST" action="{{ url_for('web.admin_configuracion_password') }}" class="row g-3">
             <div class="col-12 col-md-4">
-              <label class="form-label">Contraseña actual</label>
-              <input class="form-control" type="password" name="current_password" required>
+              <label class="form-label cfg-label">Contraseña actual</label>
+              <input class="form-control cfg-input" type="password" name="current_password" required>
             </div>
 
             <div class="col-12 col-md-4">
-              <label class="form-label">Nueva contraseña</label>
-              <input class="form-control" type="password" name="new_password" minlength="6" required>
-              <div class="form-text">Mínimo 6 caracteres.</div>
+              <label class="form-label cfg-label">Nueva contraseña</label>
+              <input class="form-control cfg-input" type="password" name="new_password" minlength="6" required>
+              <div class="form-text cfg-help">Mínimo 6 caracteres.</div>
             </div>
 
             <div class="col-12 col-md-4">
-              <label class="form-label">Confirmar nueva contraseña</label>
-              <input class="form-control" type="password" name="confirm_password" minlength="6" required>
+              <label class="form-label cfg-label">Confirmar nueva contraseña</label>
+              <input class="form-control cfg-input" type="password" name="confirm_password" minlength="6" required>
             </div>
 
-            <div class="col-12 d-flex gap-2">
-              <button class="btn btn-warning">
+            <div class="col-12 d-flex gap-2 flex-wrap">
+              <button
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold
+                       bg-amber-500/20 text-amber-200
+                       border border-amber-500/30
+                       hover:bg-amber-500/25 transition-colors"
+              >
                 <i class="bi bi-key"></i> Cambiar contraseña
               </button>
-              <button type="button" class="btn btn-outline-secondary" id="btnTogglePwd">
+
+              <button
+                type="button"
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold
+                       border border-[rgba(255,255,255,0.06)]
+                       text-[rgba(255,255,255,0.60)]
+                       hover:text-[rgba(255,255,255,0.92)]
+                       hover:bg-[rgba(255,255,255,0.04)] transition-colors"
+                id="btnTogglePwd"
+              >
                 <i class="bi bi-eye"></i> Mostrar/Ocultar
               </button>
             </div>
           </form>
 
-          <hr class="my-4">
+          <hr class="my-4 border-[rgba(255,255,255,0.07)]">
 
-          <div class="alert alert-warning mb-0">
+          <div class="cfg-alert alert mb-0">
             <i class="bi bi-exclamation-triangle me-1"></i>
             Usa una contraseña segura. Evita usar la misma que en otras plataformas.
           </div>
-
         </div>
 
         <!-- =========================
@@ -129,35 +221,37 @@
 
           <form method="POST" action="{{ url_for('web.admin_configuracion_sistema') }}" class="row g-3">
             <div class="col-12 col-md-6">
-              <label class="form-label">Nombre del gimnasio</label>
-              <input class="form-control" name="gym_nombre" value="{{ settings.gym_nombre or '' }}">
+              <label class="form-label cfg-label">Nombre del gimnasio</label>
+              <input class="form-control cfg-input" name="gym_nombre" value="{{ settings.gym_nombre or '' }}">
             </div>
 
             <div class="col-12 col-md-6">
-              <label class="form-label">Teléfono del gimnasio</label>
-              <input class="form-control" name="gym_telefono" value="{{ settings.gym_telefono or '' }}">
+              <label class="form-label cfg-label">Teléfono del gimnasio</label>
+              <input class="form-control cfg-input" name="gym_telefono" value="{{ settings.gym_telefono or '' }}">
             </div>
 
             <div class="col-12">
-              <label class="form-label">Dirección</label>
-              <input class="form-control" name="gym_direccion" value="{{ settings.gym_direccion or '' }}">
+              <label class="form-label cfg-label">Dirección</label>
+              <input class="form-control cfg-input" name="gym_direccion" value="{{ settings.gym_direccion or '' }}">
             </div>
 
-
             <div class="col-12 d-flex gap-2">
-              <button class="btn btn-success">
+              <button
+                class="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg font-semibold text-white
+                       bg-emerald-600/80 hover:bg-emerald-600 transition-colors
+                       border border-emerald-500/30"
+              >
                 <i class="bi bi-save2"></i> Guardar sistema
               </button>
             </div>
           </form>
 
-          <hr class="my-4">
+          <hr class="my-4 border-[rgba(255,255,255,0.07)]">
 
-          <div class="alert alert-secondary mb-0">
+          <div class="cfg-alert alert mb-0">
             <i class="bi bi-gear me-1"></i>
             Esta configuración es global para todo el sistema
           </div>
-
         </div>
 
       </div>
@@ -167,7 +261,6 @@
 </div>
 
 <script>
-  // Mostrar/ocultar contraseña (sin depender de librerías)
   (function() {
     const btn = document.getElementById("btnTogglePwd");
     if (!btn) return;
@@ -180,4 +273,5 @@
     });
   })();
 </script>
+
 {% endblock %}

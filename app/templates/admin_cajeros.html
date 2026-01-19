@@ -1,200 +1,352 @@
-{% extends "base.html" %}
-{% block title %}Cajeros - Admin{% endblock %}
+{% extends "base_admin.html" %}
+{% block title %}CORE Gym - Cajeros{% endblock %}
+{% set active = "admin_cajeros" %}
+
+{% block header %}
+  {% set role = session.get("user_role") %}
+  {% set username = session.get("username") or "Usuario" %}
+
+  <header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+    <div class="flex items-center gap-3">
+      <button
+        type="button"
+        class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+        onclick="openDrawer()"
+        aria-label="Abrir menú"
+      >
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+
+      <div>
+        <h2 class="text-xl md:text-2xl font-bold text-white">Cajeros</h2>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-4 md:gap-6">
+      <div class="hidden md:block h-8 w-[1px] bg-white/10"></div>
+
+      <div class="flex items-center gap-3">
+        <div class="text-right hidden sm:block">
+          <p class="text-sm font-semibold text-white leading-tight">{{ username }}</p>
+          <p class="text-xs text-secondary">Administrador</p>
+        </div>
+        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-medium border border-white/10">
+          {{ (username[:1] or "U")|upper }}{{ (username[1:2] or "")|upper }}
+        </div>
+      </div>
+    </div>
+  </header>
+{% endblock %}
+
 {% block content %}
 
-<div class="row">
-  <div class="col-12 col-lg-7 mb-3">
-    <h4 class="mb-3">Cajeros</h4>
+  {# Flash messages (si ya lo tienes en base, puedes quitar esto) #}
+  {% with messages = get_flashed_messages(with_categories=True) %}
+    {% if messages %}
+      <div class="space-y-3">
+        {% for category, message in messages %}
+          {% set cat = (category or 'info')|lower %}
+          <div class="flex items-start gap-3 p-4 rounded-xl border
+                      {% if cat in ['danger','error'] %}bg-red-500/10 border-red-500/20{% elif cat=='success' %}bg-green-500/10 border-green-500/20{% elif cat=='warning' %}bg-yellow-500/10 border-yellow-500/20{% else %}bg-white/5 border-white/10{% endif %}">
+            <span class="material-symbols-outlined text-xl text-white/90">
+              {% if cat in ['danger','error'] %}error{% elif cat=='success' %}check_circle{% elif cat=='warning' %}warning{% else %}info{% endif %}
+            </span>
+            <div class="text-sm text-white/90 font-medium">{{ message }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  {% endwith %}
 
-    <div class="card shadow-sm">
-      <div class="card-header">Lista de cajeros</div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+
+    {# LISTA #}
+    <div class="lg:col-span-7">
+      <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+        <div class="p-6 border-b border-white/5 flex items-center justify-between">
+          <h3 class="text-lg font-bold text-white">Lista de cajeros</h3>
+          <span class="text-xs text-secondary">
+            {{ cajeros|length if cajeros else 0 }} registrado(s)
+          </span>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="bg-white/5">
               <tr>
-                <th>Usuario</th>
-                <th>Nombre</th>
-                <th>Celular</th>
-                <th style="width: 220px;">Acciones</th>
+                <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Usuario</th>
+                <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Nombre</th>
+                <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Celular</th>
+                <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider text-right">Acciones</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody class="divide-y divide-white/10">
               {% if cajeros %}
                 {% for c in cajeros %}
-                <tr>
-                  <td>{{ c.username }}</td>
-                  <td>{{ c.nombre or '-' }}</td>
-                  <td>{{ c.telefono or '-' }}</td>
+                  <tr class="hover:bg-white/[0.03] transition-colors">
+                    <td class="px-6 py-4 text-sm text-white font-medium">{{ c.username }}</td>
+                    <td class="px-6 py-4 text-sm text-secondary">{{ c.nombre or '-' }} {{ c.apellido or '' }}</td>
+                    <td class="px-6 py-4 text-sm text-secondary">{{ c.telefono or '-' }}</td>
 
-
-                  <td class="text-end">
-                    <div class="btn-group btn-group-sm" role="group">
-
-                      <!-- Editar -->
-                      <button type="button"
-                              class="btn btn-light border"
-                              data-bs-toggle="modal"
-                              data-bs-target="#editModal{{ c._id }}"
-                              title="Editar cajero">
-                        <i class="bi bi-pencil"></i>
-                      </button>
-
-                      <!-- Reset password -->
-                      <button type="button"
-                              class="btn btn-light border"
-                              data-bs-toggle="modal"
-                              data-bs-target="#pwdModal{{ c._id }}"
-                              title="Reset contraseña">
-                        <i class="bi bi-key"></i>
-                      </button>
-
-                      <!-- Eliminar -->
-                      <form method="post"
-                            action="{{ url_for('web.admin_cajeros_delete', cajero_id=c._id) }}"
-                            onsubmit="return confirm('¿Eliminar este cajero?');">
-                        <button type="submit"
-                                class="btn btn-light border text-danger"
-                                title="Eliminar cajero">
-                          <i class="bi bi-trash"></i>
+                    <td class="px-6 py-4 text-right">
+                      <div class="inline-flex items-center gap-2">
+                        <button
+                          type="button"
+                          class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-secondary hover:text-white transition-colors"
+                          onclick="openEdit('{{ c._id }}')"
+                          title="Editar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]">edit</span>
                         </button>
-                      </form>
 
-                    </div>
-                  </td>
+                        <button
+                          type="button"
+                          class="px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-secondary hover:text-white transition-colors"
+                          onclick="openPwd('{{ c._id }}')"
+                          title="Reset contraseña"
+                        >
+                          <span class="material-symbols-outlined text-[20px]">key</span>
+                        </button>
 
-                </tr>
+                        <form method="post"
+                              action="{{ url_for('web.admin_cajeros_delete', cajero_id=c._id) }}"
+                              onsubmit="return confirm('¿Eliminar este cajero?');"
+                              class="inline">
+                          <button
+                            type="submit"
+                            class="px-3 py-2 rounded-lg bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-300 transition-colors"
+                            title="Eliminar"
+                          >
+                            <span class="material-symbols-outlined text-[20px]">delete</span>
+                          </button>
+                        </form>
+                      </div>
+                    </td>
+                  </tr>
 
-                <!-- ✅ MODAL EDITAR (DENTRO DEL LOOP) -->
-                <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
+                  {# MODAL EDITAR (Tailwind) #}
+                  <div id="editModal{{ c._id }}" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+                    <div class="absolute inset-0 bg-black/60" onclick="closeEdit('{{ c._id }}')"></div>
+
+                    <div class="relative mx-auto mt-10 w-[95vw] max-w-xl bg-surface-dark border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                       <form method="post" action="{{ url_for('web.admin_cajeros_edit', cajero_id=c._id) }}">
-                        <div class="modal-header">
-                          <h5 class="modal-title">Editar cajero</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        <div class="p-5 md:p-6 border-b border-white/10 flex items-start justify-between gap-4">
+                          <div>
+                            <h4 class="text-lg font-bold text-white">Editar cajero</h4>
+                            <p class="text-xs text-secondary mt-1">Actualiza los datos del cajero.</p>
+                          </div>
+                          <button type="button"
+                                  class="p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+                                  onclick="closeEdit('{{ c._id }}')"
+                                  aria-label="Cerrar">
+                            <span class="material-symbols-outlined">close</span>
+                          </button>
                         </div>
 
-                        <div class="modal-body">
-                          <div class="mb-3">
-                            <label class="form-label">Usuario</label>
-                            <input type="text" name="username" class="form-control" value="{{ c.username }}" required>
-                          </div>
-                          <div class="mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" name="nombre" class="form-control" value="{{ c.nombre or '' }}">
-                          </div>
-                          <div class="mb-3">
-                            <label class="form-label">Apellido</label>
-                            <input type="text" name="apellido" class="form-control" value="{{ c.apellido or '' }}">
+                        <div class="p-5 md:p-6 space-y-4">
+                          <div>
+                            <label class="block text-sm font-semibold text-white mb-2">Usuario</label>
+                            <input type="text" name="username" value="{{ c.username }}" required
+                                   class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
                           </div>
 
-                          <div class="mb-3">
-                            <label class="form-label">Celular</label>
-                            <input type="text" name="telefono" class="form-control" value="{{ c.telefono or '' }}">
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label class="block text-sm font-semibold text-white mb-2">Nombre</label>
+                              <input type="text" name="nombre" value="{{ c.nombre or '' }}"
+                                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+                            </div>
+                            <div>
+                              <label class="block text-sm font-semibold text-white mb-2">Apellido</label>
+                              <input type="text" name="apellido" value="{{ c.apellido or '' }}"
+                                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+                            </div>
                           </div>
-                          <div class="mb-3">
-                            <label class="form-label">Correo</label>
-                            <input type="text" name="email" class="form-control" value="{{ c.email or '' }}">
+
+                          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                              <label class="block text-sm font-semibold text-white mb-2">Celular</label>
+                              <input type="text" name="telefono" value="{{ c.telefono or '' }}"
+                                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+                            </div>
+                            <div>
+                              <label class="block text-sm font-semibold text-white mb-2">Correo</label>
+                              <input type="text" name="email" value="{{ c.email or '' }}"
+                                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+                            </div>
                           </div>
                         </div>
 
-                        <div class="modal-footer">
-                          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-                          <button class="btn btn-primary" type="submit">Guardar</button>
+                        <div class="p-5 md:p-6 border-t border-white/10 flex justify-end gap-3">
+                          <button type="button"
+                                  class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+                                  onclick="closeEdit('{{ c._id }}')">
+                            Cancelar
+                          </button>
+                          <button type="submit"
+                                  class="px-4 py-2 rounded-lg bg-primary hover:bg-[#2C3B43] text-sm font-bold text-white transition-colors">
+                            Guardar
+                          </button>
                         </div>
                       </form>
                     </div>
                   </div>
-                </div>
 
-                <!-- ✅ MODAL RESET PASSWORD (DENTRO DEL LOOP) -->
-                <div class="modal fade" id="pwdModal{{ c._id }}" tabindex="-1" aria-hidden="true">
-                  <div class="modal-dialog">
-                    <div class="modal-content">
+                  {# MODAL RESET PASSWORD (Tailwind) #}
+                  <div id="pwdModal{{ c._id }}" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+                    <div class="absolute inset-0 bg-black/60" onclick="closePwd('{{ c._id }}')"></div>
+
+                    <div class="relative mx-auto mt-10 w-[95vw] max-w-xl bg-surface-dark border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
                       <form method="post" action="{{ url_for('web.admin_cajeros_reset_password', cajero_id=c._id) }}">
-                        <div class="modal-header">
-                          <h5 class="modal-title">Reset contraseña</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                        <div class="p-5 md:p-6 border-b border-white/10 flex items-start justify-between gap-4">
+                          <div>
+                            <h4 class="text-lg font-bold text-white">Reset contraseña</h4>
+                            <p class="text-xs text-secondary mt-1">Esto reemplaza la contraseña actual.</p>
+                          </div>
+                          <button type="button"
+                                  class="p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+                                  onclick="closePwd('{{ c._id }}')"
+                                  aria-label="Cerrar">
+                            <span class="material-symbols-outlined">close</span>
+                          </button>
                         </div>
 
-                        <div class="modal-body">
-                          <div class="mb-3">
-                            <label class="form-label">Nueva contraseña</label>
-                            <input type="password" name="new_password" class="form-control" required>
-                          </div>
-                          <div class="form-text text-muted">
-                            Esto reemplaza la contraseña actual.
+                        <div class="p-5 md:p-6 space-y-4">
+                          <div>
+                            <label class="block text-sm font-semibold text-white mb-2">Nueva contraseña</label>
+                            <input type="password" name="new_password" required
+                                   class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
                           </div>
                         </div>
 
-                        <div class="modal-footer">
-                          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-                          <button class="btn btn-warning" type="submit">Actualizar</button>
+                        <div class="p-5 md:p-6 border-t border-white/10 flex justify-end gap-3">
+                          <button type="button"
+                                  class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+                                  onclick="closePwd('{{ c._id }}')">
+                            Cancelar
+                          </button>
+                          <button type="submit"
+                                  class="px-4 py-2 rounded-lg bg-yellow-500/15 hover:bg-yellow-500/20 border border-yellow-500/20 text-sm font-bold text-yellow-200 transition-colors">
+                            Actualizar
+                          </button>
                         </div>
                       </form>
                     </div>
                   </div>
-                </div>
 
                 {% endfor %}
               {% else %}
                 <tr>
-                  <td colspan="3" class="text-center text-muted py-3">
-                    No hay cajeros registrados.
+                  <td class="px-6 py-20 text-center" colspan="4">
+                    <div class="flex flex-col items-center justify-center text-secondary/40">
+                      <span class="material-symbols-outlined text-5xl mb-3">inventory_2</span>
+                      <p class="text-sm font-medium">No hay cajeros registrados.</p>
+                    </div>
                   </td>
                 </tr>
               {% endif %}
             </tbody>
-
           </table>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Formulario crear -->
-  <div class="col-12 col-lg-5">
-    <h4 class="mb-3">Crear Nuevo cajero</h4>
+    {# CREAR NUEVO #}
+    <div class="lg:col-span-5">
+      <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+        <div class="p-6 border-b border-white/5">
+          <h3 class="text-lg font-bold text-white">Crear nuevo cajero</h3>
+          <p class="text-xs text-secondary mt-1">Registra un usuario con rol cajero.</p>
+        </div>
 
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <form method="post" action="{{ url_for('web.admin_cajeros_post') }}">
-          <div class="mb-3">
-            <label class="form-label">Usuario</label>
-            <input type="text" name="username" class="form-control" required>
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Nombre</label>
-            <input type="text" name="nombre" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Apellido</label>
-            <input type="text" name="apellido" class="form-control">
-          </div>
+        <div class="p-6">
+          <form method="post" action="{{ url_for('web.admin_cajeros_post') }}" class="space-y-4">
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Usuario</label>
+              <input type="text" name="username" required
+                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">Correo</label>
-            <input type="email" name="email" class="form-control">
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2">Nombre</label>
+                <input type="text" name="nombre"
+                       class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2">Apellido</label>
+                <input type="text" name="apellido"
+                       class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+              </div>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">Teléfono</label>
-            <input type="text" name="telefono" class="form-control">
-          </div>
-          <div class="mb-3">
-            <label class="form-label">Contraseña</label>
-            <input type="password" name="password" class="form-control" required>
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2">Correo</label>
+                <input type="email" name="email"
+                       class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2">Teléfono</label>
+                <input type="text" name="telefono"
+                       class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+              </div>
+            </div>
 
-          <div class="d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary">Crear cajero</button>
-          </div>
-        </form>
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Contraseña</label>
+              <input type="password" name="password" required
+                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+            </div>
+
+            <div class="flex justify-end pt-2">
+              <button type="submit"
+                      class="px-5 py-3 rounded-xl bg-primary hover:bg-[#2C3B43] text-sm font-bold text-white transition-colors">
+                Crear cajero
+              </button>
+            </div>
+          </form>
+        </div>
       </div>
     </div>
+
   </div>
 
-</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openEdit(id) {
+    const el = document.getElementById("editModal" + id);
+    if (!el) return;
+    el.classList.remove("hidden");
+    el.setAttribute("aria-hidden", "false");
+  }
+  function closeEdit(id) {
+    const el = document.getElementById("editModal" + id);
+    if (!el) return;
+    el.classList.add("hidden");
+    el.setAttribute("aria-hidden", "true");
+  }
+
+  function openPwd(id) {
+    const el = document.getElementById("pwdModal" + id);
+    if (!el) return;
+    el.classList.remove("hidden");
+    el.setAttribute("aria-hidden", "false");
+  }
+  function closePwd(id) {
+    const el = document.getElementById("pwdModal" + id);
+    if (!el) return;
+    el.classList.add("hidden");
+    el.setAttribute("aria-hidden", "true");
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll("[id^='editModal'], [id^='pwdModal']").forEach(m => m.classList.add("hidden"));
+    }
+  });
+</script>
 {% endblock %}

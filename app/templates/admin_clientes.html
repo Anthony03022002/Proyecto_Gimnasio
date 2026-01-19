@@ -1,161 +1,272 @@
-{% extends "base.html" %}
+{# templates/admin_clientes.html (o como lo llames) #}
+{% extends "base_admin.html" %}
 {% block title %}Clientes - Admin{% endblock %}
-{% block content %}
+{% set active = "admin_clientes" %}
 
-<div class="row">
-  <div class="col-12 mb-3">
-    <div class="d-flex justify-content-between align-items-center">
-      <div>
-        <h4 class="mb-0">Clientes</h4>
-        <div class="text-muted small">Ver / editar</div>
-      </div>
+{% block header %}
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Clientes</h2>
+      <p class="text-xs text-secondary mt-0.5">Administra clientes del sistema</p>
     </div>
   </div>
+</header>
+{% endblock %}
 
-  <div class="col-12">
-    <form method="get" class="row g-2 mb-3">
-      <div class="col-12 col-md-8">
-        <input
-          name="q"
-          value="{{ q }}"
-          class="form-control"
-          placeholder="Buscar por nombre, identificación, email o teléfono..."
-        >
+{% block content %}
+
+<style>
+  /* ===== Helpers (dark) ===== */
+  .text-accent{ color: rgba(255,255,255,.75); }
+  .card-core{
+    background: rgba(45,47,49,1);
+    border: 1px solid rgba(255,255,255,.06);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+
+  /* ===== Search ===== */
+  .input-core{
+    width: 100%;
+    padding: 12px 14px;
+    border-radius: 14px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.10);
+    color: rgba(255,255,255,.92);
+    outline: none;
+  }
+  .input-core::placeholder{ color: rgba(255,255,255,.45); }
+  .input-core:focus{
+    box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+    border-color: rgba(255,255,255,.18);
+  }
+
+  /* ===== Table ===== */
+  .table-core{ width: 100%; border-collapse: separate; border-spacing: 0; }
+  .table-core thead th{
+    font-size: 11px;
+    letter-spacing: .12em;
+    text-transform: uppercase;
+    font-weight: 800;
+    color: rgba(255,255,255,.70);
+    background: rgba(255,255,255,.05);
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.08);
+  }
+  .table-core tbody td{
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255,255,255,.06);
+    color: rgba(255,255,255,.88);
+    vertical-align: middle;
+  }
+  .table-core tbody tr:hover{
+    background: rgba(255,255,255,.03);
+  }
+  .muted{ color: rgba(255,255,255,.55); }
+
+  /* ===== Actions ===== */
+  .btn-icon{
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,.05);
+    border: 1px solid rgba(255,255,255,.10);
+    color: rgba(255,255,255,.92);
+    transition: background .15s ease, transform .1s ease, border-color .15s ease;
+  }
+  .btn-icon:hover{
+    background: rgba(255,255,255,.09);
+    border-color: rgba(255,255,255,.16);
+    transform: translateY(-1px);
+  }
+
+  /* ===== Modal dark (por si no está global) ===== */
+  .modal{ z-index: 2000; }
+  .modal-backdrop{ z-index: 1990; }
+  .modal-content{
+    background: rgba(45,47,49,1) !important;
+    color: rgba(255,255,255,.92) !important;
+    border: 1px solid rgba(255,255,255,.08) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  }
+  .modal-header, .modal-footer{ border-color: rgba(255,255,255,.08) !important; }
+  .btn-close{ filter: invert(1); opacity: .85; }
+  .btn-close:hover{ opacity: 1; }
+  .form-control, .form-select{
+    background: rgba(255,255,255,.06) !important;
+    border-color: rgba(255,255,255,.12) !important;
+    color: rgba(255,255,255,.92) !important;
+  }
+  .form-control::placeholder{ color: rgba(255,255,255,.45) !important; }
+  .form-select option, .form-select optgroup{
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .form-text, .text-muted{ color: rgba(255,255,255,.55) !important; }
+</style>
+
+<div class="px-3 md:px-8">
+  <!-- Buscador -->
+  <form method="get" class="grid grid-cols-1 md:grid-cols-12 gap-3 mb-6">
+    <div class="md:col-span-9">
+      <input
+        name="q"
+        value="{{ q }}"
+        class="input-core"
+        placeholder="Buscar por nombre, identificación, email o teléfono..."
+      >
+    </div>
+    <div class="md:col-span-3">
+      <button
+        class="w-full h-[46px] rounded-xl bg-primary hover:bg-[#2C3B43]
+               text-sm font-bold text-white transition-colors
+               focus:outline-none focus:ring-2 focus:ring-white/10 active:scale-[0.99]"
+        type="submit"
+      >
+        <i class="bi bi-search"></i> Buscar
+      </button>
+    </div>
+  </form>
+
+  <!-- Tabla -->
+  <div class="card-core">
+    <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-3">
+      <div>
+        <h4 class="text-lg font-bold text-white">Lista de clientes</h4>
+        <p class="text-xs text-secondary mt-1">Haz clic en editar para actualizar información.</p>
       </div>
-      <div class="col-12 col-md-4 d-grid">
-        <button class="btn btn-primary" type="submit">
-          <i class="bi bi-search"></i> Buscar
-        </button>
-      </div>
-    </form>
-
-    <div class="card shadow-sm">
-      <div class="card-header">Lista de clientes</div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Nombre</th>
-                <th>Apellido</th>
-                <th>Identificación</th>
-                <th>F.Nacimiento</th>
-                <th class="text-end" style="width: 180px;">Acciones</th>
-              </tr>
-            </thead>
-
-            <tbody>
-              {% if clientes %}
-                {% for c in clientes %}
-                  <tr>
-                    <td class="fw-semibold">{{ c.nombre or '-' }}</td>
-                    <td class="text-muted">{{ c.apellido or '-' }}</td>
-                    <td class="text-muted">{{ c.identificacion or '-' }}</td>
-                    <td class="text-muted">{{ c.fecha_nacimiento_str or '-' }}</td>
-
-                    <td class="text-end">
-                      <div class="btn-group btn-group-sm" role="group">
-                        <!-- Editar -->
-                        <button
-                          type="button"
-                          class="btn btn-light border"
-                          data-bs-toggle="modal"
-                          data-bs-target="#editModal{{ c._id }}"
-                          title="Editar cliente"
-                        >
-                          <i class="bi bi-pencil"></i>
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-
-                  <!-- ✅ MODAL EDITAR (COMPLETO Y CORRECTO) -->
-                  <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
-                    <div class="modal-dialog modal-dialog-centered">
-                      <div class="modal-content">
-
-                        <form method="post" action="{{ url_for('web.admin_clientes_editar', cliente_id=c._id) }}">
-                          <div class="modal-header">
-                            <h5 class="modal-title">
-                              <i class="bi bi-pencil me-1"></i> Editar cliente
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
-                          </div>
-
-                          <div class="modal-body">
-                            <div class="row g-3">
-
-                              <div class="col-12 col-md-6">
-                                <label class="form-label">Nombre</label>
-                                <input type="text" name="nombre" class="form-control" value="{{ c.nombre or '' }}" required>
-                              </div>
-
-                              <div class="col-12 col-md-6">
-                                <label class="form-label">Apellido</label>
-                                <input type="text" name="apellido" class="form-control" value="{{ c.apellido or '' }}">
-                              </div>
-
-                              <div class="col-12 col-md-6">
-                                <label class="form-label">Identificación</label>
-                                <input type="text" name="identificacion" class="form-control" value="{{ c.identificacion or '' }}" required>
-                              </div>
-
-                              <div class="col-12 col-md-6">
-                                <label class="form-label">Teléfono</label>
-                                <input type="text" name="telefono" class="form-control" value="{{ c.telefono or '' }}">
-                              </div>
-
-                              <div class="col-12 col-md-6">
-                                <label class="form-label">Email</label>
-                                <input type="email" name="email" class="form-control" value="{{ c.email or '' }}">
-                              </div>
-
-                              <div class="col-12 col-md-6">
-                                <label class="form-label">Fecha de nacimiento</label>
-                                <input
-                                  type="date"
-                                  name="fecha_nacimiento"
-                                  class="form-control"
-                                  value="{{ c.fecha_nacimiento_ymd or '' }}"
-                                >
-                                <div class="form-text">
-                                  Actual: {{ c.fecha_nacimiento_str or '-' }}
-                                </div>
-                              </div>
-
-                            </div>
-                          </div>
-
-                          <div class="modal-footer">
-                            <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">
-                              Cancelar
-                            </button>
-                            <button class="btn btn-primary" type="submit">
-                              <i class="bi bi-save"></i> Guardar
-                            </button>
-                          </div>
-
-                        </form>
-
-                      </div>
-                    </div>
-                  </div>
-                  <!-- /MODAL -->
-
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td colspan="5" class="text-center text-muted py-3">
-                    No hay clientes registrados.
-                  </td>
-                </tr>
-              {% endif %}
-            </tbody>
-          </table>
-        </div>
+      <div class="text-xs text-secondary">
+        {{ clientes|length if clientes else 0 }} total
       </div>
     </div>
 
+    <div class="overflow-x-auto">
+      <table class="table-core min-w-full">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Apellido</th>
+            <th>Identificación</th>
+            <th>F. Nacimiento</th>
+            <th class="text-right" style="width:160px;">Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% if clientes %}
+            {% for c in clientes %}
+              <tr>
+                <td class="font-semibold text-white">{{ c.nombre or '-' }}</td>
+                <td class="muted">{{ c.apellido or '-' }}</td>
+                <td class="muted">{{ c.identificacion or '-' }}</td>
+                <td class="muted">{{ c.fecha_nacimiento_str or '-' }}</td>
+
+                <td class="text-right">
+                  <button
+                    type="button"
+                    class="btn-icon"
+                    data-bs-toggle="modal"
+                    data-bs-target="#editModal{{ c._id }}"
+                    title="Editar cliente"
+                  >
+                    <i class="bi bi-pencil"></i>
+                  </button>
+                </td>
+              </tr>
+
+              <!-- ✅ MODAL EDITAR -->
+              <div class="modal fade" id="editModal{{ c._id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+
+                    <form method="post" action="{{ url_for('web.admin_clientes_editar', cliente_id=c._id) }}">
+                      <div class="modal-header">
+                        <div>
+                          <h5 class="modal-title mb-0">Editar cliente</h5>
+                          <div class="text-muted small">
+                            {{ (c.nombre or '-') }} {{ (c.apellido or '') }}
+                          </div>
+                        </div>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                      </div>
+
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Nombre</label>
+                            <input type="text" name="nombre" class="form-control" value="{{ c.nombre or '' }}" required>
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Apellido</label>
+                            <input type="text" name="apellido" class="form-control" value="{{ c.apellido or '' }}">
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Identificación</label>
+                            <input type="text" name="identificacion" class="form-control" value="{{ c.identificacion or '' }}" required>
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Teléfono</label>
+                            <input type="text" name="telefono" class="form-control" value="{{ c.telefono or '' }}">
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Email</label>
+                            <input type="email" name="email" class="form-control" value="{{ c.email or '' }}">
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Fecha de nacimiento</label>
+                            <input
+                              type="date"
+                              name="fecha_nacimiento"
+                              class="form-control"
+                              value="{{ c.fecha_nacimiento_ymd or '' }}"
+                            >
+                            <div class="form-text">Actual: {{ c.fecha_nacimiento_str or '-' }}</div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div class="modal-footer">
+                        <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
+                        <button class="btn btn-primary" type="submit">
+                          <i class="bi bi-save"></i> Guardar
+                        </button>
+                      </div>
+                    </form>
+
+                  </div>
+                </div>
+              </div>
+              <!-- /MODAL -->
+            {% endfor %}
+          {% else %}
+            <tr>
+              <td colspan="5" class="px-6 py-10 text-center text-secondary">
+                No hay clientes registrados.
+              </td>
+            </tr>
+          {% endif %}
+        </tbody>
+      </table>
+    </div>
   </div>
 </div>
 

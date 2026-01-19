@@ -1,153 +1,271 @@
-{% extends "base.html" %}
-{% block title %}Admin - Horarios{% endblock %}
+{% extends "base_admin.html" %}
+{% block title %}CORE Gym - Admin Horarios{% endblock %}
+{% set active = "admin_horarios" %}
+
+{% block header %}
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Horarios</h2>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <a
+      href="{{ url_for('web.admin_horarios_crear') }}"
+      class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary hover:bg-[#2C3B43] text-sm font-bold text-white transition-colors"
+    >
+      <span class="material-symbols-outlined text-[20px]">add</span>
+      Crear horario
+    </a>
+
+    <a
+      href="{{ url_for('web.horarios_publico') }}"
+      class="inline-flex items-center gap-2 px-3 sm:px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors shrink-0"
+      title="Ver horarios públicos"
+    >
+      <span class="material-symbols-outlined text-[20px]">calendar_today</span>
+      <span class="hidden sm:inline">Ver horarios públicos</span>
+    </a>
+
+  </div>
+</header>
+{% endblock %}
+
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h4 class="mb-0">Horarios</h4>
-    <div class="text-muted small">Selecciona días → selecciona un horario creado → Guardar</div>
-  </div>
-  <div class="d-flex gap-2">
-    <a href="{{ url_for('web.admin_horarios_crear') }}" class="btn btn-sm btn-primary">
-      <i class="bi bi-plus-lg"></i> Crear horario
-    </a>
-    <a href="{{ url_for('web.horarios_publico') }}" class="btn btn-sm btn-outline-secondary">
-      Ver horarios públicos
-    </a>
-  </div>
-</div>
+{# Flash messages (si ya están en base, puedes borrar esto) #}
+{% with messages = get_flashed_messages(with_categories=True) %}
+  {% if messages %}
+    <div class="space-y-3 mb-6">
+      {% for category, message in messages %}
+        {% set cat = (category or 'info')|lower %}
+        <div class="flex items-start gap-3 p-4 rounded-xl border
+                    {% if cat in ['danger','error'] %}bg-red-500/10 border-red-500/20{% elif cat=='success' %}bg-green-500/10 border-green-500/20{% elif cat=='warning' %}bg-yellow-500/10 border-yellow-500/20{% else %}bg-white/5 border-white/10{% endif %}">
+          <span class="material-symbols-outlined text-xl text-white/90">
+            {% if cat in ['danger','error'] %}error{% elif cat=='success' %}check_circle{% elif cat=='warning' %}warning{% else %}info{% endif %}
+          </span>
+          <div class="text-sm text-white/90 font-medium">{{ message }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+{% endwith %}
 
-<div class="row g-3">
-  <div class="col-12 col-lg-6">
-    <div class="card shadow-sm">
-      <div class="card-header">Días de la semana</div>
-      <div class="card-body">
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
-        <form method="post" action="{{ url_for('web.admin_horarios_asignar') }}">
+  {# ASIGNAR DÍAS #}
+  <div class="lg:col-span-6">
+    <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+      <div class="p-6 border-b border-white/5">
+        <h3 class="text-lg font-bold text-white">Días de la semana</h3>
+        <p class="text-xs text-secondary mt-1">Configura intervalo y cupo, luego asigna un horario a los días seleccionados.</p>
+      </div>
 
-          <div class="row g-3 mb-3">
-            <div class="col-6">
-              <label class="form-label">Intervalo</label>
-              {# ✅ name en español #}
-              <select name="intervalo_minutos" class="form-select">
-                <option value="60" {% if cfg.intervalo_minutos==60 %}selected{% endif %}>60 min</option>
-                <option value="30" {% if cfg.intervalo_minutos==30 %}selected{% endif %}>30 min</option>
-              </select>
-            </div>
-            <div class="col-6">
-              <label class="form-label">Cupo máximo</label>
-              <input type="number" min="1" name="cupo_maximo" class="form-control"
-                     value="{{ cfg.cupo_maximo or 10 }}" required>
+      <div class="p-6">
+        <form method="post" action="{{ url_for('web.admin_horarios_asignar') }}" class="space-y-5">
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+        <label class="block text-sm font-semibold text-white mb-2">Intervalo</label>
+        <select
+          name="intervalo_minutos"
+          class="select-core w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+        >
+          <option value="60" {% if cfg.intervalo_minutos==60 %}selected{% endif %}>60 min</option>
+          <option value="30" {% if cfg.intervalo_minutos==30 %}selected{% endif %}>30 min</option>
+        </select>
+      </div>
+
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Cupo máximo</label>
+              <input type="number" min="1" name="cupo_maximo" required
+                     value="{{ cfg.cupo_maximo or 10 }}"
+                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"/>
             </div>
           </div>
 
-          <div class="table-responsive">
-            <table class="table table-sm align-middle mb-0">
-              <thead class="table-light">
-                <tr>
-                  <th style="width:40px"></th>
-                  <th>Día</th>
-                  <th>Estado</th>
-                  <th>Horario asignado</th>
-                </tr>
-              </thead>
-              <tbody>
-                {% for k, label in days_ui %}
-                  {# ✅ cfg.dias en vez de cfg.days #}
-                  {% set d = (cfg.dias.get(k) if cfg.dias else None) or {} %}
-                  {% set activo = d.get('activo', False) %}
-                  {% set pid = d.get('plantilla_id') %}
-                  {% set hname = tpl_map.get(pid|string) if pid else None %}
-
+          <div class="rounded-2xl border border-white/10 overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left">
+                <thead class="bg-white/5">
                   <tr>
-                    <td>
-                      <input class="form-check-input" type="checkbox" name="dias" value="{{ k }}">
-                    </td>
-                    <td class="fw-semibold">{{ label }}</td>
-                    <td>
-                      {% if activo %}
-                        <span class="badge text-bg-success">Activo</span>
-                      {% else %}
-                        <span class="badge text-bg-secondary">Inactivo</span>
-                      {% endif %}
-                    </td>
-                    <td>
-                      {% if hname %}
-                        {{ hname }}
-                      {% else %}
-                        <span class="text-muted">Sin asignar</span>
-                      {% endif %}
-                    </td>
+                    <th class="px-5 py-4 w-12">
+                      <span class="text-xs font-bold text-accent uppercase tracking-wider">Sel</span>
+                    </th>
+                    <th class="px-5 py-4">
+                      <span class="text-xs font-bold text-accent uppercase tracking-wider">Día</span>
+                    </th>
+                    <th class="px-5 py-4">
+                      <span class="text-xs font-bold text-accent uppercase tracking-wider">Estado</span>
+                    </th>
+                    <th class="px-5 py-4">
+                      <span class="text-xs font-bold text-accent uppercase tracking-wider">Horario asignado</span>
+                    </th>
                   </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                </thead>
+
+                <tbody class="divide-y divide-white/10">
+                  {% for k, label in days_ui %}
+                    {% set d = (cfg.dias.get(k) if cfg.dias else None) or {} %}
+                    {% set activo = d.get('activo', False) %}
+                    {% set pid = d.get('plantilla_id') %}
+                    {% set hname = tpl_map.get(pid|string) if pid else None %}
+
+                    <tr class="hover:bg-white/[0.03] transition-colors">
+                      <td class="px-5 py-4">
+                        <input
+                          class="h-5 w-5 rounded border-white/20 bg-white/5 text-primary focus:ring-white/10 cursor-pointer"
+                          type="checkbox"
+                          name="dias"
+                          value="{{ k }}"
+                        >
+                      </td>
+
+                      <td class="px-5 py-4">
+                        <div class="text-sm font-semibold text-white">{{ label }}</div>
+                      </td>
+
+                      <td class="px-5 py-4">
+                        {% if activo %}
+                          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-green-500/10 text-green-300 border border-green-500/20">
+                            <span class="material-symbols-outlined text-[16px]">check_circle</span>
+                            Activo
+                          </span>
+                        {% else %}
+                          <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/5 text-secondary border border-white/10">
+                            <span class="material-symbols-outlined text-[16px]">pause_circle</span>
+                            Inactivo
+                          </span>
+                        {% endif %}
+                      </td>
+
+                      <td class="px-5 py-4">
+                        {% if hname %}
+                          <span class="text-sm text-white/90">{{ hname }}</span>
+                        {% else %}
+                          <span class="text-sm text-secondary">Sin asignar</span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
           </div>
 
-          <hr class="my-3" />
+          <div class="h-px bg-white/10"></div>
 
-          <div class="row g-2 align-items-end">
-            <div class="col-12 col-md-8">
-              <label class="form-label">Horario a asignar</label>
+            
+              <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-4 md:p-5">
+            <div class="flex flex-col md:flex-row md:items-end gap-3 md:gap-4">
+              <div class="flex-1">
+                <label class="block text-sm font-semibold text-white mb-2">Horario a asignar</label>
 
-              {# ✅ name en español: plantilla_id #}
-              <select name="plantilla_id" class="form-select" required>
-                <option value="">-- Selecciona --</option>
-                {% for t in templates %}
-                  <option value="{{ t._id }}">{{ t.nombre }}</option>
-                {% endfor %}
-              </select>
+                <div class="relative">
+                  <select
+                    name="plantilla_id"
+                    required
+                    class="select-core w-full appearance-none px-4 py-3 pr-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                          focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+                  >
+                    <option value="">-- Selecciona --</option>
+                    {% for t in templates %}
+                      <option value="{{ t._id }}">{{ t.nombre }}</option>
+                    {% endfor %}
+                  </select>
 
-              <div class="form-text">Se aplicará a los días marcados.</div>
-            </div>
 
-            <div class="col-12 col-md-4 d-grid">
-              <button class="btn btn-primary" type="submit">Guardar</button>
+                  <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/40">
+                    <span class="material-symbols-outlined text-[20px]">expand_more</span>
+                  </span>
+                </div>
+              </div>
+
+              <div class="md:w-[220px]">
+                <button
+                  type="submit"
+                  class="w-full h-[46px] rounded-xl bg-primary hover:bg-[#2C3B43]
+                        text-sm font-bold text-white transition-colors
+                        focus:outline-none focus:ring-2 focus:ring-white/10 active:scale-[0.99]"
+                >
+                  Guardar
+                </button>
+              </div>
             </div>
           </div>
+            
 
         </form>
       </div>
     </div>
   </div>
 
-  <div class="col-12 col-lg-6">
-    <div class="card shadow-sm">
-      <div class="card-header d-flex justify-content-between align-items-center">
-        <span>Horarios registrados</span>
-        <span class="small text-muted">{{ templates|length }} total</span>
+  {# LISTADO DE PLANTILLAS #}
+  <div class="lg:col-span-6">
+    <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+      <div class="p-6 border-b border-white/5 flex items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-bold text-white">Horarios registrados</h3>
+          <p class="text-xs text-secondary mt-1">Plantillas creadas para asignar a los días.</p>
+        </div>
+        <span class="text-xs text-secondary">
+          {{ templates|length }} total
+        </span>
       </div>
 
-      <div class="card-body">
+      <div class="p-6">
         {% if not templates %}
-          <div class="text-muted">
-            Aún no tienes horarios creados. Haz click en <b>Crear horario</b>.
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6">
+            <div class="flex items-start gap-3">
+              <span class="material-symbols-outlined text-secondary">info</span>
+              <div>
+                <p class="text-sm text-white font-semibold">Aún no tienes horarios creados.</p>
+                <p class="text-xs text-secondary mt-1">
+                  Haz click en <b>Crear horario</b> para registrar tu primera plantilla.
+                </p>
+              </div>
+            </div>
           </div>
         {% else %}
-          <div class="vstack gap-2">
+          <div class="space-y-3">
             {% for t in templates %}
-              <div class="border rounded-3 p-3">
-                <div class="d-flex justify-content-between align-items-center gap-2">
-                  <div class="fw-semibold">{{ t.nombre }}</div>
+              <div class="rounded-2xl border border-white/10 bg-white/[0.03] hover:bg-white/[0.05] transition-colors p-5">
+                <div class="flex items-start justify-between gap-3">
+                  <div>
+                    <div class="text-white font-bold">{{ t.nombre }}</div>
+                    <div class="text-xs text-secondary mt-1">
+                      {% for b in t.bloques %}
+                        <div>• {{ b.inicio or b.ini }} - {{ b.fin }}</div>
+                      {% endfor %}
+                    </div>
+                  </div>
 
-                  <div class="d-flex align-items-center gap-2">
-                    <span class="badge text-bg-light">{{ (t.bloques|length) }} bloque(s)</span>
+                  <div class="flex items-center gap-2">
+                    <span class="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11px] font-bold bg-white/5 text-secondary border border-white/10">
+                      {{ (t.bloques|length) }} bloque(s)
+                    </span>
 
                     <form method="post"
                           action="{{ url_for('web.admin_horarios_eliminar', template_id=t._id) }}"
                           onsubmit="return confirm('¿Eliminar el horario: {{ t.nombre }}?');">
-                      <button class="btn btn-sm btn-outline-danger" type="submit">
-                        <i class="bi bi-trash"></i>
+                      <button type="submit"
+                              class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-300 transition-colors"
+                              title="Eliminar">
+                        <span class="material-symbols-outlined text-[20px]">delete</span>
                       </button>
                     </form>
                   </div>
-                </div>
-
-                <div class="small text-muted mt-2">
-                  {% for b in t.bloques %}
-                    {# ✅ ahora en español: inicio/fin (pero dejo compat con ini) #}
-                    <div>• {{ b.inicio or b.ini }} - {{ b.fin }}</div>
-                  {% endfor %}
                 </div>
               </div>
             {% endfor %}
@@ -157,6 +275,7 @@
 
     </div>
   </div>
+
 </div>
 
 {% endblock %}

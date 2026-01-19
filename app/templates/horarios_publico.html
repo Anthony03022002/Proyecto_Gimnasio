@@ -1,77 +1,324 @@
 {# templates/horarios_publico.html #}
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 {% block title %}Horarios{% endblock %}
+
+{% block header %}
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Horarios</h2>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    {# ✅ Navegación semana / fecha #}
+    <form method="get" action="{{ url_for('web.horarios_publico') }}" class="flex items-center gap-2">
+      <input type="hidden" name="view" value="week">
+
+      <a
+        class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+        href="{{ url_for('web.horarios_publico', view='week', fecha=prev_date.isoformat()) }}"
+        aria-label="Semana anterior"
+      >←</a>
+
+      <input
+        type="date"
+        name="fecha"
+        value="{{ fecha.isoformat() }}"
+        class="h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+      >
+
+      <a
+        class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+        href="{{ url_for('web.horarios_publico', view='week', fecha=next_date.isoformat()) }}"
+        aria-label="Semana siguiente"
+      >→</a>
+    </form>
+
+  </div>
+</header>
+{% endblock %}
+
 {% block content %}
 
 <style>
-  .cal-wrap { border: 1px solid #e9ecef; border-radius: 12px; overflow: hidden; }
-  .cal-head { background: #fff; position: sticky; top: 0; z-index: 10; border-bottom: 1px solid #e9ecef; }
-  .cal-grid { height: 70vh; overflow: auto; background: #fff; }
-  .cal-row { display: grid; grid-template-columns: 90px repeat(7, 1fr); }
-  .cal-cell { border-bottom: 1px solid #f1f3f5; border-right: 1px solid #f1f3f5; min-height: 46px; padding: 6px; }
-  .cal-time { background: #fafafa; font-size: .85rem; color: #6c757d; display: flex; align-items: flex-start; justify-content: end; padding-right: 10px; }
-  .cal-dayhdr { padding: 10px; border-right: 1px solid #f1f3f5; }
-  .cal-dayhdr .dow { font-size: .8rem; color: #6c757d; }
-  .cal-dayhdr .dom { font-weight: 700; }
-  .cal-today { background: #f8f9ff; }
+  :root{
+    --core-bg: #1a1c1e;              /* background-dark */
+    --core-surface: #2d2f31;         /* surface-dark */
+    --core-border: rgba(255,255,255,.08);
+    --core-border-2: rgba(255,255,255,.06);
+    --core-muted: rgba(255,255,255,.55);  /* secondary */
+    --core-text: rgba(255,255,255,.92);
+    --core-accent: rgba(255,255,255,.75);
 
-  .slot-pill {
-    background: #eef2ff;
-    border: 1px solid #dbe4ff;
-    border-radius: 10px;
-    padding: 6px 8px;
-    line-height: 1.1;
+    --core-pill-open: rgba(255,255,255,.06);
+    --core-pill-open-border: rgba(255,255,255,.10);
+
+    --core-pill-partial: rgba(245, 158, 11, .12);
+    --core-pill-partial-border: rgba(245, 158, 11, .22);
+
+    --core-pill-full: rgba(239, 68, 68, .12);
+    --core-pill-full-border: rgba(239, 68, 68, .24);
+
+    --core-pill-mine: rgba(16, 185, 129, .12);
+    --core-pill-mine-border: rgba(16, 185, 129, .24);
+
+    --core-today: rgba(255,255,255,.04);
+  }
+
+  /* ===== Calendar wrapper ===== */
+  .cal-wrap{
+    border: 1px solid var(--core-border);
+    border-radius: 18px;
+    overflow: hidden;
+    background: var(--core-surface);
+    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+  }
+
+  /* Sticky head (IMPORTANTE: z-index menor que modal) */
+  .cal-head{
+    background: rgba(45,47,49,.85);
+    backdrop-filter: blur(10px);
+    position: sticky;
+    top: 0;
+    z-index: 5;
+    border-bottom: 1px solid var(--core-border);
+  }
+
+  .cal-grid{
+    height: 70vh;
+    overflow: auto;
+    background: var(--core-surface);
+  }
+
+  .cal-row{
+    display: grid;
+    grid-template-columns: 90px repeat(7, 1fr);
+  }
+
+  .cal-cell{
+    border-bottom: 1px solid var(--core-border-2);
+    border-right: 1px solid var(--core-border-2);
+    min-height: 52px;
+    padding: 8px;
+    background: transparent;
+  }
+
+  .cal-time{
+    background: rgba(0,0,0,.12);
     font-size: .85rem;
+    color: var(--core-muted);
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-end;
+    padding-right: 12px;
+    padding-top: 10px;
+    letter-spacing: .2px;
+  }
+
+  .cal-dayhdr{
+    padding: 12px 10px;
+    border-right: 1px solid var(--core-border-2);
+  }
+  .cal-dayhdr .dow{
+    font-size: .75rem;
+    color: var(--core-muted);
+    text-transform: uppercase;
+    letter-spacing: .12em;
+    font-weight: 700;
+  }
+  .cal-dayhdr .dom{
+    font-weight: 800;
+    color: var(--core-text);
+    margin-top: 2px;
+  }
+  .cal-today{ background: var(--core-today); }
+
+  /* ===== Slot pills ===== */
+  .slot-pill{
+    border-radius: 14px;
+    padding: 9px 10px;
+    line-height: 1.15;
+    font-size: .86rem;
     display: block;
     width: 100%;
+    border: 1px solid transparent;
+    background: var(--core-pill-open);
+    color: var(--core-text);
+    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
   }
-  .slot-pill .cap { color: #495057; font-size: .78rem; }
-
-  @media (max-width: 992px) {
-    .cal-row { grid-template-columns: 70px repeat(7, 160px); }
-    .cal-grid { overflow: auto; }
+  .slot-pill .fw-semibold{
+    font-weight: 800 !important;
+    color: var(--core-text);
+  }
+  .slot-pill .cap{
+    color: var(--core-muted);
+    font-size: .75rem;
+    margin-top: 2px;
   }
 
-  .slot-open{ background:#eef2ff; border-color:#dbe4ff; }
-  .slot-partial{ background:#fff4e6; border-color:#ffd8a8; }
-  .slot-full{ background:#ffe3e3; border-color:#ffa8a8; }
-  .slot-mine{ background:#e6fcf5; border-color:#c3fae8; }
+  /* botón pill (reset btn-link) */
+  button.slot-pill{
+    border: 1px solid var(--core-pill-open-border);
+    background: var(--core-pill-open);
+    text-align: left;
+  }
+  button.slot-pill:hover{
+    transform: translateY(-1px);
+    box-shadow: 0 12px 20px rgba(0,0,0,.22);
+    border-color: rgba(255,255,255,.16);
+  }
+  button.slot-pill:focus{
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+  }
 
-  .slot-full, .slot-full *{ color:#842029; }
+  .slot-open{ background: var(--core-pill-open); border-color: var(--core-pill-open-border); }
+  .slot-partial{ background: var(--core-pill-partial); border-color: var(--core-pill-partial-border); }
+  .slot-full{ background: var(--core-pill-full); border-color: var(--core-pill-full-border); }
+  .slot-mine{ background: var(--core-pill-mine); border-color: var(--core-pill-mine-border); }
+
+  .slot-disabled{ opacity: .55; pointer-events: none; filter: grayscale(0.2); }
+
+  /* ===== Top controls dark ===== */
+  input[type="date"].form-control{
+    background: rgba(255,255,255,.06) !important;
+    border-color: rgba(255,255,255,.10) !important;
+    color: rgba(255,255,255,.92) !important;
+  }
+  input[type="date"].form-control::-webkit-calendar-picker-indicator{
+    filter: invert(1);
+    opacity: .75;
+  }
+  .btn-outline-secondary{
+    border-color: rgba(255,255,255,.14) !important;
+    color: rgba(255,255,255,.85) !important;
+  }
+  .btn-outline-secondary:hover{
+    background: rgba(255,255,255,.08) !important;
+    border-color: rgba(255,255,255,.20) !important;
+    color: #fff !important;
+  }
+  .btn-outline-primary{
+    border-color: rgba(255,255,255,.14) !important;
+    color: rgba(255,255,255,.92) !important;
+  }
+  .btn-outline-primary:hover{
+    background: rgba(255,255,255,.08) !important;
+    border-color: rgba(255,255,255,.22) !important;
+    color: #fff !important;
+  }
+
+  /* ===== Scrollbar ===== */
+  .cal-grid::-webkit-scrollbar{ width: 10px; height: 10px; }
+  .cal-grid::-webkit-scrollbar-thumb{
+    background: rgba(255,255,255,.10);
+    border-radius: 999px;
+    border: 2px solid rgba(0,0,0,0);
+    background-clip: padding-box;
+  }
+  .cal-grid::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.16); }
+  .cal-grid::-webkit-scrollbar-track{ background: rgba(0,0,0,.15); }
+
+  @media (max-width: 992px){
+    .cal-row{ grid-template-columns: 70px repeat(7, 160px); }
+    .cal-grid{ overflow: auto; }
+  }
+
+  /* =========================================================
+     ✅ FIX: BOOTSTRAP MODALS + TABLES para tema DARK CORE
+     (esto es lo que te está rompiendo estilos y modales)
+     ========================================================= */
+
+  /* Asegura que el modal SIEMPRE gane al sticky header */
+  .modal{ z-index: 2000; }
+  .modal-backdrop{ z-index: 1990; }
+  .modal-dialog{ z-index: 2001; }
+
+  /* Modal dark */
+  .modal-content{
+    background: var(--core-surface) !important;
+    color: var(--core-text) !important;
+    border: 1px solid var(--core-border) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 20px 60px rgba(0,0,0,.55);
+  }
+  .modal-header, .modal-footer{
+    border-color: var(--core-border) !important;
+  }
+
+  /* Botón cerrar visible en dark */
+  .btn-close{
+    filter: invert(1);
+    opacity: .85;
+  }
+  .btn-close:hover{ opacity: 1; }
+
+  /* Text-muted en dark */
+  .text-muted, .form-text{
+    color: var(--core-muted) !important;
+  }
+
+  /* Inputs/selects dentro modales (evita blanco invisible) */
+  .form-control, .form-select{
+    background: rgba(255,255,255,.06) !important;
+    border-color: rgba(255,255,255,.12) !important;
+    color: rgba(255,255,255,.92) !important;
+  }
+  .form-control::placeholder{ color: rgba(255,255,255,.45) !important; }
+
+  /* ✅ Fix dropdown options blancos/invisibles */
+  .form-select option, .form-select optgroup{
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .form-select{ color-scheme: dark; }
+
+  /* Tables dark */
+  .table{
+    color: rgba(255,255,255,.88) !important;
+  }
+  .table thead.table-light{
+    background: rgba(255,255,255,.06) !important;
+  }
+  .table thead.table-light th{
+    color: rgba(255,255,255,.70) !important;
+    border-color: rgba(255,255,255,.08) !important;
+  }
+  .table td, .table th{
+    border-color: rgba(255,255,255,.06) !important;
+  }
+
+  /* List group dark (modal alumnos) */
+  .list-group-item{
+    background: rgba(255,255,255,.04) !important;
+    border-color: rgba(255,255,255,.08) !important;
+    color: rgba(255,255,255,.88) !important;
+  }
+
+  /* Badges (si ya usas bootstrap badge) */
+  .badge.text-bg-success{ background: rgba(16,185,129,.18) !important; color: #d1fae5 !important; }
+  .badge.text-bg-secondary{ background: rgba(255,255,255,.10) !important; color: rgba(255,255,255,.85) !important; }
+
 </style>
 
-<div class="d-flex justify-content-between align-items-center mb-2">
-  <div class="d-flex align-items-center gap-2">
-    <h4 class="mb-0">Horarios</h4>
 
-    {% if session.get("user_role") == "admin" %}
-      <a href="{{ url_for('web.admin_horarios') }}" class="btn btn-sm btn-outline-primary">
-        <i class="bi bi-plus-lg"></i> Ingresar horarios
-      </a>
-    {% endif %}
-  </div>
 
-  <form method="get" action="{{ url_for('web.horarios_publico') }}" class="d-flex gap-2">
-    <input type="hidden" name="view" value="week">
 
-    <a class="btn btn-sm btn-outline-secondary"
-       href="{{ url_for('web.horarios_publico', view='week', fecha=prev_date.isoformat()) }}">
-      ←
-    </a>
-
-    <input type="date" name="fecha" class="form-control form-control-sm" value="{{ fecha.isoformat() }}">
-
-    <a class="btn btn-sm btn-outline-secondary"
-       href="{{ url_for('web.horarios_publico', view='week', fecha=next_date.isoformat()) }}">
-      →
-    </a>
-  </form>
-</div>
 
 <div class="cal-wrap shadow-sm">
   <div class="cal-head">
     <div class="cal-row">
-      <div class="cal-cell cal-time" style="border-right:1px solid #e9ecef;border-bottom:0;">
+      <div class="cal-cell cal-time" style="border-right:1px solid var(--core-border-2); border-bottom:0;">
         <span class="small text-muted">Hora</span>
       </div>
 
@@ -115,54 +362,55 @@
 
               {% set ya_reservado = (mis_slot_ids is defined and (s._id in mis_slot_ids)) %}
 
-              {# ✅ reserva del cliente para ESTE día (si existe) #}
               {% set res_dia = (reserva_por_fecha.get(key) if reserva_por_fecha is defined else none) %}
               {% set reserva_id_dia = (res_dia.get('reserva_id') if res_dia else '') %}
-              {% set slot_reservado_dia = (res_dia.get('slot_id') if res_dia else '') %}
               {% set tiene_reserva_dia = (reserva_id_dia != '') %}
 
               {% set estado_class = "slot-open" %}
               {% if is_partial %}{% set estado_class = "slot-partial" %}{% endif %}
               {% if is_full %}{% set estado_class = "slot-full" %}{% endif %}
 
-              {# ==========================
-                 ✅ CLIENTE: reservado / reservar / cambiar
-                 ========================== #}
+              {% set reservable = true if (primera_vez is defined and primera_vez) else (s.reservable if s.reservable is defined else true) %}
+              {% set msg_reserva = (s.msg_reserva if s.msg_reserva is defined else '') %}
+
               {% if is_cliente and ya_reservado %}
                 <div class="slot-pill slot-mine">
                   <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
                   <div class="cap">Reservado por ti</div>
                 </div>
 
-              {% elif is_cliente and cupo_ok %}
-              {# ✅ si ya tiene reserva ese día, mandamos reserva_id para que el modal haga "cambio" #}
-              {% set res_dia = (reserva_por_fecha.get(key) if reserva_por_fecha is defined else none) %}
-              {% set reserva_id_dia = (res_dia.get('reserva_id') if res_dia else '') %}
+              {% elif is_cliente and cupo_ok and reservable %}
+                <button
+                  type="button"
+                  class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalReservar"
+                  data-slot-id="{{ s._id }}"
+                  data-fecha="{{ key }}"
+                  data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                  data-fin="{{ s.fin.strftime('%H:%M') }}"
+                  data-reserva-id="{{ reserva_id_dia }}"
+                >
+                  <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
 
-              <button
-                type="button"
-                class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
-                data-bs-toggle="modal"
-                data-bs-target="#modalReservar"
-                data-slot-id="{{ s._id }}"
-                data-fecha="{{ key }}"
-                data-inicio="{{ s.inicio.strftime('%H:%M') }}"
-                data-fin="{{ s.fin.strftime('%H:%M') }}"
-                data-reserva-id="{{ reserva_id_dia }}"
-              >
-                <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
-                <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
+                  {% if reserva_id_dia %}
+                    <div class="text-muted small mt-1">Clic para cambiar tu reserva (elige entrenador)</div>
+                  {% else %}
+                    <div class="text-muted small mt-1">Clic para reservar</div>
+                  {% endif %}
+                </button>
 
-                {% if reserva_id_dia %}
-                  <div class="text-muted small mt-1">Clic para cambiar tu reserva (elige entrenador)</div>
-                {% else %}
-                  <div class="text-muted small mt-1">Clic para reservar</div>
-                {% endif %}
-              </button>
-
+              {% elif is_cliente and not reservable %}
+                <div class="slot-pill {{ estado_class }} slot-disabled">
+                  <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
+                  <div class="text-muted small mt-1">
+                    {{ msg_reserva or "Aún no habilitado" }}
+                  </div>
+                </div>
 
               {% elif is_cliente and cupo_ok and tiene_reserva_dia %}
-                {# ✅ YA tiene reserva ese día -> CAMBIAR (NO abre modal) #}
                 <button
                   type="button"
                   class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none btn-cambiar-slot"
@@ -174,19 +422,9 @@
                 >
                   <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
                   <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
-
-                  {% if is_full %}
-                    <div class="small mt-1">Sin cupos</div>
-                  {% elif is_partial %}
-                    <div class="text-muted small mt-1">Ya hay reservas</div>
-                  {% else %}
-                    <div class="text-muted small mt-1">Clic para cambiar tu reserva</div>
-                  {% endif %}
+                  <div class="text-muted small mt-1">Clic para cambiar tu reserva</div>
                 </button>
 
-              {# ==========================
-                 ✅ ENTRENADOR
-                 ========================== #}
               {% elif is_entrenador %}
                 <button
                   type="button"
@@ -203,21 +441,11 @@
                   <div class="text-muted small mt-1">Clic para ver alumnos</div>
                 </button>
 
-              {# ==========================
-                 ✅ OTROS ROLES
-                 ========================== #}
               {% else %}
                 <div class="slot-pill {{ estado_class }}">
                   <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
                   <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
 
-                  {% if is_full %}
-                    <div class="small mt-1">Lleno</div>
-                  {% elif is_partial %}
-                    <div class="text-muted small mt-1">Con reservas</div>
-                  {% endif %}
-
-                  {# ✅ ADMIN o CAJERO: ver reservas del slot #}
                   {% if (is_cajero or is_admin) and usados > 0 %}
                     <button
                       type="button"
@@ -247,7 +475,7 @@
    =========================== #}
 {% if session.get("user_role") == "cliente" %}
 <div class="modal fade" id="modalReservar" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-md">
+  <div class="modal-dialog modal-md modal-dialog-centered">
     <div class="modal-content">
       <form method="post" action="{{ url_for('web.cliente_reservar') }}" id="formReservar">
         <div class="modal-header">
@@ -262,7 +490,6 @@
           <input type="hidden" name="slot_id" id="inpSlotId">
           <input type="hidden" name="fecha_ref" id="inpFechaRef" value="{{ fecha.isoformat() }}">
           <input type="hidden" name="reserva_id" id="inpReservaId" value="">
-
 
           <label class="form-label">Entrenador</label>
           <select class="form-select" name="entrenador_id" required>
@@ -288,116 +515,80 @@
   </div>
 </div>
 
-{# ✅ FORM OCULTO PARA CAMBIAR RESERVA (CLIENTE) #}
 <form method="post" id="formCambiarReserva" class="d-none">
   <input type="hidden" name="slot_id" id="inpNuevoSlotId">
   <input type="hidden" name="fecha_ref" value="{{ fecha.isoformat() }}">
 </form>
 
 <script>
-  // --- modal reservar ---
-  (function(){
-    const modal = document.getElementById('modalReservar');
-    if (!modal) return;
+(function(){
+  const modal = document.getElementById('modalReservar');
+  if (!modal) return;
 
-    const form = document.getElementById('formReservar');
-    const inpSlotId = document.getElementById('inpSlotId');
-    const inpReservaId = document.getElementById('inpReservaId');
-    const txtSlotInfo = document.getElementById('txtSlotInfo');
+  const form = document.getElementById('formReservar');
+  const inpSlotId = document.getElementById('inpSlotId');
+  const inpReservaId = document.getElementById('inpReservaId');
+  const txtSlotInfo = document.getElementById('txtSlotInfo');
 
-    const aviso = document.getElementById('txtCambioAviso');
-    const txtBtn = document.getElementById('txtBtnAccion');
-    const btnSubmit = document.getElementById('btnSubmitReservar');
+  const URL_RESERVAR = "{{ url_for('web.cliente_reservar') }}";
+  const URL_CAMBIAR_TPL = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
 
-    // URLs (ajusta si tu endpoint cambia)
-    const URL_RESERVAR = "{{ url_for('web.cliente_reservar') }}";
-    // Si tienes endpoint dedicado para cambiar:
-    const URL_CAMBIAR_TPL = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
+  if (form && form.dataset.bound === "1") return;
+  if (form) form.dataset.bound = "1";
 
-    // evita doble binding
-    if (form && form.dataset.bound === "1") return;
-    if (form) form.dataset.bound = "1";
+  modal.addEventListener('show.bs.modal', function (event) {
+    const btn = event.relatedTarget;
+    if (!btn) return;
 
-    modal.addEventListener('show.bs.modal', function (event) {
-      const btn = event.relatedTarget;
-      if (!btn) return;
+    const slotId = btn.getAttribute('data-slot-id') || '';
+    const fecha  = btn.getAttribute('data-fecha') || '';
+    const inicio = btn.getAttribute('data-inicio') || '';
+    const fin    = btn.getAttribute('data-fin') || '';
+    const reservaId = btn.getAttribute('data-reserva-id') || '';
 
-      const slotId = btn.getAttribute('data-slot-id') || '';
-      const fecha  = btn.getAttribute('data-fecha') || '';
-      const inicio = btn.getAttribute('data-inicio') || '';
-      const fin    = btn.getAttribute('data-fin') || '';
-      const reservaId = btn.getAttribute('data-reserva-id') || '';
+    if (inpSlotId) inpSlotId.value = slotId;
+    if (inpReservaId) inpReservaId.value = reservaId;
+    if (txtSlotInfo) txtSlotInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
 
-      if (inpSlotId) inpSlotId.value = slotId;
-      if (txtSlotInfo) txtSlotInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
-
-      // ✅ si hay reservaId => es cambio
-      if (inpReservaId) inpReservaId.value = reservaId;
-
-      const esCambio = !!reservaId;
-
-      if (aviso) aviso.classList.toggle('d-none', !esCambio);
-      if (txtBtn) txtBtn.textContent = esCambio ? "Cambiar" : "Reservar";
-
-      // ✅ action del form
-      if (form) {
-        if (esCambio) {
-          // si tienes endpoint dedicado:
-          form.action = URL_CAMBIAR_TPL.replace("__RID__", encodeURIComponent(reservaId));
-          // si NO tienes endpoint dedicado y haces todo en /cliente/reservar,
-          // comenta la línea de arriba y usa:
-          // form.action = URL_RESERVAR;
-        } else {
-          form.action = URL_RESERVAR;
-        }
-      }
-    });
-
-    // confirmación solo cuando es cambio
     if (form) {
-      form.addEventListener("submit", function (e) {
-        const reservaId = (inpReservaId && inpReservaId.value) ? inpReservaId.value : "";
-        if (reservaId) {
-          if (!confirm("¿Seguro deseas cambiar tu reserva a este horario?")) {
-            e.preventDefault();
-            return false;
-          }
-        }
-      });
+      form.action = reservaId ? URL_CAMBIAR_TPL.replace("__RID__", encodeURIComponent(reservaId)) : URL_RESERVAR;
     }
-  })();
+  });
 
-  // --- cambiar reserva (clic en otro horario) ---
-  (function(){
-    const form = document.getElementById("formCambiarReserva");
-    const inpNuevo = document.getElementById("inpNuevoSlotId");
-    if (!form || !inpNuevo) return;
-
-    // ⚠️ Debe existir este endpoint en tu Flask:
-    // @web_bp.post("/cliente/reservas/<reserva_id>/cambiar")
-    const urlTpl = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
-
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest(".btn-cambiar-slot");
-      if (!btn) return;
-
-      const reservaId = btn.getAttribute("data-reserva-id") || "";
-      const nuevoSlotId = btn.getAttribute("data-nuevo-slot-id") || "";
-      const fecha = btn.getAttribute("data-fecha") || "";
-      const inicio = btn.getAttribute("data-inicio") || "";
-      const fin = btn.getAttribute("data-fin") || "";
-
-      if (!reservaId || !nuevoSlotId) return;
-
-      if (!confirm(`Ya tienes una reserva el ${fecha}.\n¿Deseas cambiarla a ${inicio} - ${fin}?`)) {
-        return;
+  if (form) {
+    form.addEventListener("submit", function (e) {
+      const reservaId = (inpReservaId && inpReservaId.value) ? inpReservaId.value : "";
+      if (reservaId && !confirm("¿Seguro deseas cambiar tu reserva a este horario?")) {
+        e.preventDefault();
       }
-
-      inpNuevo.value = nuevoSlotId;
-      form.action = urlTpl.replace("__RID__", encodeURIComponent(reservaId));
-      form.submit();
     });
-  })();
+  }
+})();
+(function(){
+  const form = document.getElementById("formCambiarReserva");
+  const inpNuevo = document.getElementById("inpNuevoSlotId");
+  if (!form || !inpNuevo) return;
+
+  const urlTpl = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest(".btn-cambiar-slot");
+    if (!btn) return;
+
+    const reservaId = btn.getAttribute("data-reserva-id") || "";
+    const nuevoSlotId = btn.getAttribute("data-nuevo-slot-id") || "";
+    const fecha = btn.getAttribute("data-fecha") || "";
+    const inicio = btn.getAttribute("data-inicio") || "";
+    const fin = btn.getAttribute("data-fin") || "";
+
+    if (!reservaId || !nuevoSlotId) return;
+    if (!confirm(`Ya tienes una reserva el ${fecha}.\n¿Deseas cambiarla a ${inicio} - ${fin}?`)) return;
+
+    inpNuevo.value = nuevoSlotId;
+    form.action = urlTpl.replace("__RID__", encodeURIComponent(reservaId));
+    form.submit();
+  });
+})();
 </script>
 {% endif %}
 
@@ -406,7 +597,7 @@
    =========================== #}
 {% if session.get("user_role") == "entrenador" %}
 <div class="modal fade" id="modalAlumnos" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-md">
+  <div class="modal-dialog modal-dialog-scrollable modal-md modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <div>
@@ -429,56 +620,56 @@
 </div>
 
 <script>
-  (function(){
-    const modalAlumnos = document.getElementById('modalAlumnos');
-    const alumnosList = document.getElementById('alumnosList');
-    const alumnosStatus = document.getElementById('alumnosStatus');
-    const txtInfo = document.getElementById('txtAlumnosSlotInfo');
+(function(){
+  const modalAlumnos = document.getElementById('modalAlumnos');
+  const alumnosList = document.getElementById('alumnosList');
+  const alumnosStatus = document.getElementById('alumnosStatus');
+  const txtInfo = document.getElementById('txtAlumnosSlotInfo');
 
-    if (!modalAlumnos) return;
+  if (!modalAlumnos) return;
 
-    modalAlumnos.addEventListener('show.bs.modal', async function (event) {
-      const btn = event.relatedTarget;
-      if (!btn) return;
+  modalAlumnos.addEventListener('show.bs.modal', async function (event) {
+    const btn = event.relatedTarget;
+    if (!btn) return;
 
-      const slotId = btn.getAttribute('data-slot-id') || '';
-      const fecha  = btn.getAttribute('data-fecha') || '';
-      const inicio = btn.getAttribute('data-inicio') || '';
-      const fin    = btn.getAttribute('data-fin') || '';
+    const slotId = btn.getAttribute('data-slot-id') || '';
+    const fecha  = btn.getAttribute('data-fecha') || '';
+    const inicio = btn.getAttribute('data-inicio') || '';
+    const fin    = btn.getAttribute('data-fin') || '';
 
-      txtInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+    if (txtInfo) txtInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
 
-      alumnosList.innerHTML = '';
-      alumnosStatus.textContent = 'Cargando...';
+    alumnosList.innerHTML = '';
+    alumnosStatus.textContent = 'Cargando...';
 
-      try {
-        const resp = await fetch(`/entrenador/slot-alumnos?slot_id=${encodeURIComponent(slotId)}`);
-        const data = await resp.json();
+    try {
+      const resp = await fetch(`/entrenador/slot-alumnos?slot_id=${encodeURIComponent(slotId)}`);
+      const data = await resp.json();
 
-        if (!resp.ok || !data.ok) {
-          alumnosStatus.textContent = (data && data.error) ? data.error : 'Error al cargar alumnos';
-          return;
-        }
-
-        const alumnos = data.alumnos || [];
-        alumnosStatus.textContent = `${alumnos.length} alumno(s)`;
-
-        if (alumnos.length === 0) {
-          alumnosList.innerHTML = `<li class="list-group-item text-muted">Sin alumnos</li>`;
-          return;
-        }
-
-        for (const a of alumnos) {
-          const li = document.createElement('li');
-          li.className = 'list-group-item';
-          li.textContent = a.nombre || '-';
-          alumnosList.appendChild(li);
-        }
-      } catch (e) {
-        alumnosStatus.textContent = 'Error de red';
+      if (!resp.ok || !data.ok) {
+        alumnosStatus.textContent = (data && data.error) ? data.error : 'Error al cargar alumnos';
+        return;
       }
-    });
-  })();
+
+      const alumnos = data.alumnos || [];
+      alumnosStatus.textContent = `${alumnos.length} alumno(s)`;
+
+      if (alumnos.length === 0) {
+        alumnosList.innerHTML = `<li class="list-group-item text-muted">Sin alumnos</li>`;
+        return;
+      }
+
+      for (const a of alumnos) {
+        const li = document.createElement('li');
+        li.className = 'list-group-item';
+        li.textContent = a.nombre || '-';
+        alumnosList.appendChild(li);
+      }
+    } catch (e) {
+      alumnosStatus.textContent = 'Error de red';
+    }
+  });
+})();
 </script>
 {% endif %}
 
@@ -487,7 +678,7 @@
    =========================== #}
 {% if session.get("user_role") in ["cajero", "admin"] %}
 <div class="modal fade" id="modalReservasStaff" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-dialog-scrollable modal-lg">
+  <div class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
         <div>
@@ -532,14 +723,11 @@
 
   if (!modalReservas || !reservasTbody) return;
 
-  // evita duplicar listeners
   if (reservasTbody.dataset.bound === "1") return;
   reservasTbody.dataset.bound = "1";
 
   async function cargarReservas(slotId, fecha, inicio, fin){
-    if (txtReservasInfo) {
-      txtReservasInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin} | Slot: ${slotId}`;
-    }
+    if (txtReservasInfo) txtReservasInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
 
     reservasTbody.innerHTML = '';
     if (reservasStatus) reservasStatus.textContent = 'Cargando...';

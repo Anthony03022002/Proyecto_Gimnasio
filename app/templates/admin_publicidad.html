@@ -1,158 +1,292 @@
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 {% block title %}Admin - Publicidad{% endblock %}
+
+{% block header %}
+<header
+  class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5"
+>
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Publicidad</h2>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
 {% block content %}
 
 {% set active="admin_publicidad" %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h4 class="mb-0">Publicidad</h4>
-    <div class="text-muted small">Sube imágenes o videos y activa uno para mostrarlo como popup</div>
-  </div>
-</div>
+<div class="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
 
-{# =========================
-   ✅ FORM SUBIR PUBLICIDAD (IMAGEN O VIDEO)
-   ========================= #}
-<div class="card shadow-sm mb-3">
-  <div class="card-body">
-    <form
-      method="post"
-      action="{{ url_for('web.admin_publicidad_subir') }}"
-      enctype="multipart/form-data"
-      class="row g-2 align-items-end"
-    >
-      <div class="col-12 col-md-4">
-        <label class="form-label mb-1">Título</label>
-        <input
-          type="text"
-          name="titulo"
-          class="form-control"
-          placeholder="Ej: Promoción del mes"
+  {# =========================
+     FORM
+     ========================= #}
+  <section>
+    <div class="bg-[rgba(35,37,39,0.92)] border border-[rgba(255,255,255,0.06)] rounded-2xl shadow-sm overflow-hidden">
+      <div class="p-6">
+        <form
+          method="post"
+          action="{{ url_for('web.admin_publicidad_subir') }}"
+          enctype="multipart/form-data"
+          class="grid grid-cols-1 md:grid-cols-2 gap-8"
         >
-        <div class="form-text">Este texto saldrá arriba en el popup.</div>
-      </div>
 
-      <div class="col-12 col-md-5">
-        <label class="form-label mb-1">Archivo (imagen o video)</label>
-        {# ✅ IMPORTANTE: name="archivo" #}
-        <input
-          type="file"
-          name="archivo"
-          class="form-control"
-          accept="image/*,video/*"
-          required
-        >
-        <div class="form-text">
-          Imágenes se optimizan automáticamente. Videos se recomprimen si hay FFmpeg (en Linux producción).
-        </div>
-      </div>
+          {# Columna izquierda #}
+          <div class="space-y-4">
+            <div>
+              <label class="block text-sm font-medium mb-1.5 text-[rgba(255,255,255,0.6)]">
+                Título de la publicidad
+              </label>
 
-      <div class="col-12 col-md-3 d-grid">
-        <button class="btn btn-primary" type="submit">
-          <i class="bi bi-upload"></i> Subir
-        </button>
-      </div>
-    </form>
-  </div>
-</div>
+              <input
+                type="text"
+                name="titulo"
+                placeholder="Ej: Promoción del mes"
+                class="w-full rounded-lg px-4 py-2.5 outline-none transition-all
+                       bg-[rgba(255,255,255,0.05)]
+                       border border-[rgba(255,255,255,0.07)]
+                       text-[rgba(255,255,255,0.92)]
+                       placeholder:text-[rgba(255,255,255,0.45)]
+                       focus:ring-2 focus:ring-[#B8860B] focus:border-[#B8860B]"
+              >
+            </div>
 
-{# =========================
-   ✅ LISTADO PUBLICIDADES
-   ========================= #}
-<div class="card shadow-sm">
-  <div class="card-body p-0">
-    <div class="table-responsive">
-      <table class="table table-sm mb-0 align-middle">
-        <thead class="table-light">
-          <tr>
-            <th>Vista</th>
-            <th>Título / Archivo</th>
-            <th>Estado</th>
-            <th class="text-end">Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          {% if pubs %}
-            {% for p in pubs %}
+            <div class="flex items-end">
+              <button
+                class="w-full bg-[#B8860B] hover:opacity-90 text-white font-semibold py-3 px-6 rounded-lg transition-all
+                       flex items-center justify-center gap-2 shadow-lg shadow-[#B8860B]/20"
+                type="submit"
+              >
+                Subir Publicidad
+              </button>
+            </div>
+          </div>
+
+          {# Columna derecha #}
+          <div>
+            <label class="block text-sm font-medium mb-1.5 text-[rgba(255,255,255,0.6)]">
+              Archivo (Imagen / Video / PDF)
+            </label>
+
+            <div class="relative group">
+              <div class="border-2 border-dashed border-[rgba(255,255,255,0.07)] group-hover:border-[#B8860B]
+                          transition-colors rounded-xl p-8 flex flex-col items-center justify-center space-y-4
+                          bg-[rgba(255,255,255,0.02)]">
+
+                <div class="text-center">
+                  <p class="text-sm font-medium text-[rgba(255,255,255,0.92)]">
+                    Haz clic para subir o arrastra un archivo
+                  </p>
+                  <p class="text-xs mt-1 text-[rgba(255,255,255,0.45)]">
+                    Formatos soportados: JPG, PNG, MP4, PDF
+                  </p>
+                </div>
+
+                <input
+                  type="file"
+                  name="archivo"
+                  accept="image/*,video/*,application/pdf"
+                  required
+                  class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                >
+              </div>
+            </div>
+
+            <p class="mt-2 text-xs text-[rgba(255,255,255,0.6)]">
+              Imágenes se optimizan automáticamente. Videos se recomprimen si hay FFmpeg (Linux producción).
+            </p>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  </section>
+
+  {# =========================
+     LISTADO
+     ========================= #}
+  <section>
+    <div class="flex items-center justify-between mb-6">
+      <h3 class="text-xl font-bold tracking-tight text-[rgba(255,255,255,0.92)]">Listado de Publicidades</h3>
+
+      <span class="px-3 py-1 rounded-full text-xs font-semibold
+                   bg-[rgba(35,37,39,0.92)]
+                   border border-[rgba(255,255,255,0.06)]
+                   text-[rgba(255,255,255,0.6)]">
+        {% if pubs %}
+          {{ pubs|length }} Publicidades en total
+        {% else %}
+          0 Publicidades en total
+        {% endif %}
+      </span>
+    </div>
+
+    <div class="bg-[rgba(35,37,39,0.92)] border border-[rgba(255,255,255,0.06)] rounded-2xl shadow-sm overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left border-collapse">
+
+          <thead>
+            <tr class="text-xs font-semibold uppercase tracking-wider
+                       bg-[rgba(255,255,255,0.05)]
+                       text-[rgba(255,255,255,0.6)]">
+              <th class="px-6 py-4">Vista</th>
+              <th class="px-6 py-4">Título / Archivo</th>
+              <th class="px-6 py-4">Estado</th>
+              <th class="px-6 py-4 text-right">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody class="divide-y divide-[rgba(255,255,255,0.07)]">
+            {% if pubs %}
+              {% for p in pubs %}
+                {% set kind = p.get('kind') %}
+                {% set activo = p.get('activo') %}
+                {% set titulo = p.get('titulo') %}
+                {% set filename = p.get('filename') %}
+                {% set bytes_ = p.get('bytes') %}
+
+                <tr class="transition-colors
+                           hover:bg-[rgba(255,255,255,0.04)]
+                           odd:bg-[rgba(255,255,255,0.02)]">
+
+                  <td class="px-6 py-4">
+                    <div class="w-16 h-12 rounded-lg overflow-hidden relative
+                                bg-[rgba(255,255,255,0.02)]
+                                border border-[rgba(255,255,255,0.06)]">
+                      {% if kind == "video" %}
+                        <video
+                          src="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
+                          class="w-full h-full object-cover"
+                          muted playsinline preload="metadata"
+                        ></video>
+                        <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
+                          <span class="material-icons-round text-white text-lg">play_circle</span>
+                        </div>
+
+                      {% elif kind == "pdf" %}
+                        <a
+                          href="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
+                          target="_blank"
+                          class="w-full h-full flex items-center justify-center"
+                          title="Ver PDF"
+                        >
+                          <span class="material-icons-round text-red-400">picture_as_pdf</span>
+                        </a>
+
+                      {% else %}
+                        <img
+                          src="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
+                          class="w-full h-full object-cover"
+                          alt="publicidad"
+                        >
+                      {% endif %}
+                    </div>
+                  </td>
+
+                  <td class="px-6 py-4">
+                    <p class="text-sm font-semibold text-[rgba(255,255,255,0.92)]">
+                      {% if titulo %}{{ titulo }}{% else %}Publicidad{% endif %}
+                    </p>
+                    <p class="text-xs mt-0.5 text-[rgba(255,255,255,0.45)]">
+                      {{ filename }}
+                      {% if bytes_ %}
+                        ({{ (bytes_ / 1024 / 1024) | round(2) }} MB)
+                      {% endif %}
+                      {% if kind %}
+                        · <span class="uppercase">{{ kind }}</span>
+                      {% endif %}
+                    </p>
+                  </td>
+
+                  <td class="px-6 py-4">
+                    <div class="flex items-center gap-3">
+                      <div class="relative inline-flex items-center">
+                        {% if activo %}
+                          <div class="w-11 h-6 rounded-full bg-[#B8860B]"></div>
+                          <div class="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all translate-x-full"></div>
+                        {% else %}
+                          <div class="w-11 h-6 rounded-full bg-[rgba(255,255,255,0.07)]"></div>
+                          <div class="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all"></div>
+                        {% endif %}
+                      </div>
+
+                      {% if activo %}
+                        <span class="text-xs font-medium text-[#B8860B]">Activo</span>
+                      {% else %}
+                        <span class="text-xs font-medium text-[rgba(255,255,255,0.6)]">Inactivo</span>
+                      {% endif %}
+                    </div>
+                  </td>
+
+                  <td class="px-6 py-4 text-right">
+                    <div class="flex items-center justify-end gap-2">
+                      {% if not activo %}
+                        <form method="post" action="{{ url_for('web.admin_publicidad_activar', pub_id=p._id) }}" class="inline">
+                          <button
+                            class="p-2 rounded-lg transition-colors
+                                   text-[rgba(255,255,255,0.6)]
+                                   hover:text-[rgba(255,255,255,0.92)]
+                                   hover:bg-[rgba(255,255,255,0.04)]
+                                   border border-[rgba(255,255,255,0.06)]"
+                            title="Activar"
+                            type="submit"
+                          >
+                            <span class="material-icons-round text-lg">check_circle</span>
+                          </button>
+                        </form>
+                      {% else %}
+                        <form method="post" action="{{ url_for('web.admin_publicidad_desactivar', pub_id=p._id) }}" class="inline">
+                          <button
+                            class="p-2 rounded-lg transition-colors
+                                   text-[rgba(255,255,255,0.6)]
+                                   hover:text-red-400
+                                   hover:bg-red-500/10
+                                   border border-[rgba(255,255,255,0.06)]"
+                            title="Desactivar"
+                            type="submit"
+                          >
+                            <span class="material-icons-round text-lg">cancel</span>
+                          </button>
+                        </form>
+                      {% endif %}
+                    </div>
+                  </td>
+
+                </tr>
+              {% endfor %}
+
               <tr>
-                <td style="width:140px">
-                  {% if p.kind == "video" %}
-                    <video
-                      src="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
-                      style="width:130px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #eee"
-                      muted
-                      playsinline
-                      preload="metadata"
-                    ></video>
-                  {% else %}
-                    <img
-                      src="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
-                      style="width:130px;height:70px;object-fit:cover;border-radius:8px;border:1px solid #eee"
-                      alt="publicidad"
-                    >
-                  {% endif %}
-                </td>
-
-                <td class="small">
-                  <div class="fw-semibold">
-                    {{ p.titulo or "Publicidad" }}
-                  </div>
-                  <div class="text-muted">
-                    {{ p.filename }}
-                    {% if p.bytes %}
-                      · {{ (p.bytes/1024/1024)|round(2) }} MB
-                    {% endif %}
-                    {% if p.kind %}
-                      · <span class="text-uppercase">{{ p.kind }}</span>
-                    {% endif %}
-                  </div>
-                </td>
-
-                <td>
-                  {% if p.activo %}
-                    <span class="badge text-bg-success">Activa</span>
-                  {% else %}
-                    <span class="badge text-bg-secondary">Inactiva</span>
-                  {% endif %}
-                </td>
-
-                <td class="text-end">
-                  {% if not p.activo %}
-                    <form
-                      method="post"
-                      action="{{ url_for('web.admin_publicidad_activar', pub_id=p._id) }}"
-                      class="d-inline"
-                    >
-                      <button class="btn btn-sm btn-outline-success" type="submit">
-                        <i class="bi bi-check2-circle"></i> Activar
-                      </button>
-                    </form>
-                  {% else %}
-                    <form
-                      method="post"
-                      action="{{ url_for('web.admin_publicidad_desactivar', pub_id=p._id) }}"
-                      class="d-inline"
-                    >
-                      <button class="btn btn-sm btn-outline-danger" type="submit">
-                        <i class="bi bi-x-circle"></i> Desactivar
-                      </button>
-                    </form>
-                  {% endif %}
+                <td class="px-6 py-4 text-center" colspan="4">
+                  <p class="text-xs text-[rgba(255,255,255,0.45)] py-2">
+                    Solo puede haber una publicidad activa a la vez.
+                  </p>
                 </td>
               </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td colspan="4" class="text-center text-muted py-3">
-                Aún no has subido publicidades.
-              </td>
-            </tr>
-          {% endif %}
-        </tbody>
-      </table>
+
+            {% else %}
+              <tr>
+                <td colspan="4" class="px-6 py-10 text-center text-[rgba(255,255,255,0.45)]">
+                  Aún no has subido publicidades.
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+
+        </table>
+      </div>
     </div>
-  </div>
+  </section>
+
 </div>
 
 {% endblock %}

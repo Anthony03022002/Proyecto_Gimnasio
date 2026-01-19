@@ -1,317 +1,206 @@
-{# templates/partials/sidebar_admin.html #}
+{% set role = session.get("user_role") %} {% set username =
+session.get("username") or "Usuario" %} {% set active = active or "" %}
 
-<style>
-  .app-sidebar-card {
-    border-radius: 16px;
-    overflow: hidden;
-    width: 100%;
-  }
-  .app-sidebar-header {
-    background: linear-gradient(
-      135deg,
-      rgba(13, 110, 253, 0.1),
-      rgba(13, 110, 253, 0.03)
-    );
-    border-bottom: 1px solid rgba(0, 0, 0, 0.06);
-    padding: 14px 14px;
-  }
-  .app-sidebar-avatar {
-    width: 42px;
-    height: 42px;
-    border-radius: 12px;
-    background: rgba(13, 110, 253, 0.15);
-    display: grid;
-    place-items: center;
-    font-weight: 700;
-    color: #0d6efd;
-    flex: 0 0 auto;
-  }
-  .app-sidebar-meta .name {
-    font-weight: 700;
-    font-size: 0.95rem;
-    line-height: 1.1;
-  }
-  .app-sidebar-meta .role {
-    font-size: 0.78rem;
-    color: #6c757d;
-  }
+<div class="flex flex-col h-full">
+  <div class="hidden md:flex p-6 border-b border-white/5 items-center gap-3">
+    <img
+      src="../../static/images/logo_gym.jpeg"
+      alt="Logo"
+      class="w-20 h-20 object-contain"
+    >
 
-  .app-sidebar-list {
-    padding: 10px;
-  }
-  .app-sideitem {
-    border: 0 !important;
-    border-radius: 12px !important;
-    margin: 4px 0;
-    padding: 10px 12px !important;
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    color: #212529;
-    transition: background-color 0.15s ease, transform 0.12s ease;
-  }
-  .app-sideitem:hover {
-    background: rgba(13, 110, 253, 0.08);
-    transform: translateY(-1px);
-  }
-  .app-sideitem i {
-    font-size: 1.05rem;
-    opacity: 0.9;
-  }
-
-  .app-sideitem.active {
-    background: rgba(13, 110, 253, 0.14);
-    box-shadow: inset 0 0 0 1px rgba(13, 110, 253, 0.25);
-    color: #0d6efd;
-    font-weight: 700;
-  }
-
-  .app-sideitem.danger:hover {
-    background: rgba(220, 53, 69, 0.1);
-  }
-  .app-sideitem.danger {
-    color: #dc3545;
-  }
-
-  .app-side-divider {
-    margin: 10px 10px;
-    border-top: 1px solid rgba(0, 0, 0, 0.07);
-  }
-  .app-side-foot {
-    padding: 0 10px 12px;
-  }
-
-  .sticky-top.sidebar-sticky {
-    top: 80px;
-  }
-</style>
-
-{% set role = session.get("user_role") %}
-{% set username = session.get("username") or "Usuario" %}
-{% set initials = (username[:1] or "U")|upper %}
-{% set active = active or "" %}
-
-<div class="card shadow-sm app-sidebar-card sticky-top sidebar-sticky">
-  <div class="app-sidebar-header">
-    <div class="d-flex align-items-center gap-2">
-      <div class="app-sidebar-avatar">{{ initials }}</div>
-      <div class="app-sidebar-meta">
-        <div class="name">{{ username }}</div>
-        <div class="role">
-          {% if role == "admin" %}
-            Administrador
-          {% elif role == "cajero" %}
-            Cajero
-          {% elif role == "entrenador" %}
-            Entrenador
-          {% elif role == "cliente" %}
-            Cliente
-          {% else %}
-            Usuario
-          {% endif %}
-        </div>
-      </div>
-    </div>
+    <p class="text-[10px] uppercase tracking-widest text-secondary font-semibold">
+      Functional
+    </p>
   </div>
 
-  <div class="app-sidebar-list">
 
-    {# ---------------- ADMIN ---------------- #}
+  <nav class="flex-1 px-4 py-6 space-y-2 overflow-x-hidden">
     {% if role == "admin" %}
-      <a
-        href="{{ url_for('web.admin_dashboard') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_dashboard' %}active{% endif %}"
-      >
-        <i class="bi bi-speedometer2"></i> Dashboard
-      </a>
+    <a
+      href="{{ url_for('web.admin_dashboard') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_dashboard' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">dashboard</span>
+      Dashboard
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_cajeros') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_cajeros' %}active{% endif %}"
-      >
-        <i class="bi bi-receipt"></i> Cajeros
-      </a>
+    <a
+      href="{{ url_for('web.admin_cajeros') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_cajeros' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">point_of_sale</span>
+      Cajeros
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_horarios') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_horarios' %}active{% endif %}"
-      >
-        <i class="bi bi-calendar-week"></i> Horarios
-      </a>
+    <a
+      href="{{ url_for('web.admin_horarios') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_horarios' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">calendar_today</span>
+      Horarios
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_usuarios') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_usuarios' %}active{% endif %}"
-      >
-        <i class="bi bi-people"></i> Usuarios
-      </a>
+    <a
+      href="{{ url_for('web.admin_usuarios') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_usuarios' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">group</span>
+      Usuarios
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_entrenadores') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_entrenadores' %}active{% endif %}"
-      >
-        <i class="bi bi-person-workspace"></i> Entrenadores
-      </a>
+    <a
+      href="{{ url_for('web.admin_entrenadores') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_entrenadores' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">exercise</span>
+      Entrenadores
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_clientes') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_clientes' %}active{% endif %}"
-      >
-        <i class="bi bi-person-badge"></i> Clientes
-      </a>
+    <a
+      href="{{ url_for('web.admin_clientes') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_clientes' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">person_outline</span>
+      Clientes
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_ventas_listado') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_ventas' %}active{% endif %}"
-      >
-        <i class="bi bi-list"></i> Ventas
-      </a>
+    <a
+      href="{{ url_for('web.admin_ventas_listado') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_ventas' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">receipt_long</span>
+      Ventas
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_publicidad') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='admin_publicidad' %}active{% endif %}"
-      >
-        <i class="bi bi-megaphone"></i> Publicidad
-      </a>
+    <a
+      href="{{ url_for('web.admin_publicidad') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_publicidad' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">campaign</span>
+      Publicidad
+    </a>
+    {% endif %} {% if role == "cajero" %}
+    <a
+      href="{{ url_for('web.cajero_dashboard') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cajero_dashboard' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">dashboard</span>
+      Panel
+    </a>
 
+    <a
+      href="{{ url_for('web.cajero_renovar') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cajero_renovar' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">autorenew</span>
+      Renovar suscripción
+    </a>
 
-      <a
-        href="{{ url_for('web.admin_configuracion') }}"
-        class="list-group-item list-group-item-action app-sideitem danger {% if active=='admin_configuracion' %}active{% endif %}"
-      >
-        <i class="bi bi-gear"></i> Configuración
-      </a>
+    <a
+      href="{{ url_for('web.horarios_publico', view='week') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='horario' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">calendar_today</span>
+      Horario
+    </a>
+
+    <a
+      href="{{ url_for('web.cajero_clientes') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cajero_clientes' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">group</span>
+      Clientes
+    </a>
+    {% endif %} {% if role == "entrenador" %}
+    <a
+      href="{{ url_for('web.entrenador_dashboard') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='entrenador_dashboard' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">dashboard</span>
+      Panel
+    </a>
+
+    <a
+      href="{{ url_for('web.horarios_publico', view='week') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='horario' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">calendar_today</span>
+      Horario / Clases
+    </a>
+
+    <a
+      href="{{ url_for('web.entrenador_mis_alumnos') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='entrenador_mis_alumnos' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">group</span>
+      Mis alumnos
+    </a>
+    {% endif %} {% if role == "cliente" %} {% if session.get("membresia_activa")
+    %}
+    <a
+      href="{{ url_for('web.cliente_dashboard') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cliente_dashboard' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">dashboard</span>
+      Mi panel
+    </a>
+
+    <a
+      href="{{ url_for('web.horarios_publico', view='week') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='horario' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">calendar_today</span>
+      Horario
+    </a>
+
+    <a
+      href="{{ url_for('web.cliente_membresia') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cliente_membresia' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">badge</span>
+      Mi membresía
+    </a>
+
+    <a
+      href="{{ url_for('web.cliente_progreso') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cliente_progreso' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">trending_up</span>
+      Mi Progreso
+    </a>
+    {% else %}
+    <a
+      href="{{ url_for('web.cliente_membresia') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='cliente_membresia' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">badge</span>
+      Mi membresía
+    </a>
+    {% endif %} {% endif %}
+  </nav>
+
+  <div class="p-4 border-t border-white/5 space-y-1">
+    {# Configuración (siempre visible por rol, ajusta si quieres) #} {% if role
+    in ["admin","cajero","entrenador","cliente"] %}
+    <a
+      href="{% if role=='admin' %}{{ url_for('web.admin_configuracion') }}
+                {% elif role=='cajero' %}{{ url_for('web.cajero_config') }}
+                {% elif role=='entrenador' %}{{ url_for('web.entrenador_configuracion') }}
+                {% else %}{{ url_for('web.cliente_config') }}{% endif %}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-secondary hover:text-white hover:bg-white/5 rounded-lg transition-all"
+    >
+      <span class="material-symbols-outlined">settings</span>
+      Configuración
+    </a>
     {% endif %}
 
-    {# ---------------- CAJERO ---------------- #}
-    {% if role == "cajero" %}
-      <a
-        href="{{ url_for('web.cajero_dashboard') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_dashboard' %}active{% endif %}"
-      >
-        <i class="bi bi-speedometer2"></i> Panel
-      </a>
-
-      <a
-        href="{{ url_for('web.cajero_renovar') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_renovar' %}active{% endif %}"
-      >
-        <i class="bi bi-arrow-repeat"></i> Renovar suscripción
-      </a>
-
-      <a
-        href="{{ url_for('web.horarios_publico', view='week') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
-      >
-        <i class="bi bi-calendar-week"></i> Horario
-      </a>
-
-      <a
-        href="{{ url_for('web.cajero_clientes') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='cajero_clientes' %}active{% endif %}"
-      >
-        <i class="bi bi-person-lines-fill"></i> Clientes
-      </a>
-
-      <a
-        href="{{ url_for('web.cajero_config') }}"
-        class="list-group-item list-group-item-action app-sideitem danger {% if active=='cajero_config' %}active{% endif %}"
-      >
-        <i class="bi bi-gear"></i> Configuración
-      </a>
-    {% endif %}
-
-    {# ---------------- ENTRENADOR ---------------- #}
-    {% if role == "entrenador" %}
-      <a
-        href="{{ url_for('web.entrenador_dashboard') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='entrenador_dashboard' %}active{% endif %}"
-      >
-        <i class="bi bi-speedometer2"></i> Panel
-      </a>
-
-      <a
-        href="{{ url_for('web.horarios_publico', view='week') }}"
-        class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
-      >
-        <i class="bi bi-calendar-week"></i> Horario / Clases
-      </a>
-
-      <a class=" list-group-item list-group-item-action app-sideitem nav-link {% if active == 'entrenador_mis_alumnos' %}active{% endif %}"
-        href="{{ url_for('web.entrenador_mis_alumnos') }}">
-        <i class="bi bi-people"></i> Mis alumnos
-      </a>
-
-      <a
-        href="{{ url_for('web.entrenador_configuracion') }}"
-        class="list-group-item list-group-item-action app-sideitem danger {% if active=='entrenador_configuracion' %}active{% endif %}"
-      >
-        <i class="bi bi-gear"></i> Configuración
-      </a>
-    {% endif %}
-
-    {# ---------------- CLIENTE ---------------- #}
-    {% if role == "cliente" %}
-
-      {% if session.get("membresia_activa") %}
-
-        <a
-          href="{{ url_for('web.cliente_dashboard') }}"
-          class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_dashboard' %}active{% endif %}"
-        >
-          <i class="bi bi-speedometer2"></i> Mi panel
-        </a>
-
-        <a
-          href="{{ url_for('web.horarios_publico', view='week') }}"
-          class="list-group-item list-group-item-action app-sideitem {% if active=='horario' %}active{% endif %}"
-        >
-          <i class="bi bi-calendar-week"></i> Horario
-        </a>
-
-        <a
-          href="{{ url_for('web.cliente_membresia') }}"
-          class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_membresia' %}active{% endif %}"
-        >
-          <i class="bi bi-card-checklist"></i> Mi membresía
-        </a>
-
-        <a
-          href="{{ url_for('web.cliente_progreso') }}"
-          class="list-group-item list-group-item-action app-sideitem {% if active=='cliente_progreso' %}active{% endif %}"
-        >
-          <i class="bi bi-graph-up"></i> Mi Progreso
-        </a>
-
-        <a
-          href="{{ url_for('web.cliente_config') }}"
-          class="list-group-item list-group-item-action app-sideitem danger {% if active=='cliente_config' %}active{% endif %}"
-        >
-          <i class="bi bi-gear"></i> Configuración
-        </a>
-      {% else %}
-
-        <a
-          href="{{ url_for('web.cliente_membresia') }}"
-          class="list-group-item list-group-item-action app-sideitem  {% if active=='cliente_membresia' %}active{% endif %}"
-        >
-          <i class="bi bi-card-checklist"></i> Mi membresía
-        </a>
-
-      {% endif %}
-
-    {% endif %}
-
-    <div class="app-side-divider"></div>
-
-    <div class="app-side-foot">
-      <a
-        href="{{ url_for('web.logout') }}"
-        class="list-group-item list-group-item-action app-sideitem"
-      >
-        <i class="bi bi-box-arrow-right"></i> Salir
-      </a>
-    </div>
-
+    <a
+      href="{{ url_for('web.logout') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium text-red-400 hover:bg-red-400/10 rounded-lg transition-all"
+    >
+      <span class="material-symbols-outlined">logout</span>
+      Cerrar Sesión
+    </a>
   </div>
 </div>

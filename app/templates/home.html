@@ -1,0 +1,331 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta content="width=device-width, initial-scale=1.0" name="viewport" />
+    <title>CORE Functional Gym | Premium Training</title>
+    <link href="https://fonts.googleapis.com" rel="preconnect" />
+    <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&amp;family=Inter:wght@300;400;600;700&amp;display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+    <script>
+      tailwind.config = { 
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              primary: "#C48B58", 
+              "background-light": "#F8F9FA",
+              "background-dark": "#0D151D",
+              "card-dark": "rgba(30, 41, 51, 0.6)",
+            },
+            fontFamily: {
+              display: ["Bebas Neue", "sans-serif"],
+              sans: ["Inter", "sans-serif"],
+            },
+            borderRadius: {
+              DEFAULT: "0.5rem",
+            },
+          },
+        },
+      };
+    </script>
+    <style>
+      .glass {
+        background: rgba(30, 41, 51, 0.4);
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border: 1px solid rgba(196, 139, 88, 0.2);
+      }
+      .hero-gradient {
+        background: linear-gradient(
+          to right,
+          rgba(13, 21, 29, 0.9) 20%,
+          rgba(13, 21, 29, 0.4) 50%,
+          rgba(13, 21, 29, 0) 100%
+        );
+      }
+      .text-bronze-gradient {
+        background: linear-gradient(135deg, #e2b182 0%, #c48b58 100%);
+        background-clip: text;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+      }
+      .btn-bronze {
+        background: linear-gradient(135deg, #c48b58 0%, #8e5d34 100%);
+        transition: all 0.3s ease;
+      }
+      .btn-bronze:hover {
+        filter: brightness(1.1);
+        transform: translateY(-2px);
+      }
+      .logo_gym {
+        height: 100px;
+        width: 100px;
+        border-radius: 25px;
+      }
+      .logo_nav {
+        height: 80px;
+        width: 80px;
+        border-radius: 15px;
+      }
+
+
+    </style>
+  </head>
+  <body
+    class="bg-background-light dark:bg-background-dark font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300"
+  >
+    <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
+     <nav class="container mx-auto px-6 py-4 flex items-center justify-between relative">
+        <div class="flex items-center gap-2">
+            <img src="../static/images/logo_gym.jpeg" class="logo_nav" alt="">
+        </div>
+
+        <div class="flex items-center">
+            <a
+            href="/login"
+            class="btn-bronze inline-flex items-center justify-center px-6 py-3 rounded
+                    text-white font-display text-lg tracking-widest shadow-xl
+                    hover:brightness-110 transition"
+            >
+            Iniciar Sesión
+            </a>
+        </div>
+        </nav>
+
+    </header>
+    <main>
+      <section
+        class="relative h-screen min-h-[700px] flex items-center overflow-hidden"
+      >
+        <div class="absolute inset-0 z-0">
+          <img
+            alt="Athlete training in a premium gym environment"
+            class="w-full h-full object-cover"
+            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIQkjr2DN0b678I1UyBs6lHTXRIDrJ9HPkku6IIPsRFLBCJvEm8CP2u7EuXY-UJTsRmqo15CQsnWwlhaP1cjb2oVZg9DQvsZS5qbG7U6odzGeFnWq_iFz8X9ixpv8PLMy5csMBCfVPg1EbXtY596g27kn6BzRaLXX4L_7ST7fp7GyM7baBv5mDaEpqJ32UTq5g9U4C9V97-IEOmH48aBZK7fU2aXcJtH71bw4fQEcRP9leApSVD_3GJkIkN1QS0ugPnkF3bQQ3Br4"
+          />
+          <div class="absolute inset-0 hero-gradient dark:block hidden"></div>
+          <div class="absolute inset-0 bg-white/40 dark:hidden"></div>
+        </div>
+        <div class="container mx-auto px-6 relative z-10">
+          <div class="max-w-2xl">
+            <h1
+              class="font-display text-7xl md:text-9xl mb-4 leading-[0.9] text-bronze-gradient"
+            >
+              FORJA TU<br />INTERIOR
+            </h1>
+            <p
+              class="text-lg md:text-xl text-slate-700 dark:text-[#E6E4DA] mb-10 max-w-lg leading-relaxed font-light"
+            >
+              Entrenamiento funcional de élite donde el lujo se encuentra con la
+              potencia. Descubre tu mejor versión en un entorno exclusivo.
+            </p>
+            <a
+              class="btn-bronze inline-block px-10 py-5 rounded text-white font-display text-xl tracking-widest shadow-xl"
+              href="#"
+            >
+              EMPIEZA EL CAMBIO
+            </a>
+          </div>
+        </div>
+        <div
+          class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce hidden md:block"
+        >
+          <span class="material-symbols-outlined text-primary"
+            >expand_more</span
+          >
+        </div>
+      </section>
+      <section class="py-24 px-6 relative">
+        <div class="container mx-auto">
+          <div class="grid md:grid-cols-3 gap-8">
+            <div
+              class="glass p-10 rounded-2xl text-center group hover:scale-[1.02] transition-transform duration-500"
+            >
+              <div class="mb-8 inline-block">
+                <span
+                  class="material-symbols-outlined text-primary text-6xl group-hover:scale-110 transition-transform duration-300"
+                  >fitness_center</span
+                >
+              </div>
+              <h3
+                class="font-display text-3xl tracking-widest mb-4 text-primary"
+              >
+                FUERZA PURA
+              </h3>
+              <p
+                class="text-slate-600 dark:text-slate-400 font-light leading-relaxed"
+              >
+                Entrenamiento funcional de élite donde el lujo se encuentra con
+                la potencia para maximizar tu fuerza física.
+              </p>
+            </div>
+            <div
+              class="glass p-10 rounded-2xl text-center group hover:scale-[1.02] transition-transform duration-500"
+            >
+              <div class="mb-8 inline-block">
+                <span
+                  class="material-symbols-outlined text-primary text-6xl group-hover:scale-110 transition-transform duration-300"
+                  >directions_run</span
+                >
+              </div>
+              <h3
+                class="font-display text-3xl tracking-widest mb-4 text-primary"
+              >
+                HÍBRIDO
+              </h3>
+              <p
+                class="text-slate-600 dark:text-slate-400 font-light leading-relaxed"
+              >
+                Equilibrio perfecto entre resistencia y potencia. La metodología
+                más completa para el atleta contemporáneo.
+              </p>
+            </div>
+            <div
+              class="glass p-10 rounded-2xl text-center group hover:scale-[1.02] transition-transform duration-500"
+            >
+              <div class="mb-8 inline-block">
+                <span
+                  class="material-symbols-outlined text-primary text-6xl group-hover:scale-110 transition-transform duration-300"
+                  >self_improvement</span
+                >
+              </div>
+              <h3
+                class="font-display text-3xl tracking-widest mb-4 text-primary"
+              >
+                MOVILIDAD
+              </h3>
+              <p
+                class="text-slate-600 dark:text-slate-400 font-light leading-relaxed"
+              >
+                Optimiza tus rangos de movimiento y recupera el flujo natural de
+                tu cuerpo con técnicas avanzadas de estiramiento.
+              </p>
+            </div>
+          </div>
+        </div>
+      </section>
+      <section class="py-20 bg-slate-100 dark:bg-[#151d26]">
+        <div
+          class="container mx-auto px-6 flex flex-col md:flex-row items-center gap-12"
+        >
+          <div class="w-full md:w-1/2">
+            <img
+              alt="Functional training equipment"
+              class="rounded-lg shadow-2xl border border-primary/20"
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvEw1LvpTNc4cVU4X1Ka2zL_KmW265PZ0cUR5PNp5sS0lvWp5HC1LQOKSQAGrBFzi5XTgKYR3rWEAg4HRKlDjHT3mQnE-bTNXSCKmB61WuUj3N9EvF7iQZDDpMf88fObrWU1ICfRFQqdL9_80EKf7iuxQ9CAJgX9R5WH9kE1b2It-FIeBIW4MpTGvEfrhXuW4DWcv7AsCHPIn_JsdJBFI5uOjvUUOXuvbPRBcPK76F-wIkEPzPVvGYJXs_6m9FZi-OBa6a3mvXbmI"
+            />
+          </div>
+          <div class="w-full md:w-1/2">
+            <h2
+              class="font-display text-5xl mb-6 text-slate-800 dark:text-white"
+            >
+              EXPERIENCIA PREMIUM
+            </h2>
+            <p class="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
+              En CORE, no solo vienes a entrenar. Vienes a transformar tu
+              realidad. Nuestras instalaciones cuentan con tecnología de punta y
+              un equipo de profesionales dedicados a tu éxito personal.
+            </p>
+            <ul class="space-y-4 mb-8">
+              <li class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary"
+                  >check_circle</span
+                >
+                <span class="dark:text-slate-300"
+                  >Entrenamiento personalizado 1 a 1</span
+                >
+              </li>
+              <li class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary"
+                  >check_circle</span
+                >
+                <span class="dark:text-slate-300"
+                  >Zonas de recuperación criogénica</span
+                >
+              </li>
+              <li class="flex items-center gap-3">
+                <span class="material-symbols-outlined text-primary"
+                  >check_circle</span
+                >
+                <span class="dark:text-slate-300"
+                  >Nutrición deportiva avanzada</span
+                >
+              </li>
+            </ul>
+          </div>
+        </div>
+      </section>
+    </main>
+    <footer class="bg-white dark:bg-[#090e13] border-t border-slate-200 dark:border-slate-800 py-16">
+        <div class="container mx-auto px-6">
+            
+            <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 mb-12 place-items-center">
+            
+            <div class="flex flex-col items-center text-center">
+                <div class="flex items-center justify-center mb-6">
+                <img src="../static/images/logo_gym.jpeg" class="logo_gym" alt="">
+                </div>
+                <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-sm">
+                Redefiniendo el entrenamiento funcional a través de la excelencia y el diseño.
+                </p>
+            </div>
+
+            <div class="flex flex-col items-center text-center">
+                <h4 class="font-bold mb-6 tracking-widest text-xs uppercase text-slate-400">
+                CONTACTO
+                </h4>
+
+                <ul class="space-y-4 text-sm text-slate-600 dark:text-slate-400">
+                <li class="flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-xs">location_on</span>
+                    Ibarra en una esquina
+                </li>
+                <li class="flex items-center justify-center gap-2">
+                    <span class="material-symbols-outlined text-xs">mail</span>
+                    info@coregym.com
+                </li>
+                </ul>
+            </div>
+
+            </div>
+
+            <!-- Footer bottom -->
+            <div class="pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-center items-center text-xs text-slate-500">
+            <p>© 2026 CORE Functional Gym. Todos los derechos reservados.</p>
+            </div>
+        </div>
+        </footer>
+
+
+    <script>
+      window.addEventListener("scroll", () => {
+        const header = document.querySelector("header");
+        if (window.scrollY > 50) {
+          header.classList.add(
+            "bg-white/80",
+            "dark:bg-[#0D151D]/80",
+            "backdrop-blur-md",
+            "shadow-lg",
+          );
+        } else {
+          header.classList.remove(
+            "bg-white/80",
+            "dark:bg-[#0D151D]/80",
+            "backdrop-blur-md",
+            "shadow-lg",
+          );
+        }
+      });
+      document.documentElement.classList.add("dark");
+    </script>
+  </body>
+</html>

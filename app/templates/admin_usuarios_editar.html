@@ -1,133 +1,264 @@
-{% extends "base.html" %}
-{% block title %}Admin - Editar Usuario{% endblock %}
+{% extends "base_admin.html" %}
+{% block title %}CORE Gym - Editar Usuario{% endblock %}
+{% set active = "admin_usuarios" %}
+
+{% block header %}
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Editar usuario</h2>
+      <p class="text-xs text-secondary">Actualiza datos del usuario y rol</p>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-2">
+    <a
+      href="{{ url_for('web.admin_usuarios') }}"
+      class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+    >
+      <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+      Volver
+    </a>
+  </div>
+</header>
+{% endblock %}
+
 {% block content %}
 
-<div class="d-flex justify-content-between align-items-center mb-3">
-  <div>
-    <h4 class="mb-0">Editar usuario</h4>
-  </div>
-  <a href="{{ url_for('web.admin_usuarios') }}" class="btn btn-sm btn-outline-secondary">Volver</a>
-</div>
+<style>
+  /* ✅ Fix dropdown options invisibles (Windows/Chrome/Edge) */
+  .select-core option, .select-core optgroup {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .select-core { color-scheme: dark; }
 
-<div class="card shadow-sm">
-  <div class="card-header">Datos del usuario</div>
-  <div class="card-body">
-    <form method="post" action="{{ url_for('web.admin_usuario_guardar', user_id=u._id) }}">
+  /* ✅ Inputs tipo time/date también dark (por si agregas luego) */
+  input[type="date"], input[type="time"]{
+    color-scheme: dark;
+  }
+</style>
 
-      <div class="row g-3">
-        <!-- Username -->
-        <div class="col-12 col-md-6">
-          <label class="form-label">Username</label>
-          <input name="username" class="form-control" value="{{ u.username }}" required>
+<div class="max-w-5xl mx-auto px-3 sm:px-0">
+
+  <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+    <div class="p-6 border-b border-white/5">
+      <h3 class="text-lg font-bold text-white">Datos del usuario</h3>
+      <p class="text-xs text-secondary mt-1">Los cambios se guardan inmediatamente al actualizar.</p>
+    </div>
+
+    <div class="p-6">
+      <form method="post" action="{{ url_for('web.admin_usuario_guardar', user_id=u._id) }}" class="space-y-6">
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+
+          <!-- Username -->
+          <div>
+            <label class="block text-sm font-semibold text-white mb-2">Username</label>
+            <input
+              name="username"
+              value="{{ u.username }}"
+              required
+              class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                     focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+            >
+          </div>
+
+          <!-- Rol -->
+          <div>
+            <label class="block text-sm font-semibold text-white mb-2">Rol</label>
+            <div class="relative">
+              <select
+                name="role"
+                required
+                class="select-core w-full appearance-none px-4 py-3 pr-10 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+                <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
+                <option value="cajero" {% if u.role=='cajero' %}selected{% endif %}>Cajero</option>
+                <option value="entrenador" {% if u.role=='entrenador' %}selected{% endif %}>Entrenador</option>
+                <option value="cliente" {% if u.role=='cliente' %}selected{% endif %}>Cliente</option>
+              </select>
+
+              <span class="pointer-events-none absolute inset-y-0 right-3 flex items-center text-white/40">
+                <span class="material-symbols-outlined text-[20px]">expand_more</span>
+              </span>
+            </div>
+            <p class="text-[11px] text-secondary mt-2">
+              Nota: si cambias de rol, revisa que los datos correspondan al rol.
+            </p>
+          </div>
+
+          {# =========================
+             CLIENTE (colección clientes)
+             ========================= #}
+          {% if u.role == "cliente" %}
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Nombre (cliente)</label>
+              <input
+                name="cliente_nombre"
+                value="{{ (cliente.nombre if cliente else '') }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Apellido (cliente)</label>
+              <input
+                name="cliente_apellido"
+                value="{{ (cliente.apellido if cliente else '') }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Email (cliente)</label>
+              <input
+                name="cliente_email"
+                type="email"
+                value="{{ (cliente.email if cliente else '') }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Teléfono (cliente)</label>
+              <input
+                name="cliente_telefono"
+                value="{{ (cliente.telefono if cliente else '') }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+          {# =========================
+             NO CLIENTE (colección users)
+             ========================= #}
+          {% else %}
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Nombre</label>
+              <input
+                name="nombre"
+                value="{{ u.nombre or '' }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Apellido</label>
+              <input
+                name="apellido"
+                value="{{ u.apellido or '' }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Correo</label>
+              <input
+                name="email"
+                type="email"
+                value="{{ u.email or '' }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Teléfono</label>
+              <input
+                name="telefono"
+                value="{{ u.telefono or '' }}"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                       focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+              >
+            </div>
+
+          {% endif %}
+
         </div>
-
-        <!-- Rol -->
-        <div class="col-12 col-md-6">
-          <label class="form-label">Rol</label>
-          <select name="role" class="form-select" required>
-            <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Admin</option>
-            <option value="cajero" {% if u.role=='cajero' %}selected{% endif %}>Cajero</option>
-            <option value="entrenador" {% if u.role=='entrenador' %}selected{% endif %}>Entrenador</option>
-            <option value="cliente" {% if u.role=='cliente' %}selected{% endif %}>Cliente</option>
-          </select>
-        </div>
-
-        {# =========================
-           CLIENTE (colección clientes)
-           ========================= #}
-        {% if u.role == "cliente" %}
-          <div class="col-12 col-md-6">
-            <label class="form-label">Nombre (cliente)</label>
-            <input name="cliente_nombre" class="form-control" value="{{ (cliente.nombre if cliente else '') }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Apellido (cliente)</label>
-            <input name="cliente_apellido" class="form-control" value="{{ (cliente.apellido if cliente else '') }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Email (cliente)</label>
-            <input name="cliente_email" type="email" class="form-control" value="{{ (cliente.email if cliente else '') }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Teléfono (cliente)</label>
-            <input name="cliente_telefono" class="form-control" value="{{ (cliente.telefono if cliente else '') }}">
-          </div>
-
-        {# =========================
-           NO CLIENTE (colección users)
-           ========================= #}
-        {% else %}
-          <div class="col-12 col-md-6">
-            <label class="form-label">Nombre</label>
-            <input name="nombre" class="form-control" value="{{ u.nombre or '' }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Apellido</label>
-            <input name="apellido" class="form-control" value="{{ u.apellido or '' }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Correo</label>
-            <input name="email" type="email" class="form-control" value="{{ u.email or '' }}">
-          </div>
-
-          <div class="col-12 col-md-6">
-            <label class="form-label">Teléfono</label>
-            <input name="telefono" class="form-control" value="{{ u.telefono or '' }}">
-          </div>
-        {% endif %}
 
         <!-- Nueva contraseña -->
-        <div class="col-12">
-          <label class="form-label">Nueva contraseña (opcional)</label>
+      <div class="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
+        <label class="block text-sm font-semibold text-white mb-2">Nueva contraseña (opcional)</label>
 
-          <div class="input-group">
-            <input
-              id="newPass"
-              type="password"
-              name="new_password"
-              class="form-control"
-              placeholder="Deja vacío si no deseas cambiarla"
-              minlength="6"
-            >
-            <button class="btn btn-outline-secondary" type="button" id="toggleNewPass">
-              <i class="bi bi-eye" id="toggleIcon"></i>
-            </button>
-          </div>
+        <div class="relative">
+          <input
+            id="newPass"
+            type="password"
+            name="new_password"
+            minlength="6"
+            placeholder="******"
+            class="w-full px-4 py-3 pr-12 rounded-xl bg-white/5 border border-white/10 text-white text-sm
+                  focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition-colors"
+          >
 
-          <div class="form-text">
-            Si escribes una nueva contraseña, se actualizará de inmediato (mínimo 6 caracteres).
-          </div>
+          <!-- Botón ojo dentro -->
+          <button
+            type="button"
+            id="toggleNewPass"
+            class="absolute inset-y-0 right-0 flex items-center justify-center w-12
+                  text-white/50 hover:text-white transition-colors"
+            aria-label="Mostrar/Ocultar contraseña"
+            title="Mostrar/Ocultar"
+          >
+            <span class="material-symbols-outlined text-[22px]" id="toggleIcon">visibility</span>
+          </button>
         </div>
+
+        <p class="text-[11px] text-secondary mt-2">
+          Si escribes una nueva contraseña, se actualizará de inmediato (mínimo 6 caracteres).
+        </p>
       </div>
 
-      <div class="d-flex justify-content-end mt-3">
-        <button class="btn btn-primary" type="submit">
-          <i class="bi bi-save"></i> Actualizar datos
-        </button>
-      </div>
-    </form>
+
+        <!-- Actions -->
+        <div class="flex justify-end">
+          <button
+            class="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-primary hover:bg-[#2C3B43]
+                   text-sm font-bold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/10 active:scale-[0.99]"
+            type="submit"
+          >
+            <span class="material-symbols-outlined text-[20px]">save</span>
+            Actualizar datos
+          </button>
+        </div>
+
+      </form>
+    </div>
   </div>
+
 </div>
 
 <script>
-  (function () {
-    const input = document.getElementById("newPass");
-    const btn = document.getElementById("toggleNewPass");
-    const icon = document.getElementById("toggleIcon");
-    if (!input || !btn || !icon) return;
+(function () {
+  const input = document.getElementById("newPass");
+  const btn = document.getElementById("toggleNewPass");
+  const icon = document.getElementById("toggleIcon");
+  if (!input || !btn || !icon) return;
 
-    btn.addEventListener("click", () => {
-      const isPwd = input.type === "password";
-      input.type = isPwd ? "text" : "password";
-      icon.classList.toggle("bi-eye", !isPwd);
-      icon.classList.toggle("bi-eye-slash", isPwd);
-    });
-  })();
+  btn.addEventListener("click", () => {
+    const isPwd = input.type === "password";
+    input.type = isPwd ? "text" : "password";
+    icon.textContent = isPwd ? "visibility_off" : "visibility";
+  });
+})();
 </script>
 
 {% endblock %}

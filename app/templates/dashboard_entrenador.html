@@ -1,94 +1,128 @@
-{% extends "base.html" %}
+{% extends "base_admin.html" %}
 {% block title %}Entrenador - Reservas{% endblock %}
+{% set active = "entrenador_reservas" %}
+
+{% block header %}
+  {% set username = session.get("username") or "Usuario" %}
+  {% set entrenador_nombre = (entrenador.nombre or entrenador.username) %}
+  <header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+    <div class="flex items-center gap-3 min-w-0">
+      <button
+        type="button"
+        class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+        onclick="openDrawer()"
+        aria-label="Abrir menú"
+      >
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+
+      <div class="min-w-0">
+        <h2 class="text-xl md:text-2xl font-bold text-white truncate">
+          Entrenador <span class="text-white font-semibold"> - {{ entrenador_nombre }}</span>
+        </h2>
+      </div>
+    </div>
+
+    <div class="flex items-center gap-3">
+      <a
+        href="{{ url_for('web.horarios_publico') }}"
+        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg
+               bg-white/5 hover:bg-white/10 border border-white/10
+               text-sm font-semibold text-white transition-colors"
+      >
+        <span class="material-symbols-outlined text-sm">calendar_month</span>
+        Ver horarios
+      </a>
+    </div>
+  </header>
+{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-  <div class="row g-3">
 
-    <!-- CONTENIDO (IZQUIERDA) -->
-    <div class="col-12 col-lg-9 col-xl-10 order-2 order-lg-1">
+{# ✅ Contenido centrado y más ancho (tabla centrada) #}
+<div class="max-w-7xl mx-auto px-6 md:px-8 py-6">
+  <div class="flex justify-center">
+    <div class="w-full max-w-6xl space-y-6">
 
-      <div class="d-flex justify-content-between align-items-center mb-3">
-        <div>
-          <h3 class="mb-0">Panel Entrenador</h3>
-          <small class="text-muted">
-            {{ entrenador.nombre or entrenador.username }} ·
-            Hoy: {{ ahora_local.strftime('%d/%m/%Y') }} · Hora: {{ ahora_local.strftime('%H:%M') }}
-          </small>
-        </div>
-        <a class="btn btn-outline-secondary btn-sm" href="{{ url_for('web.horarios_publico') }}">
-          <i class="bi bi-calendar-week"></i> Ver horarios
-        </a>
-      </div>
-
-      <!-- ✅ SOLO una sección: Reservas de hoy -->
-      <div class="card shadow-sm">
-        <div class="card-header d-flex justify-content-between align-items-center">
-          <div><i class="bi bi-list-task"></i> Reservas de hoy</div>
-          <small class="text-muted">Orden: más recientes primero</small>
+      <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
+        <div class="p-6 border-b border-white/5 flex items-center justify-between gap-3">
+          <div>
+            <h3 class="text-lg font-bold text-white flex items-center gap-2">
+              <span class="material-symbols-outlined text-accent">list_alt</span>
+              Reservas de hoy
+            </h3>
+            <p class="text-xs text-secondary mt-1">Orden: más recientes primero</p>
+          </div>
         </div>
 
-        <div class="card-body p-0">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
+        {# ✅ Tabla más ancha: usa el contenedor max-w-6xl y padding un poco mayor #}
+        <div class="overflow-x-auto">
+          <table class="w-full text-left">
+            <thead class="bg-white/5">
               <tr>
-                <th style="width: 110px;">Hora</th>
-                <th>Cliente</th>
-                <th>Estado</th>
-                <th class="text-end">Acción</th>
+                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider w-[140px]">Hora</th>
+                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider">Cliente</th>
+                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider w-[200px]">Estado</th>
+                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider text-right w-[140px]">Acción</th>
               </tr>
             </thead>
 
-            <tbody>
+            <tbody class="divide-y divide-white/5">
               {% if clases_hoy %}
                 {% for r in clases_hoy %}
                   {% set hora = (r.slot_id.split('|')[1] if r.slot_id and '|' in r.slot_id else '-') %}
+                  {% set est = r.estado or 'confirmada' %}
 
-                  <tr>
-                    <td class="text-nowrap">{{ hora }}</td>
+                  <tr class="hover:bg-white/[0.03] transition-colors">
+                    <td class="px-8 py-4 text-sm text-white font-semibold whitespace-nowrap">{{ hora }}</td>
 
-                    <td>{{ r.cliente_nombre or '-' }}</td>
+                    <td class="px-8 py-4 text-sm text-white">
+                      {{ r.cliente_nombre or '-' }}
+                    </td>
 
-
-                    <td>
-                      {% set est = r.estado or 'confirmada' %}
+                    <td class="px-8 py-4">
                       {% if est == 'confirmada' %}
-                        <span class="badge bg-success">Confirmada</span>
+                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-green-200 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
+                          Confirmada
+                        </span>
                       {% elif est == 'pendiente' %}
-                        <span class="badge bg-warning text-dark">Pendiente</span>
+                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-yellow-200 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
+                          Pendiente
+                        </span>
                       {% elif est == 'cancelada' %}
-                        <span class="badge bg-secondary">Cancelada</span>
+                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-secondary bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                          Cancelada
+                        </span>
                       {% else %}
-                        <span class="badge bg-primary">{{ est }}</span>
+                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-white bg-white/5 px-3 py-1 rounded-full border border-white/10">
+                          {{ est }}
+                        </span>
                       {% endif %}
                     </td>
 
-                    <td class="text-end">
-                      {# opcional: link a detalle si tienes endpoint #}
-                      {# <a class="btn btn-sm btn-outline-primary" href="{{ url_for('web.reserva_detalle', reserva_id=r._id) }}">Ver</a> #}
-                      <span class="text-muted small">—</span>
+                    <td class="px-8 py-4 text-right">
+                      <span class="text-xs text-secondary">—</span>
                     </td>
                   </tr>
                 {% endfor %}
               {% else %}
                 <tr>
-                  <td colspan="4" class="text-center text-muted py-3">
-                    No tienes reservas registradas para hoy.
+                  <td class="px-8 py-24 text-center" colspan="4">
+                    <div class="flex flex-col items-center justify-center text-secondary/40">
+                      <span class="material-symbols-outlined text-5xl mb-3">event_busy</span>
+                      <p class="text-sm font-medium">No tienes reservas registradas para hoy.</p>
+                    </div>
                   </td>
                 </tr>
               {% endif %}
             </tbody>
           </table>
         </div>
+
       </div>
 
-    </div><!-- /col contenido -->
-
-    <!-- SIDEBAR (DERECHA) -->
-    <div class="col-12 col-lg-3 col-xl-2 order-1 order-lg-2">
-      {% include "partials/sidebar_admin.html" with context %}
     </div>
+  </div>
+</div>
 
-  </div><!-- /row -->
-</div><!-- /container-fluid -->
 {% endblock %}

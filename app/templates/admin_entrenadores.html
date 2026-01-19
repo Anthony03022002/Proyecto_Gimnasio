@@ -1,108 +1,295 @@
-{% extends "base.html" %}
-{% block title %}Entrenadores - Admin{% endblock %}
+{% extends "base_admin.html" %} {% block title %}Entrenadores - Admin{% endblock
+%} {% set active = "admin_entrenadores" %} 
+{% block header %}
+<header
+  class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5"
+>
+  <div class="flex items-center gap-3 min-w-0">
+    <!-- ✅ BOTÓN MENÚ (MÓVIL) -->
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+
+    <div class="min-w-0">
+      <h2
+        class="text-xl md:text-2xl font-bold text-white leading-tight truncate"
+      >
+        Entrenadores
+      </h2>
+    </div>
+  </div>
+
+  <!-- (Opcional) Acción derecha: puedes poner un botón o dejar vacío -->
+  <div class="hidden sm:flex items-center gap-2">
+    <a
+      href="{{ url_for('web.admin_dashboard') }}"
+      class="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+    >
+      <span class="material-symbols-outlined text-[20px]">arrow_back</span>
+      Dashboard
+    </a>
+  </div>
+</header>
+{% endblock %} 
+
 {% block content %}
 
-<div class="row">
-  <div class="col-12 col-lg-7 mb-3">
-    <h4 class="mb-3">Entrenadores</h4>
+<style>
+  .modal {
+    z-index: 2000;
+  }
+  .modal-backdrop {
+    z-index: 1990;
+  }
+  .modal-content {
+    background: rgba(45, 47, 49, 1) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    border: 1px solid rgba(255, 255, 255, 0.08) !important;
+    border-radius: 18px !important;
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  }
+  .modal-header,
+  .modal-footer {
+    border-color: rgba(255, 255, 255, 0.08) !important;
+  }
+  .btn-close {
+    filter: invert(1);
+    opacity: 0.85;
+  }
+  .btn-close:hover {
+    opacity: 1;
+  }
+  .form-control,
+  .form-select {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+  }
+  .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.45) !important;
+  }
+  .form-select option,
+  .form-select optgroup {
+    background: #ffffff !important;
+    color: #111827 !important;
+  }
+  .form-select {
+    color-scheme: dark;
+  }
+  input[type="date"].form-control::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.75;
+  }
+</style>
 
-    <div class="card shadow-sm">
-      <div class="card-header">Lista de entrenadores</div>
-      <div class="card-body p-0">
-        <div class="table-responsive">
-          <table class="table table-sm mb-0 align-middle">
-            <thead class="table-light">
-              <tr>
-                <th>Usuario</th>
-                <th>Nombre</th>
-                <th>Celular</th>
-                <th style="width: 220px;">Acciones</th>
-              </tr>
-            </thead>
+<div class="px-5 md:px-8 py-6">
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+    <!-- LISTA -->
+    <div class="lg:col-span-7">
+      <div
+        class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden"
+      >
+        <div class="p-5 md:p-6 border-b border-white/5">
+          <h4 class="text-lg font-bold text-white">Lista de entrenadores</h4>
+          <p class="text-xs text-secondary mt-1">
+            Usuarios registrados como entrenador.
+          </p>
+        </div>
 
-            <tbody>
-              {% if entrenadores %}
-                {% for e in entrenadores %}
+        <div class="p-0">
+          <div class="overflow-x-auto">
+            <table class="min-w-full text-left">
+              <thead class="bg-white/5">
                 <tr>
-                  <td>{{ e.username }}</td>
-                  <td>{{ e.nombre or '-' }}</td>
-                  <td>{{ e.telefono or '-' }}</td>
-                  <td class="text-end">
-                    <div class="btn-group btn-group-sm" role="group">
+                  <th
+                    class="px-5 md:px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+                  >
+                    Usuario
+                  </th>
+                  <th
+                    class="px-5 md:px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+                  >
+                    Nombre
+                  </th>
+                  <th
+                    class="px-5 md:px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+                  >
+                    Celular
+                  </th>
+                  <th
+                    class="px-5 md:px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider text-right"
+                  >
+                    Acciones
+                  </th>
+                </tr>
+              </thead>
 
+              <tbody class="divide-y divide-white/10">
+                {% if entrenadores %} {% for e in entrenadores %}
+                <tr class="hover:bg-white/[0.03] transition-colors">
+                  <td class="px-5 md:px-6 py-4">
+                    <div class="text-sm font-semibold text-white">
+                      {{ e.username }}
+                    </div>
+                    <div class="text-xs text-secondary">
+                      {{ e.email or '' }}
+                    </div>
+                  </td>
+
+                  <td class="px-5 md:px-6 py-4">
+                    <div class="text-sm text-white/90">
+                      {{ e.nombre or '-' }} {{ e.apellido or '' }}
+                    </div>
+                  </td>
+
+                  <td class="px-5 md:px-6 py-4">
+                    <div class="text-sm text-white/80">
+                      {{ e.telefono or '-' }}
+                    </div>
+                  </td>
+
+                  <td class="px-5 md:px-6 py-4">
+                    <div class="flex items-center justify-end gap-2">
                       <!-- Editar -->
-                      <button type="button"
-                              class="btn btn-light border"
-                              data-bs-toggle="modal"
-                              data-bs-target="#editModal{{ e._id }}"
-                              title="Editar entrenador">
-                        <i class="bi bi-pencil"></i>
+                      <button
+                        type="button"
+                        class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                        data-bs-toggle="modal"
+                        data-bs-target="#editModal{{ e._id }}"
+                        title="Editar"
+                      >
+                        <span class="material-symbols-outlined text-[20px]"
+                          >edit</span
+                        >
                       </button>
 
-                      <!-- Reset password -->
-                      <button type="button"
-                              class="btn btn-light border"
-                              data-bs-toggle="modal"
-                              data-bs-target="#pwdModal{{ e._id }}"
-                              title="Reset contraseña">
-                        <i class="bi bi-key"></i>
+                      <!-- Reset -->
+                      <button
+                        type="button"
+                        class="p-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+                        data-bs-toggle="modal"
+                        data-bs-target="#pwdModal{{ e._id }}"
+                        title="Reset contraseña"
+                      >
+                        <span class="material-symbols-outlined text-[20px]"
+                          >key</span
+                        >
                       </button>
 
                       <!-- Eliminar -->
-                      <form method="post"
-                            action="{{ url_for('web.admin_entrenadores_delete', entrenador_id=e._id) }}"
-                            onsubmit="return confirm('¿Eliminar este entrenador?');">
-                        <button type="submit"
-                                class="btn btn-light border text-danger"
-                                title="Eliminar entrenador">
-                          <i class="bi bi-trash"></i>
+                      <form
+                        method="post"
+                        action="{{ url_for('web.admin_entrenadores_delete', entrenador_id=e._id) }}"
+                        onsubmit="return confirm('¿Eliminar este entrenador?');"
+                      >
+                        <button
+                          type="submit"
+                          class="p-2 rounded-xl bg-red-500/10 hover:bg-red-500/15 border border-red-500/20 text-red-300 transition-colors"
+                          title="Eliminar"
+                        >
+                          <span class="material-symbols-outlined text-[20px]"
+                            >delete</span
+                          >
                         </button>
                       </form>
-
                     </div>
                   </td>
                 </tr>
 
                 <!-- ✅ MODAL EDITAR -->
-                <div class="modal fade" id="editModal{{ e._id }}" tabindex="-1" aria-hidden="true">
-                  <div class="modal-dialog">
+                <div
+                  class="modal fade"
+                  id="editModal{{ e._id }}"
+                  tabindex="-1"
+                  aria-hidden="true"
+                >
+                  <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                      <form method="post" action="{{ url_for('web.admin_entrenadores_edit', entrenador_id=e._id) }}">
+                      <form
+                        method="post"
+                        action="{{ url_for('web.admin_entrenadores_edit', entrenador_id=e._id) }}"
+                      >
                         <div class="modal-header">
                           <h5 class="modal-title">Editar entrenador</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                          <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Cerrar"
+                          ></button>
                         </div>
 
                         <div class="modal-body">
                           <div class="mb-3">
                             <label class="form-label">Usuario</label>
-                            <input type="text" name="username" class="form-control" value="{{ e.username }}" required>
+                            <input
+                              type="text"
+                              name="username"
+                              class="form-control"
+                              value="{{ e.username }}"
+                              required
+                            />
                           </div>
 
-                          <div class="mb-3">
-                            <label class="form-label">Nombre</label>
-                            <input type="text" name="nombre" class="form-control" value="{{ e.nombre or '' }}">
-                          </div>
-
-                          <div class="mb-3">
-                            <label class="form-label">Apellido</label>
-                            <input type="text" name="apellido" class="form-control" value="{{ e.apellido or '' }}">
-                          </div>
-
-                          <div class="mb-3">
-                            <label class="form-label">Email</label>
-                            <input type="email" name="email" class="form-control" value="{{ e.email or '' }}">
-                          </div>
-
-                          <div class="mb-3">
-                            <label class="form-label">Teléfono / Celular</label>
-                            <input type="text" name="telefono" class="form-control" value="{{ e.telefono or '' }}">
+                          <div class="row g-3">
+                            <div class="col-12 col-md-6">
+                              <label class="form-label">Nombre</label>
+                              <input
+                                type="text"
+                                name="nombre"
+                                class="form-control"
+                                value="{{ e.nombre or '' }}"
+                              />
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label">Apellido</label>
+                              <input
+                                type="text"
+                                name="apellido"
+                                class="form-control"
+                                value="{{ e.apellido or '' }}"
+                              />
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label">Email</label>
+                              <input
+                                type="email"
+                                name="email"
+                                class="form-control"
+                                value="{{ e.email or '' }}"
+                              />
+                            </div>
+                            <div class="col-12 col-md-6">
+                              <label class="form-label"
+                                >Teléfono / Celular</label
+                              >
+                              <input
+                                type="text"
+                                name="telefono"
+                                class="form-control"
+                                value="{{ e.telefono or '' }}"
+                              />
+                            </div>
                           </div>
                         </div>
 
                         <div class="modal-footer">
-                          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-                          <button class="btn btn-primary" type="submit">Guardar</button>
+                          <button
+                            class="btn btn-outline-secondary"
+                            type="button"
+                            data-bs-dismiss="modal"
+                          >
+                            Cancelar
+                          </button>
+                          <button class="btn btn-primary" type="submit">
+                            Guardar
+                          </button>
                         </div>
                       </form>
                     </div>
@@ -110,94 +297,211 @@
                 </div>
 
                 <!-- ✅ MODAL RESET PASSWORD -->
-                <div class="modal fade" id="pwdModal{{ e._id }}" tabindex="-1" aria-hidden="true">
-                  <div class="modal-dialog">
+                <div
+                  class="modal fade"
+                  id="pwdModal{{ e._id }}"
+                  tabindex="-1"
+                  aria-hidden="true"
+                >
+                  <div class="modal-dialog modal-dialog-centered">
                     <div class="modal-content">
-                      <form method="post" action="{{ url_for('web.admin_entrenadores_reset_password', entrenador_id=e._id) }}">
+                      <form
+                        method="post"
+                        action="{{ url_for('web.admin_entrenadores_reset_password', entrenador_id=e._id) }}"
+                      >
                         <div class="modal-header">
                           <h5 class="modal-title">Reset contraseña</h5>
-                          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                          <button
+                            type="button"
+                            class="btn-close"
+                            data-bs-dismiss="modal"
+                            aria-label="Cerrar"
+                          ></button>
                         </div>
 
                         <div class="modal-body">
-                          <div class="mb-3">
-                            <label class="form-label">Nueva contraseña</label>
-                            <input type="password" name="new_password" class="form-control" required minlength="6">
+                          <label class="form-label">Nueva contraseña</label>
+
+                          <div class="relative">
+                            <input
+                              id="pwdInput{{ e._id }}"
+                              type="password"
+                              name="new_password"
+                              class="form-control"
+                              required
+                              minlength="6"
+                              placeholder="Mínimo 6 caracteres"
+                              style="padding-right: 44px"
+                            />
+                            <button
+                              type="button"
+                              class="absolute top-1/2 -translate-y-1/2 right-3 text-white/50 hover:text-white transition-colors"
+                              onclick="togglePwd('{{ e._id }}')"
+                              aria-label="Mostrar/Ocultar"
+                            >
+                              <span
+                                id="pwdIcon{{ e._id }}"
+                                class="material-symbols-outlined text-[20px]"
+                                >visibility</span
+                              >
+                            </button>
                           </div>
-                          <div class="form-text text-muted">
+
+                          <p class="text-xs text-secondary mt-2">
                             Esto reemplaza la contraseña actual.
-                          </div>
+                          </p>
                         </div>
 
                         <div class="modal-footer">
-                          <button class="btn btn-secondary" type="button" data-bs-dismiss="modal">Cancelar</button>
-                          <button class="btn btn-warning" type="submit">Actualizar</button>
+                          <button
+                            class="btn btn-outline-secondary"
+                            type="button"
+                            data-bs-dismiss="modal"
+                          >
+                            Cancelar
+                          </button>
+                          <button class="btn btn-warning" type="submit">
+                            Actualizar
+                          </button>
                         </div>
                       </form>
                     </div>
                   </div>
                 </div>
 
-                {% endfor %}
-              {% else %}
+                {% endfor %} {% else %}
                 <tr>
-                  <td colspan="4" class="text-center text-muted py-3">
+                  <td colspan="4" class="px-6 py-8 text-center text-secondary">
                     No hay entrenadores registrados.
                   </td>
                 </tr>
-              {% endif %}
-            </tbody>
-
-          </table>
+                {% endif %}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
-  </div>
 
-  <!-- Formulario crear -->
-  <div class="col-12 col-lg-5">
-    <h4 class="mb-3">Crear Nuevo entrenador</h4>
+    <!-- CREAR -->
+    <div class="lg:col-span-5">
+      <div
+        class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden"
+      >
+        <div class="p-5 md:p-6 border-b border-white/5">
+          <h4 class="text-lg font-bold text-white">Crear nuevo entrenador</h4>
+          <p class="text-xs text-secondary mt-1">
+            Registra credenciales y datos básicos.
+          </p>
+        </div>
 
-    <div class="card shadow-sm">
-      <div class="card-body">
-        <form method="post" action="{{ url_for('web.admin_entrenadores_post') }}">
-          <div class="mb-3">
-            <label class="form-label">Usuario</label>
-            <input type="text" name="username" class="form-control" required>
-          </div>
+        <div class="p-5 md:p-6">
+          <form
+            method="post"
+            action="{{ url_for('web.admin_entrenadores_post') }}"
+            class="space-y-4"
+          >
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2"
+                >Usuario</label
+              >
+              <input
+                type="text"
+                name="username"
+                required
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+              />
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">Nombre</label>
-            <input type="text" name="nombre" class="form-control">
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2"
+                  >Nombre</label
+                >
+                <input
+                  type="text"
+                  name="nombre"
+                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2"
+                  >Apellido</label
+                >
+                <input
+                  type="text"
+                  name="apellido"
+                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+                />
+              </div>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">Apellido</label>
-            <input type="text" name="apellido" class="form-control">
-          </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2"
+                  >Email</label
+                >
+                <input
+                  type="email"
+                  name="email"
+                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+                />
+              </div>
+              <div>
+                <label class="block text-sm font-semibold text-white mb-2"
+                  >Teléfono / Celular</label
+                >
+                <input
+                  type="text"
+                  name="telefono"
+                  class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+                />
+              </div>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">Email</label>
-            <input type="email" name="email" class="form-control">
-          </div>
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2"
+                >Contraseña</label
+              >
+              <input
+                type="password"
+                name="password"
+                required
+                minlength="6"
+                class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+              />
+              <p class="text-[11px] text-secondary mt-2">
+                Mínimo 6 caracteres.
+              </p>
+            </div>
 
-          <div class="mb-3">
-            <label class="form-label">Teléfono / Celular</label>
-            <input type="text" name="telefono" class="form-control">
-          </div>
-
-          <div class="mb-3">
-            <label class="form-label">Contraseña</label>
-            <input type="password" name="password" class="form-control" required minlength="6">
-          </div>
-
-          <div class="d-flex justify-content-end">
-            <button type="submit" class="btn btn-primary">Crear entrenador</button>
-          </div>
-        </form>
+            <button
+              type="submit"
+              class="w-full h-[46px] rounded-xl bg-primary hover:bg-[#2C3B43] text-sm font-bold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-white/10 active:scale-[0.99]"
+            >
+              Crear entrenador
+            </button>
+          </form>
+        </div>
       </div>
     </div>
-  </div>
 
+
+
+
+
+  </div>
 </div>
+
+<script>
+  function togglePwd(id) {
+    const input = document.getElementById("pwdInput" + id);
+    const icon = document.getElementById("pwdIcon" + id);
+    if (!input || !icon) return;
+    const isPwd = input.type === "password";
+    input.type = isPwd ? "text" : "password";
+    icon.textContent = isPwd ? "visibility_off" : "visibility";
+  }
+</script>
+
 {% endblock %}

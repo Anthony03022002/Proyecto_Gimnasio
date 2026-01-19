@@ -26,7 +26,7 @@
         <a class="navbar-brand" href="{{ url_for('web.home') }}">Inicio</a>
         {% if session.get('username') %}
         <span class="navbar-text text-light ms-auto me-3">
-          {{ session['username'] }} ({{ session['user_role'] }})
+          {{ session['username']}} - {{ session['user_role'] }}
         </span>
         <a class="btn btn-outline-light btn-sm" href="{{ url_for('web.logout') }}">Salir</a>
         {% endif %}
