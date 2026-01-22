@@ -6,6 +6,7 @@ import shutil
 from zoneinfo import ZoneInfo
 from bson import ObjectId
 from flask import abort, jsonify, render_template, redirect, send_file, url_for, request, session, flash
+from pymongo import ReturnDocument
 
 from app.services.alertas_clientes import obtener_clientes_por_vencer
 from app.services.bloques import _get_blocks_for_date, _open_time_for_block, _slot_block_num, _turno_permite
@@ -152,6 +153,26 @@ def logout():
     return redirect(url_for("web.login"))
 
 
+def _to_oid(v):
+    if not v:
+        return None
+    if isinstance(v, ObjectId):
+        return v
+    try:
+        return ObjectId(str(v))
+    except Exception:
+        return None
+    
+def _fecha_key(v):
+    if not v:
+        return ""
+    try:
+        if hasattr(v, "strftime"):
+            return v.strftime("%Y-%m-%d")
+        return str(v) 
+    except Exception:
+        return ""
+
 # ADMINISTRADOR
 
 @web_bp.get("/admin")
@@ -164,13 +185,63 @@ def admin_dashboard():
     users = db["users"]
     clientes = db["clientes"]
     ventas = db["ventas"]
+    noti_col = db["notificaciones"]  # ✅ NUEVO
 
     total_clientes = clientes.count_documents({})
     total_entrenadores = users.count_documents({"role": "entrenador"})
     total_cajeros = users.count_documents({"role": "cajero"})
-    
-    clientes_por_vencer = obtener_clientes_por_vencer(db, dias_objetivo=(2,1,0), limitar=300)
 
+    # --- tu lista actual ---
+    clientes_por_vencer_raw = obtener_clientes_por_vencer(db, dias_objetivo=(2,1,0), limitar=300) or []
+
+    # ✅ convertir esa lista a NOTIFICACIONES persistentes
+    now_ec = datetime.now(TZ_EC)
+    clientes_por_vencer = []
+
+    for c in clientes_por_vencer_raw:
+        # AJUSTE: tu función normalmente trae cliente_id; si no, intenta _id
+        cid = _to_oid(c.get("cliente_id") or c.get("_id") or c.get("idCliente"))
+        if not cid:
+            continue
+
+        fh_key = _fecha_key(c.get("fecha_hasta") or c.get("hasta") or c.get("vence"))
+        # clave estable (un aviso por cliente+fecha_hasta)
+        key = {"tipo": "renovacion", "cliente_id": cid, "fecha_hasta": fh_key}
+
+        doc = noti_col.find_one_and_update(
+            key,
+            {
+                "$setOnInsert": {
+                    "tipo": "renovacion",
+                    "cliente_id": cid,
+                    "fecha_hasta": fh_key,
+                    "creado_at": now_ec,
+                    "visto": False,
+                },
+                "$set": {
+                    "updated_at": now_ec,
+                    # snapshot para mostrar en modal aunque cambien datos
+                    "payload": {
+                        "nombre": c.get("nombre"),
+                        "identificacion": c.get("identificacion"),
+                        "telefono": c.get("telefono"),
+                        "email": c.get("email"),
+                        "dias_restantes": c.get("dias_restantes"),
+                        "no_renovo": bool(c.get("no_renovo")),
+                        "fecha_hasta": fh_key,
+                    }
+                },
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+
+        # ✅ Solo mandar al template las NO vistas (esto hace que “desaparezcan”)
+        if not doc.get("visto", False):
+            c["noti_id"] = str(doc["_id"])   # ✅ ID de la notificación
+            clientes_por_vencer.append(c)
+
+    # --- tu lógica de ventas hoy (sin tocar) ---
     ahora = datetime.now(timezone.utc)
     inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
     fin = ahora.replace(hour=23, minute=59, second=59, microsecond=999000)
@@ -178,12 +249,9 @@ def admin_dashboard():
     ventas_hoy = ventas.count_documents({"fecha": {"$gte": inicio, "$lte": fin}})
 
     pipeline = [
-        # ✅ SOLO HOY
         {"$match": {"fecha": {"$gte": inicio, "$lte": fin}}},
-
         {"$sort": {"fecha": -1}},
         {"$limit": 10},
-
         {"$lookup": {
             "from": "clientes",
             "localField": "cliente_id",
@@ -191,17 +259,15 @@ def admin_dashboard():
             "as": "cliente"
         }},
         {"$unwind": {"path": "$cliente", "preserveNullAndEmptyArrays": True}},
-
         {"$project": {
             "fecha": 1,
-            "vendedor": 1,         
+            "vendedor": 1,
             "membresia": 1,
             "cliente_nombre": {"$ifNull": ["$cliente.nombre", ""]},
             "cliente_apellido": {"$ifNull": ["$cliente.apellido", ""]},
             "cliente_identificacion": {"$ifNull": ["$cliente.identificacion", ""]},
         }},
     ]
-
     ultimas_ventas = list(ventas.aggregate(pipeline))
 
     return render_template(
@@ -210,11 +276,36 @@ def admin_dashboard():
         show_publicidad=True,
         total_entrenadores=total_entrenadores,
         total_cajeros=total_cajeros,
-        clientes_por_vencer=clientes_por_vencer,
+        clientes_por_vencer=clientes_por_vencer,  # ✅ ya filtrado: solo NO vistos
         ventas_hoy=ventas_hoy,
         ultimas_ventas=ultimas_ventas,
     )
+    
 
+
+@web_bp.post("/admin/notificaciones/renovacion/<noti_id>/visto")
+@login_required(role="admin")
+def admin_noti_renovacion_visto(noti_id):
+    db = extensions.mongo_db
+    noti_col = db["notificaciones"]
+
+    try:
+        oid = ObjectId(noti_id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    now_ec = datetime.now(TZ_EC)
+    admin_id = _to_oid(session.get("user_id"))
+
+    res = noti_col.update_one(
+        {"_id": oid, "tipo": "renovacion"},
+        {"$set": {"visto": True, "visto_at": now_ec, "visto_por": admin_id}},
+    )
+
+    if res.matched_count == 0:
+        return jsonify(ok=False, error="Notificación no encontrada"), 404
+
+    return jsonify(ok=True)
 
 @web_bp.get("/admin/ventas")
 @login_required(role="admin")
@@ -534,8 +625,121 @@ def admin_configuracion_sistema():
     flash("Configuración del sistema actualizada.", "success")
     return redirect(url_for("web.admin_configuracion"))
 
+@web_bp.get("/admin/no-asistire-manana")
+@login_required(role="admin")
+def admin_no_asistire_manana():
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
 
+    reservas_col = db["reservas"]
+    clientes_col = db["clientes"]
+    users_col = db["users"]
 
+    TZ_EC = ZoneInfo("America/Guayaquil")
+    manana = datetime.now(TZ_EC).date() + timedelta(days=1)
+    manana_key = manana.isoformat()
+
+    pipeline = [
+        {"$match": {
+            "fecha": manana_key,
+            "no_asistire": True,
+            "estado": {"$ne": "cancelada"},
+            "cancelada": {"$ne": True},
+
+            # ✅ SOLO NO VISTOS
+            "no_asistire_visto_admin": {"$ne": True},
+        }},
+        {"$lookup": {
+            "from": "clientes",
+            "localField": "cliente_id",
+            "foreignField": "_id",
+            "as": "cli"
+        }},
+        {"$unwind": {"path": "$cli", "preserveNullAndEmptyArrays": True}},
+        {"$lookup": {
+            "from": "users",
+            "localField": "entrenador_id",
+            "foreignField": "_id",
+            "as": "ent"
+        }},
+        {"$unwind": {"path": "$ent", "preserveNullAndEmptyArrays": True}},
+        {"$project": {
+            "_id": 1,
+            "fecha": 1,
+            "slot_id": 1,
+            "no_asistire_at": 1,
+            "no_asistire_motivo": 1,
+            "estado": 1,
+            "cliente_nombre": {"$ifNull": ["$cli.nombre", ""]},
+            "cliente_apellido": {"$ifNull": ["$cli.apellido", ""]},
+            "cliente_identificacion": {"$ifNull": ["$cli.identificacion", ""]},
+            "cliente_telefono": {"$ifNull": ["$cli.telefono", ""]},
+            "entrenador": {"$ifNull": ["$ent.username", "-"]},
+        }},
+        {"$sort": {"no_asistire_at": -1}}
+    ]
+
+    rows = list(reservas_col.aggregate(pipeline))
+
+    # opcional: calcula hora desde slot_id "YYYY-MM-DD|HH:MM"
+    for r in rows:
+        sid = r.get("slot_id") or ""
+        r["hora"] = sid.split("|", 1)[1] if ("|" in sid) else ""
+
+    return render_template(
+        "admin_no_asistir.html",
+        manana_key=manana_key,
+        rows=rows
+    )
+
+@web_bp.post("/admin/no-asistire/<reserva_id>/visto")
+@login_required(role="admin")
+def admin_marcar_no_asistire_visto(reserva_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+
+    reservas_col = db["reservas"]
+
+    try:
+        rid = ObjectId(reserva_id)
+    except Exception:
+        flash("Reserva inválida.", "danger")
+        return redirect(url_for("web.admin_no_asistire_manana"))
+
+    # admin logueado
+    admin_id = session.get("user_id")
+    admin_oid = None
+    try:
+        if admin_id:
+            admin_oid = ObjectId(admin_id)
+    except Exception:
+        admin_oid = None
+
+    TZ_EC = ZoneInfo("America/Guayaquil")
+    now_ec = datetime.now(TZ_EC)
+
+    r = reservas_col.find_one({"_id": rid}, {"no_asistire": 1})
+    if not r:
+        flash("No se encontró la reserva.", "danger")
+        return redirect(url_for("web.admin_no_asistire_manana"))
+
+    if r.get("no_asistire") is not True:
+        flash("Esta reserva no está marcada como 'no asistiré'.", "warning")
+        return redirect(url_for("web.admin_no_asistire_manana"))
+
+    reservas_col.update_one(
+        {"_id": rid},
+        {"$set": {
+            "no_asistire_visto_admin": True,
+            "no_asistire_visto_at": now_ec,
+            **({"no_asistire_visto_por": admin_oid} if admin_oid else {})
+        }}
+    )
+
+    flash("Marcado como visto.", "success")
+    return redirect(url_for("web.admin_no_asistire_manana"))
 
 # ADMIN CAJEROS
 @web_bp.get("/admin/cajeros")
@@ -2519,8 +2723,20 @@ def cliente_dashboard():
             })
         alertas_membresia.append(mensaje)
 
-    # ✅ Solo disparar notificaciones si está ACTIVA
+    # ✅ ALERTA "dinámica" (SIEMPRE que falten pocos días)
     if estado_membresia == "Activa" and dias_restantes is not None and fh is not None:
+        # 1) Mensaje visible aunque NO haya notificación guardada
+        if 0 <= dias_restantes <= 5:
+            if dias_restantes == 0:
+                alertas_membresia.append("⚠️ Tu membresía vence HOY. Renueva para no perder el acceso.")
+            elif dias_restantes == 1:
+                alertas_membresia.append("⚠️ Tu membresía vence MAÑANA. Renueva para no perder el acceso.")
+            elif dias_restantes <= 3:
+                alertas_membresia.append(f"⚠️ Tu membresía vence en {dias_restantes} días. Si no renuevas, se desactivará.")
+            else:
+                alertas_membresia.append(f"Tu membresía vence en {dias_restantes} días. Recuerda renovarla para no perder el acceso.")
+
+        # 2) Notificación "persistente" (solo se guarda 1 vez en BD)
         if dias_restantes == 5:
             _push_noti(
                 "membresia_5_dias",
@@ -2534,7 +2750,7 @@ def cliente_dashboard():
                 fh
             )
 
-    # ✅ Si no tocó 5 o 3, muestra últimas notis activas SOLO si sigue activa
+    # ✅ Si no hay alerta dinámica, recién ahí carga notis activas guardadas
     if estado_membresia == "Activa" and not alertas_membresia:
         docs_noti = list(
             noti_col.find(
@@ -2547,6 +2763,7 @@ def cliente_dashboard():
             ).sort("creado", -1).limit(3)
         )
         alertas_membresia = [n.get("mensaje") for n in docs_noti if n.get("mensaje")]
+
 
     # --- reservas del cliente ---
     reservas = list(
@@ -2622,6 +2839,24 @@ def cliente_dashboard():
     clases_prox = sorted([c for c in clases if c["es_proxima"]], key=lambda x: x["dt"] or ahora)
     clases_pas = sorted([c for c in clases if not c["es_proxima"]], key=lambda x: x["dt"] or ahora, reverse=True)
     
+    manana = datetime.now(TZ_EC).date() + timedelta(days=1)
+    manana_key = manana.isoformat()
+
+    # busca reserva confirmada de mañana del cliente
+    reserva_manana = reservas_col.find_one(
+        {
+            "cliente_id": cliente_id,
+            "estado": "confirmada",
+            # si tu fecha es string "YYYY-MM-DD"
+            "fecha": manana_key,
+            # si tu fecha fuera ISODate, dímelo y te lo ajusto
+        },
+        {"_id": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1, "no_asistire": 1}
+    )
+
+    # bandera para mostrar botón
+    puede_no_asistir = bool(reserva_manana) and not bool((reserva_manana or {}).get("no_asistire"))
+    
 
     return render_template(
         "dashboard_cliente.html",
@@ -2632,10 +2867,82 @@ def cliente_dashboard():
         dias_restantes=dias_restantes,
         alertas_membresia=alertas_membresia,
         clases_proximas=clases_prox,
+        reserva_manana=reserva_manana,
+        puede_no_asistir=puede_no_asistir,
+        manana_key=manana_key,
+
         clases_pasadas=clases_pas,
         plan_actual=plan_actual,
     )
 
+@web_bp.post("/cliente/no_podre_asistir_manana")
+@login_required(role="cliente")
+def cliente_no_podre_asistir_manana():
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no está inicializado.")
+
+    reservas_col = db["reservas"]
+    noti_col = db["notificaciones"]
+    clientes_col = db["clientes"]
+
+    user_id = session.get("user_id")
+    if not user_id:
+        return redirect(url_for("web.logout"))
+
+    cliente_id = ObjectId(user_id)
+
+    from zoneinfo import ZoneInfo
+    from datetime import datetime, timedelta
+    TZ_EC = ZoneInfo("America/Guayaquil")
+
+    manana = datetime.now(TZ_EC).date() + timedelta(days=1)
+    manana_key = manana.isoformat()
+
+    # 1) busco la reserva de mañana
+    reserva = reservas_col.find_one(
+        {"cliente_id": cliente_id, "estado": "confirmada", "fecha": manana_key},
+        {"_id": 1, "no_asistire": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1}
+    )
+
+    if not reserva:
+        flash("No tienes una reserva confirmada para mañana.", "warning")
+        return redirect(url_for("web.cliente_dashboard"))
+
+    if reserva.get("no_asistire") is True:
+        flash("Ya marcaste que no podrás asistir mañana.", "info")
+        return redirect(url_for("web.cliente_dashboard"))
+
+    # 2) marco la reserva
+    now_ec = datetime.now(TZ_EC)
+    reservas_col.update_one(
+        {"_id": reserva["_id"]},
+        {"$set": {
+            "no_asistire": True,
+            "no_asistire_at": now_ec
+        }}
+    )
+
+    # 3) creo notificación para admin
+    cli = clientes_col.find_one({"_id": cliente_id}, {"nombre": 1, "apellido": 1, "identificacion": 1})
+    nombre = ((cli or {}).get("nombre") or "")
+    apellido = ((cli or {}).get("apellido") or "")
+    ident = ((cli or {}).get("identificacion") or "")
+    nombre_full = f"{nombre} {apellido}".strip() or (session.get("username") or "Cliente")
+
+    noti_col.insert_one({
+        "tipo": "no_asistire",
+        "rol_destino": "admin",                # para que admin lo vea
+        "cliente_id": cliente_id,
+        "reserva_id": reserva["_id"],
+        "fecha": manana_key,
+        "mensaje": f"{nombre_full} ({ident}) no podrá asistir mañana a su clase.",
+        "leido": False,
+        "created_at": now_ec,
+    })
+
+    flash("Listo. Se notificó al administrador que no podrás asistir mañana.", "success")
+    return redirect(url_for("web.cliente_dashboard"))
 
 @web_bp.get("/cliente/config")
 @login_required(role="cliente")
@@ -3991,6 +4298,10 @@ def cliente_membresia_page():
         dias_restantes=dias_restantes,
     )
     
+    
+    
+
+    
 # SUBIR PDF
 
 # ✅ asegúrate que este import existe en tu archivo
@@ -4053,6 +4364,9 @@ def replace_with_retry(src: str, dst: str, retries: int = 60, delay: float = 0.2
             last = e
             pytime.sleep(delay)
     raise last
+
+
+
 
 
 @web_bp.post("/entrenador/alumno/<cliente_id>/planificacion/subir")

@@ -1,0 +1,315 @@
+{% extends "base_admin.html" %}
+{% block title %}No podrán asistir mañana{% endblock %}
+
+{% block header %}
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
+
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Clientes que no asistirán</h2>
+      <div class="text-xs text-white/50 -mt-1">Avisos para mañana</div>
+    </div>
+  </div>
+</header>
+{% endblock %}
+
+{% block content %}
+
+<style>
+  :root{
+    --bg: #0f1113;
+    --surface: rgba(255,255,255,.04);
+    --surface-2: rgba(255,255,255,.06);
+    --border: rgba(255,255,255,.08);
+    --border-2: rgba(255,255,255,.06);
+    --text: rgba(255,255,255,.92);
+    --muted: rgba(255,255,255,.55);
+    --muted2: rgba(255,255,255,.40);
+    --shadow: 0 18px 55px rgba(0,0,0,.45);
+  }
+
+  .na-wrap{
+    max-width: 1200px;
+    margin: 18px auto 0;
+    padding: 0 14px;
+  }
+
+  /* Top mini-toolbar */
+  .na-toolbar{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom: 12px;
+  }
+  .na-meta{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    color: var(--muted);
+    font-size: .9rem;
+  }
+  .na-chip{
+    display:inline-flex;
+    align-items:center;
+    gap:8px;
+    padding: 7px 10px;
+    border-radius: 999px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--text);
+    font-weight: 800;
+    font-size: .82rem;
+  }
+  .na-linkbtn{
+    border: 1px solid rgba(255,255,255,.14) !important;
+    background: rgba(255,255,255,.06) !important;
+    color: rgba(255,255,255,.92) !important;
+    border-radius: 14px !important;
+    padding: 10px 14px !important;
+    font-weight: 900 !important;
+    transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    display: inline-flex;
+    align-items:center;
+    gap:8px;
+    white-space: nowrap;
+  }
+  .na-linkbtn:hover{
+    background: rgba(255,255,255,.10) !important;
+    border-color: rgba(255,255,255,.22) !important;
+    transform: translateY(-1px);
+  }
+
+  /* Card */
+  .na-card{
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    overflow: hidden;
+    background: linear-gradient(180deg, rgba(255,255,255,.05), rgba(255,255,255,.03));
+    box-shadow: var(--shadow);
+  }
+
+  .na-table{
+    margin: 0 !important;
+    color: rgba(255,255,255,.88) !important;
+  }
+
+  .na-table thead th{
+    background: rgba(0,0,0,.35) !important;
+    backdrop-filter: blur(10px);
+    color: rgba(255,255,255,.70) !important;
+    border-color: var(--border) !important;
+    font-size: .75rem;
+    letter-spacing: .14em;
+    text-transform: uppercase;
+    padding: 14px 16px !important;
+    position: sticky;
+    top: 0;
+    z-index: 2;
+  }
+
+  .na-table td{
+    border-color: var(--border-2) !important;
+    padding: 14px 16px !important;
+    vertical-align: middle !important;
+    background: transparent !important;
+  }
+
+  .na-table tbody tr{
+    transition: background .12s ease;
+  }
+  .na-table tbody tr:hover{
+    background: rgba(255,255,255,.03) !important;
+  }
+
+  .na-hora{
+    font-weight: 950;
+    color: var(--text);
+    font-size: 1.05rem;
+    letter-spacing: -.01em;
+  }
+  .na-name{
+    color: var(--text);
+    font-weight: 900;
+  }
+  .na-muted{ color: var(--muted) !important; }
+  .na-muted2{ color: var(--muted2) !important; }
+
+  /* Pill status */
+  .na-pill{
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    border-radius: 999px;
+    border: 1px solid rgba(245, 158, 11, .35);
+    background: rgba(245, 158, 11, .10);
+    color: rgba(255,255,255,.92);
+    font-size: .80rem;
+    font-weight: 900;
+    white-space: nowrap;
+  }
+  .na-dot{
+    width: 8px; height: 8px;
+    border-radius: 999px;
+    background: rgba(245,158,11,.95);
+    box-shadow: 0 0 0 3px rgba(245,158,11,.16);
+  }
+
+  /* Action button smaller + nicer */
+  .na-action{
+    border: 1px solid rgba(16,185,129,.35) !important;
+    background: rgba(16,185,129,.10) !important;
+    color: rgba(255,255,255,.92) !important;
+    border-radius: 14px !important;
+    padding: 10px 12px !important;
+    font-weight: 950 !important;
+    letter-spacing: .02em;
+    transition: transform .12s ease, background .12s ease, border-color .12s ease;
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+    min-width: 190px;
+  }
+  .na-action:hover{
+    background: rgba(16,185,129,.16) !important;
+    border-color: rgba(16,185,129,.45) !important;
+    transform: translateY(-1px);
+  }
+
+  /* Empty state */
+  .na-empty{
+    padding: 28px 18px;
+    text-align: center;
+    color: var(--muted);
+  }
+  .na-empty .icon{
+    width: 46px; height: 46px;
+    border-radius: 999px;
+    background: rgba(255,255,255,.06);
+    border: 1px solid rgba(255,255,255,.10);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+  }
+  .na-empty .title{
+    color: rgba(255,255,255,.92);
+    font-weight: 950;
+    margin-bottom: 4px;
+  }
+
+  /* Responsive: button doesn't explode */
+  @media (max-width: 768px){
+    .na-toolbar{ flex-direction: column; align-items: stretch; }
+    .na-linkbtn{ width: 100%; justify-content:center; }
+    .na-action{ width: 100%; min-width: 0; }
+  }
+</style>
+
+<div class="na-wrap">
+
+  <div class="na-toolbar">
+    <div class="na-meta">
+      <span class="na-chip">
+        <span class="material-symbols-outlined" style="font-size:18px; color: rgba(255,255,255,.75);">calendar_today</span>
+        Fecha: {{ manana_key }}
+      </span>
+      <span class="na-muted2">Se muestran solo avisos pendientes</span>
+    </div>
+
+    <a href="{{ url_for('web.horarios_publico', view='week', fecha=manana_key) }}"
+       class="btn na-linkbtn">
+      <span class="material-symbols-outlined" style="font-size:18px;">calendar_month</span>
+      Ver en calendario
+    </a>
+  </div>
+
+  <div class="na-card card">
+    <div class="card-body p-0">
+      <div class="table-responsive">
+        <table class="table table-sm align-middle na-table">
+          <thead>
+            <tr>
+              <th style="width: 120px;">Hora</th>
+              <th>Cliente</th>
+              <th>Cédula</th>
+              <th>Teléfono</th>
+              <th>Entrenador</th>
+              <th style="width: 200px;">Reportado</th>
+              <th class="text-end" style="width: 220px;">Acciones</th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {% if rows and rows|length > 0 %}
+              {% for r in rows %}
+                <tr>
+                  <td>
+                    <div class="na-hora">{{ r.hora or '-' }}</div>
+                    <div class="na-pill mt-2">
+                      <span class="na-dot"></span>
+                      No asistirá
+                    </div>
+                  </td>
+
+                  <td class="na-name">
+                    {{ (r.cliente_nombre ~ ' ' ~ r.cliente_apellido)|trim or '-' }}
+                  </td>
+
+                  <td class="na-muted">{{ r.cliente_identificacion or '-' }}</td>
+                  <td class="na-muted">{{ r.cliente_telefono or '-' }}</td>
+
+                  <td class="text-white">
+                    <span class="fw-semibold">{{ r.entrenador or '-' }}</span>
+                  </td>
+
+                  <td class="na-muted">
+                    {% if r.no_asistire_at %}
+                      {{ r.no_asistire_at.strftime('%d/%m/%Y %H:%M') }}
+                    {% else %}
+                      -
+                    {% endif %}
+                  </td>
+
+                  <td class="text-end">
+                    <form method="post"
+                          action="{{ url_for('web.admin_marcar_no_asistire_visto', reserva_id=r._id) }}"
+                          onsubmit="return confirm('¿Marcar como visto este aviso?');">
+                      <button type="submit" class="btn na-action">
+                        <span class="material-symbols-outlined" style="font-size:18px;">done_all</span>
+                        Marcar como visto
+                      </button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            {% else %}
+              <tr>
+                <td colspan="7" class="na-empty">
+                  <div class="icon">
+                    <span class="material-symbols-outlined" style="color:rgba(255,255,255,.55)">event_busy</span>
+                  </div>
+                  <div class="title">Sin reportes</div>
+                  <div>No hay clientes marcados como “no asistiré” para mañana.</div>
+                </td>
+              </tr>
+            {% endif %}
+          </tbody>
+
+        </table>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

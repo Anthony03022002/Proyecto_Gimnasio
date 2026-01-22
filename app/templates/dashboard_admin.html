@@ -33,11 +33,13 @@
       >
         <span class="material-symbols-outlined">notifications</span>
 
-        {% if noti_count > 0 %}
-          <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-surface-dark">
-            {{ noti_count }}
-          </span>
-        {% endif %}
+       {% if noti_count > 0 %}
+        <span id="notiBadge"
+              class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-surface-dark">
+          {{ noti_count }}
+        </span>
+      {% endif %}
+
       </button>
 
       <div class="hidden md:block h-8 w-[1px] bg-white/10"></div>
@@ -165,102 +167,203 @@
     </div>
   </div>
 
-  {# MODAL Notificaciones (Tailwind) #}
-  {% set noti_count = (clientes_por_vencer|length) if clientes_por_vencer is defined and clientes_por_vencer else 0 %}
+{# MODAL Notificaciones (Tailwind) - Mejorado #}
+{% set noti_count = (clientes_por_vencer|length) if clientes_por_vencer is defined and clientes_por_vencer else 0 %}
 
-  <div id="notiModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
-    <div class="absolute inset-0 bg-black/60" onclick="closeNotiModal()"></div>
+<div id="notiModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
 
-    <div class="relative mx-auto mt-10 w-[95vw] max-w-5xl bg-surface-dark border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-      <div class="p-5 md:p-6 border-b border-white/10 flex items-start justify-between gap-4">
-        <div>
-          <h4 class="text-lg font-bold text-white">Clientes por renovar / no renovaron</h4>
+  {# overlay #}
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeNotiModal()"></div>
+
+  {# panel #}
+  <div class="relative mx-auto mt-6 md:mt-10 w-[94vw] max-w-5xl">
+    <div class="rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.65)] bg-gradient-to-b from-white/[0.06] to-white/[0.03]">
+
+      {# header #}
+      <div class="px-5 md:px-7 py-5 border-b border-white/10 flex items-start justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white/80">notifications_active</span>
+          </div>
+
+          <div>
+            <h4 class="text-white font-extrabold text-lg md:text-xl leading-tight">
+              Renovaciones pendientes
+            </h4>
+            <p class="text-xs md:text-sm text-white/50 mt-1">
+              Toca una fila para <span class="text-white/80 font-semibold">marcar como leído</span> y ocultar el aviso.
+            </p>
+
+            {% if noti_count > 0 %}
+              <div class="mt-3 inline-flex items-center gap-2 text-[11px] font-bold px-3 py-1 rounded-full
+                          bg-red-500/10 text-red-200 border border-red-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                {{ noti_count }} aviso(s) sin leer
+              </div>
+            {% endif %}
+          </div>
         </div>
 
         <button
           type="button"
-          class="p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+          class="p-2 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition"
           onclick="closeNotiModal()"
           aria-label="Cerrar"
+          title="Cerrar"
         >
           <span class="material-symbols-outlined">close</span>
         </button>
       </div>
 
-      <div class="p-5 md:p-6">
+      {# body #}
+      <div class="px-4 md:px-7 py-5">
         {% if clientes_por_vencer and clientes_por_vencer|length > 0 %}
-          <div class="overflow-x-auto rounded-xl border border-white/10">
-            <table class="w-full text-left">
-              <thead class="bg-white/5">
-                <tr>
-                  <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Cliente</th>
-                  <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Cédula</th>
-                  <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Teléfono</th>
-                  <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Email</th>
-                  <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider text-right">Estado</th>
-                </tr>
-              </thead>
 
-              <tbody class="divide-y divide-white/10">
-                {% for c in clientes_por_vencer %}
-                  <tr class="hover:bg-white/[0.03] transition-colors">
-                    <td class="px-5 py-4 text-sm text-white font-semibold">{{ c.nombre or '-' }}</td>
-                    <td class="px-5 py-4 text-sm text-secondary">{{ c.identificacion or '-' }}</td>
-                    <td class="px-5 py-4 text-sm text-secondary">{{ c.telefono or '-' }}</td>
-                    <td class="px-5 py-4 text-sm text-secondary">{{ c.email or '-' }}</td>
+          {# table wrapper (scroll interno) #}
+          <div class="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+            <div class="max-h-[62vh] overflow-auto">
 
-                    <td class="px-5 py-4 text-right">
-                      {% if c.no_renovo %}
-                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-red-300 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-                          NO RENOVÓ (hace {{ (c.dias_restantes * -1) }} día(s))
-                        </span>
-                      {% else %}
-                        {% if c.dias_restantes == 0 %}
-                          <span class="inline-flex items-center gap-2 text-[11px] font-bold text-red-300 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-                            VENCE HOY
-                          </span>
-                        {% elif c.dias_restantes == 1 %}
-                          <span class="inline-flex items-center gap-2 text-[11px] font-bold text-yellow-200 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-                            VENCE EN 1 DÍA
-                          </span>
-                        {% elif c.dias_restantes == 2 %}
-                          <span class="inline-flex items-center gap-2 text-[11px] font-bold text-yellow-200 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-                            VENCE EN 2 DÍAS
+              <table class="w-full text-left">
+                <thead class="sticky top-0 z-10 bg-surface-dark/90 backdrop-blur-md border-b border-white/10">
+                  <tr>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70">Cliente</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70">Cédula</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 hidden md:table-cell">Teléfono</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 hidden lg:table-cell">Email</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 text-right">Estado</th>
+                  </tr>
+                </thead>
+
+                <tbody class="divide-y divide-white/10" id="notiBody">
+                  {% for c in clientes_por_vencer %}
+                    <tr
+                      class="group cursor-pointer transition-colors hover:bg-white/[0.04]"
+                      data-noti-id="{{ c.noti_id }}"
+                      title="Clic para marcar como leído"
+                    >
+                      <td class="px-5 py-4">
+                        <div class="flex items-start gap-3">
+                          <div class="mt-0.5 w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center">
+                            <span class="material-symbols-outlined text-white/70" style="font-size:18px;">person</span>
+                          </div>
+
+                          <div class="min-w-0">
+                            <div class="text-white font-bold truncate">
+                              {{ c.nombre or '-' }}
+                            </div>
+                            <div class="text-[11px] text-white/45 mt-0.5">
+                              Clic para marcar como leído
+                              <span class="inline-block ml-1 text-white/35 group-hover:text-white/60 transition">→</span>
+                            </div>
+                          </div>
+                        </div>
+                      </td>
+
+                      <td class="px-5 py-4 text-sm text-white/70 font-medium">
+                        {{ c.identificacion or '-' }}
+                      </td>
+
+                      <td class="px-5 py-4 text-sm text-white/55 hidden md:table-cell">
+                        {{ c.telefono or '-' }}
+                      </td>
+
+                      <td class="px-5 py-4 text-sm text-white/55 hidden lg:table-cell">
+                        {{ c.email or '-' }}
+                      </td>
+
+                      <td class="px-5 py-4 text-right">
+                        {# ===== BADGE COMPACTO (no círculo) ===== #}
+                        {% if c.no_renovo %}
+                          <span
+                            class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1
+                                  rounded-full border border-red-500/25 bg-red-500/10 text-red-200"
+                            style="width:auto;height:auto;border-radius:999px;white-space:nowrap;line-height:1;"
+                          >
+                            <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                            No renovó ({{ (c.dias_restantes * -1) }} día(s))
                           </span>
                         {% else %}
-                          <span class="inline-flex items-center gap-2 text-[11px] font-bold text-secondary bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                            {{ c.dias_restantes }} día(s)
-                          </span>
+                          {% if c.dias_restantes == 0 %}
+                            <span
+                              class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1
+                                    rounded-full border border-red-500/25 bg-red-500/10 text-red-200"
+                              style="width:auto;height:auto;border-radius:999px;white-space:nowrap;line-height:1;"
+                            >
+                              <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                              Vence hoy
+                            </span>
+                          {% elif c.dias_restantes in [1,2] %}
+                            <span
+                              class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1
+                                    rounded-full border border-yellow-500/25 bg-yellow-500/10 text-yellow-200"
+                              style="width:auto;height:auto;border-radius:999px;white-space:nowrap;line-height:1;"
+                            >
+                              <span class="w-1.5 h-1.5 rounded-full bg-yellow-300"></span>
+                              Vence en {{ c.dias_restantes }} día(s)
+                            </span>
+                          {% else %}
+                            <span
+                              class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1
+                                    rounded-full border border-white/10 bg-white/5 text-white/70"
+                              style="width:auto;height:auto;border-radius:999px;white-space:nowrap;line-height:1;"
+                            >
+                              <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>
+                              {{ c.dias_restantes }} día(s)
+                            </span>
+                          {% endif %}
                         {% endif %}
-                      {% endif %}
 
-                      {% if c.fecha_hasta %}
-                        <div class="text-xs text-secondary mt-1">Hasta: {{ c.fecha_hasta }}</div>
-                      {% endif %}
-                    </td>
-                  </tr>
-                {% endfor %}
-              </tbody>
-            </table>
+                        {% if c.fecha_hasta %}
+                          <div class="text-[11px] text-white/40 mt-2">
+                            Hasta: <span class="text-white/60 font-semibold">{{ c.fecha_hasta }}</span>
+                          </div>
+                        {% endif %}
+                      </td>
+
+                    </tr>
+                  {% endfor %}
+                </tbody>
+
+              </table>
+            </div>
           </div>
+
+          <div class="mt-4 text-[11px] text-white/40 flex items-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+            Tip: presiona <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/70 font-bold">ESC</span> para cerrar.
+          </div>
+
         {% else %}
-          <div class="text-sm text-secondary">
-            No hay clientes por renovar (ni vencidos sin renovación) en este momento.
+          <div class="rounded-2xl border border-white/10 bg-black/20 p-10 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center">
+              <span class="material-symbols-outlined text-white/45" style="font-size:28px;">done_all</span>
+            </div>
+            <div class="mt-4 text-white font-extrabold text-lg">Todo al día</div>
+            <div class="mt-1 text-sm text-white/50">
+              No hay clientes por renovar (ni vencidos sin renovación) en este momento.
+            </div>
           </div>
         {% endif %}
       </div>
 
-      <div class="p-5 md:p-6 border-t border-white/10 flex justify-end">
+      {# footer #}
+      <div class="px-5 md:px-7 py-4 border-t border-white/10 flex items-center justify-between gap-3">
+        <div class="text-xs text-white/40">
+          Se ocultan automáticamente cuando los marcas como leídos.
+        </div>
+
         <button
           type="button"
-          class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+          class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white transition"
           onclick="closeNotiModal()"
         >
           Cerrar
         </button>
       </div>
+
     </div>
   </div>
+</div>
 
 {% endblock %}
 
@@ -285,5 +388,62 @@
       if (e.key === "Escape") closeNotiModal();
     });
   })();
+
+  function updateNotiBadge(delta){
+    const badge = document.getElementById("notiBadge");
+    if (!badge) return;
+
+    const n = parseInt(badge.textContent || "0", 10) || 0;
+    const next = Math.max(0, n + delta);
+    badge.textContent = String(next);
+
+    if (next === 0) badge.remove();
+  }
+
+  function renderEmptyNotis(){
+    const body = document.getElementById("notiBody");
+    if (!body) return;
+
+    body.innerHTML = `
+      <tr>
+        <td class="px-6 py-10 text-center text-secondary" colspan="5">
+          No hay clientes por renovar (ni vencidos sin renovación) en este momento.
+        </td>
+      </tr>
+    `;
+  }
+
+  async function markRenovacionVisto(notiId, tr){
+    const resp = await fetch(`/admin/notificaciones/renovacion/${encodeURIComponent(notiId)}/visto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) {
+      alert((data && data.error) ? data.error : "No se pudo marcar como leído");
+      return;
+    }
+
+    tr.remove();
+    updateNotiBadge(-1);
+
+    const body = document.getElementById("notiBody");
+    if (body && body.querySelectorAll("tr[data-noti-id]").length === 0){
+      renderEmptyNotis();
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-noti-id]");
+    if (!tr) return;
+
+    const notiId = tr.getAttribute("data-noti-id");
+    if (!notiId) return;
+
+    if (!confirm("¿Marcar esta notificación como leída?")) return;
+    markRenovacionVisto(notiId, tr);
+  });
 </script>
 {% endblock %}

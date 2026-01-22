@@ -1,291 +1,351 @@
-{% extends "base.html" %} {% block title %}Panel Cliente{% endblock %} {% block
-content %} {% set active = "cliente_dashboard" %}
+{% extends "base_cliente.html" %}
+{% block title %}Panel Cliente{% endblock %}
+{% set active = "cliente_dashboard" %}
 
-<div class="row g-3">
-  <div class="col-12 col-lg-9">
-    <div
-      class="d-lg-none mb-3 d-flex justify-content-between align-items-center"
-    >
-      <h3 class="mb-0">Panel Cliente</h3>
-      <button
-        class="btn btn-outline-primary btn-sm"
-        type="button"
-        data-bs-toggle="offcanvas"
-        data-bs-target="#menuOffcanvas"
-      >
-        <i class="bi bi-list"></i> Menú
-      </button>
-    </div>
+{% set nombre_cliente = ((cliente.nombre or '') ~ ' ' ~ (cliente.apellido or ''))|trim if cliente else (session.get('username') or 'Cliente') %}
+{% set estado = estado_membresia or "Sin membresía" %}
+{% set dias = dias_restantes if dias_restantes is not none else None %}
 
-    <div class="d-none d-lg-block">
-      <h3 class="mb-2">Panel Cliente</h3>
-    </div>
+{% set WHATSAPP_NUM = "593992899479" %}
+{% set ident = cliente.identificacion or '' if cliente else '' %}
+{% set user = session.get('username') or '' %}
+{% if membresia and membresia.fecha_hasta %}
+  {% set vence_txt = membresia.fecha_hasta.strftime('%d/%m/%Y') %}
+{% else %}
+  {% set vence_txt = '-' %}
+{% endif %}
+{% set dias_txt = (dias_restantes|string) if dias_restantes is not none else '-' %}
+{% set wa_text = "Hola, quiero renovar mi membresía.\n" ~
+  "Cliente: " ~ nombre_cliente ~ "\n" ~
+  "Identificación: " ~ ident ~ "\n" ~
+  "Usuario: " ~ user ~ "\n" ~
+  "Vence: " ~ vence_txt ~ "\n" ~
+  "Días restantes: " ~ dias_txt
+%}
 
-    {# ========================= ✅ PLANIFICACIÓN (PDF)
-    ========================= #}
-    <div class="card shadow-sm mb-3">
-      <div class="card-body">
-        <div
-          class="d-flex justify-content-between align-items-center flex-wrap gap-2"
-        >
-          <div>
-            <h6 class="card-subtitle mb-0 text-muted">Planificación</h6>
-            <div class="text-muted small">Enviada por tu entrenador</div>
+{% block header_title %}{{ nombre_cliente }}{% endblock %}
+
+{% block header_actions %}
+  <a href="{{ url_for('web.horarios_publico', view='week') }}"
+     class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10
+            text-white font-semibold text-sm transition flex items-center gap-2">
+    <span class="material-symbols-outlined text-[18px]">calendar_month</span>
+    Reservar
+  </a>
+{% endblock %}
+
+{% block content %}
+<style>
+  /* Solo afecta a este dashboard */
+  .elite-soft-card{
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(255,255,255,0.08);
+    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+  }
+  .elite-soft-card:hover{
+    border-color: rgba(255,255,255,0.12);
+  }
+  .elite-divider{ border-color: rgba(255,255,255,0.08); }
+  .elite-muted{ color: rgba(255,255,255,0.55); }
+  .elite-pill{
+    border: 1px solid rgba(255,255,255,0.18);
+    background: rgba(0,0,0,0.15);
+  }
+  .elite-btn{
+    border: 1px solid rgba(255,255,255,0.16);
+    background: rgba(255,255,255,0.06);
+  }
+  .elite-btn:hover{ background: rgba(255,255,255,0.10); }
+  .elite-btn-danger{
+    border: 1px solid rgba(255,80,80,0.35);
+    background: rgba(255,80,80,0.08);
+  }
+  .elite-btn-danger:hover{ background: rgba(255,80,80,0.12); }
+</style>
+
+<div class="space-y-8">
+
+  {# ALERTAS #}
+  {% if alertas_membresia and alertas_membresia|length > 0 %}
+    <div class="space-y-2">
+      {% for msg in alertas_membresia %}
+        <div class="elite-soft-card rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+          <div class="text-sm text-white/90">
+            <span class="font-semibold">Aviso:</span> <span class="elite-muted">{{ msg }}</span>
           </div>
-
-          {% if plan_actual and (plan_actual.filename or plan_actual.rel_path)
-          %}
-          <a
-            class="btn btn-sm btn-primary"
-            href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}"
-          >
-            <i class="bi bi-download"></i> Descargar PDF
+          <a target="_blank"
+             href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
+             class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition flex items-center gap-2">
+            <span class="material-symbols-outlined text-[18px]">chat</span>
+            Renovar
           </a>
-          {% endif %}
         </div>
+      {% endfor %}
+    </div>
+  {% endif %}
 
-        <hr class="my-3" />
+  {# HERO #}
+  <div class="relative rounded-3xl overflow-hidden min-h-[200px] md:min-h-[220px] elite-soft-card">
+    <img class="absolute inset-0 w-full h-full object-cover opacity-50"
+         src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBHUxRDHF8aLnkJWF__FXQiznlb_DyP8MqdvCpYrpXsDSwtWESlQAOfgFDs2pfRZHG1YplsRdZiVIZRJ-pQGYuAgTqUWvshtx3nDplNSOJitv7vF815ZwBt_9fRjCvj6tv6sTQQhvYd36MN6Y8nxy250Do5lVjuvfCTQEnG7dlBYYXP8QwRq3PGMjq7iRXebtZMP9FoByqL7Qtvuo8PmRsu6EcZGNEXccoRlFw7yh703x6z8sl3J_FkYicHJbfC7dRL6ChfPcQbH6C"
+         alt="Hero"/>
 
-        {% if plan_actual %}
-        <div class="fw-semibold">Plan actual</div>
+    <div class="absolute inset-0 bg-gradient-to-r from-black/70 via-black/45 to-transparent"></div>
 
-        <div class="text-muted small">
-          {% if plan_actual.filename or plan_actual.rel_path %} {{
-          plan_actual.filename }} {% if plan_actual.bytes %} · {{
-          (plan_actual.bytes / 1024 / 1024) | round(2) }} MB {% endif %} {% else
-          %}
-          <span class="text-muted">Sin PDF</span>
-          {% endif %}
-        </div>
+    <div class="relative z-10 p-7 md:p-10 max-w-3xl">
+      <h2 class="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
+        FORJA TU INTERIOR
+      </h2>
+      <p class="mt-3 text-base md:text-lg elite-muted max-w-xl">
+        Tu excelencia comienza hoy. Revisa tu estado, descarga tu planificación y gestiona tus reservas.
+      </p>
 
-        <div class="text-muted small mt-1">
-          {% set dt = plan_actual.updated_at or plan_actual.creado %} {% if dt
-          %} Actualizada: {{ dt.strftime('%d/%m/%Y %H:%M') }} {% endif %}
-        </div>
-        {% else %}
-        <div class="text-muted small">
-          Aún no tienes una planificación subida por tu entrenador.
-        </div>
+      <div class="mt-6 flex flex-wrap gap-2">
+        <a href="{{ url_for('web.horarios_publico', view='week') }}"
+           class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition">
+          Ver horarios
+        </a>
+
+        {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
+          <a href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}"
+             class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition">
+            Descargar PDF
+          </a>
         {% endif %}
       </div>
     </div>
+  </div>
 
-    <p class="text-muted mb-3">
-      Bienvenido{{ (" " ~ (cliente.nombre or "")) if cliente else "" }}.
-    </p>
+  {# GRID PRINCIPAL #}
+  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
 
-    {# ========================= ALERTAS MEMBRESÍA + BOTÓN RENOVAR (WHATSAPP)
-    ========================= #} {% if alertas_membresia and
-    alertas_membresia|length > 0 %}
-    <div class="mb-3">
-      {% for msg in alertas_membresia %}
-      <div
-        class="alert alert-warning d-flex justify-content-between align-items-center"
-        role="alert"
-      >
-        <div>{{ msg }}</div>
+    {# IZQUIERDA #}
+    <div class="lg:col-span-4 space-y-6">
 
-        {% set WHATSAPP_NUM = "593992899479" %} {% set nombre_completo =
-        (cliente.nombre or '') ~ ' ' ~ (cliente.apellido or '') %} {% set ident
-        = cliente.identificacion or '' %} {% set user = session.get('username')
-        or '' %} {% if membresia and membresia.fecha_hasta %} {% set vence_txt =
-        membresia.fecha_hasta.strftime('%d/%m/%Y') %} {% else %} {% set
-        vence_txt = '-' %} {% endif %} {% set dias_txt = (dias_restantes|string)
-        if dias_restantes is not none else '-' %} {% set wa_text = "Hola, quiero
-        renovar mi membresía.\n" ~ "Cliente: " ~ nombre_completo|trim ~ "\n" ~
-        "Identificación: " ~ ident ~ "\n" ~ "Usuario: " ~ user ~ "\n" ~ "Vence:
-        " ~ vence_txt ~ "\n" ~ "Días restantes: " ~ dias_txt %}
+      {# MEMBRESÍA #}
+      <div class="elite-soft-card rounded-2xl p-6">
+        <div class="flex items-start justify-between gap-3">
+          <div>
+            <div class="text-white font-semibold text-lg">Membresía</div>
+            <div class="text-xs elite-muted mt-1">
+              {{ (membresia.meses ~ " mes(es)") if membresia and membresia.meses else "Sin plan" }}
+            </div>
+          </div>
 
-        <a
-          class="btn btn-sm btn-success"
-          target="_blank"
-          href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
-        >
-          <i class="bi bi-whatsapp"></i> Renovar
+          {% if estado == "Activa" %}
+            <span class="elite-pill px-3 py-1 rounded-lg text-xs font-bold text-white/90 uppercase">Activa</span>
+          {% elif estado == "Vencida" %}
+            <span class="elite-pill px-3 py-1 rounded-lg text-xs font-bold text-white/90 uppercase">Vencida</span>
+          {% else %}
+            <span class="elite-pill px-3 py-1 rounded-lg text-xs font-bold text-white/70 uppercase">Sin membresía</span>
+          {% endif %}
+        </div>
+
+        <div class="mt-5 space-y-3 text-sm">
+          <div class="flex justify-between items-center border-b elite-divider pb-2">
+            <span class="elite-muted uppercase text-xs tracking-widest">Vence</span>
+            <span class="text-white font-semibold">
+              {{ membresia.fecha_hasta.strftime('%d/%m/%Y') if membresia and membresia.fecha_hasta else '-' }}
+            </span>
+          </div>
+          <div class="flex justify-between items-center border-b elite-divider pb-2">
+            <span class="elite-muted uppercase text-xs tracking-widest">Inicio</span>
+            <span class="text-white font-semibold">
+              {{ membresia.fecha_desde.strftime('%d/%m/%Y') if membresia and membresia.fecha_desde else '-' }}
+            </span>
+          </div>
+          <div class="flex justify-between items-center">
+            <span class="elite-muted uppercase text-xs tracking-widest">Días restantes</span>
+            <span class="text-white font-extrabold text-base">
+              {{ dias if dias is not none else '--' }}
+            </span>
+          </div>
+        </div>
+
+        <a target="_blank"
+           href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
+           class="mt-5 w-full elite-btn px-4 py-3 rounded-lg text-white font-bold text-sm uppercase tracking-widest transition flex items-center justify-center gap-2">
+          <span class="material-symbols-outlined text-[18px]">workspace_premium</span>
+          Renovar privilegios
         </a>
       </div>
-      {% endfor %}
+
+      {# MIS DATOS #}
+      <div class="elite-soft-card rounded-2xl p-6">
+        <div class="text-white font-semibold text-lg">Mis datos</div>
+
+        <div class="mt-4 space-y-4">
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+              <span class="material-symbols-outlined text-white/80">alternate_email</span>
+            </div>
+            <div>
+              <div class="text-xs elite-muted uppercase tracking-widest">E-mail</div>
+              <div class="text-white font-semibold">{{ cliente.email or '-' if cliente else '-' }}</div>
+            </div>
+          </div>
+
+          <div class="flex items-center gap-3">
+            <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
+              <span class="material-symbols-outlined text-white/80">phone_iphone</span>
+            </div>
+            <div>
+              <div class="text-xs elite-muted uppercase tracking-widest">Contacto</div>
+              <div class="text-white font-semibold">{{ cliente.telefono or '-' if cliente else '-' }}</div>
+            </div>
+          </div>
+        </div>
+
+        <a href="{{ url_for('web.cliente_config') }}"
+           class="mt-5 inline-flex w-full justify-center elite-btn px-4 py-3 rounded-lg text-white font-semibold text-sm transition">
+          Editar información
+        </a>
+      </div>
+
     </div>
-    {% endif %}
 
-    <div class="row g-3">
-      <div class="col-12 col-md-6">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <h6 class="card-subtitle mb-2 text-muted">Mi membresía</h6>
+    {# DERECHA #}
+    <div class="lg:col-span-8 space-y-6">
 
-            {% if estado_membresia == "Activa" %}
-            <span class="badge text-bg-success">Activa</span>
-            {% elif estado_membresia == "Vencida" %}
-            <span class="badge text-bg-danger">Vencida</span>
-            {% else %}
-            <span class="badge text-bg-secondary">Sin membresía</span>
-            {% endif %}
-
-            <div class="mt-2 small">
-              {% if membresia %}
-              <div>
-                <b>Desde:</b> {{ membresia.fecha_desde.strftime('%d/%m/%Y') if
-                membresia.fecha_desde else '-' }}
-              </div>
-              <div>
-                <b>Hasta:</b> {{ membresia.fecha_hasta.strftime('%d/%m/%Y') if
-                membresia.fecha_hasta else '-' }}
-              </div>
-              <div><b>Meses:</b> {{ membresia.meses or '-' }}</div>
-              {% if dias_restantes is not none %}
-              <div><b>Días restantes:</b> {{ dias_restantes }}</div>
-              {% endif %} {% else %}
-              <div class="text-muted">Aún no tienes membresía registrada.</div>
+      {# PLANIFICACIÓN #}
+      <div class="elite-soft-card rounded-2xl p-6 md:p-8">
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <div class="text-white font-semibold text-2xl">Planificación</div>
+            <p class="mt-2 elite-muted">
+              {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
+                Tu planificación ya está lista. Descárgala y síguela.
+              {% else %}
+                Tu entrenador está preparando tu próxima ruta. Te avisaremos cuando tu plan esté listo.
               {% endif %}
-            </div>
-
-            {# ✅ BOTÓN RENOVAR (WHATSAPP) DENTRO DE LA CARD #} {% set
-            WHATSAPP_NUM = "593992899479" %} {% set nombre_completo =
-            (cliente.nombre or '') ~ ' ' ~ (cliente.apellido or '') %} {% set
-            ident = cliente.identificacion or '' %} {% set user =
-            session.get('username') or '' %} {% if membresia and
-            membresia.fecha_hasta %} {% set vence_txt =
-            membresia.fecha_hasta.strftime('%d/%m/%Y') %} {% else %} {% set
-            vence_txt = '-' %} {% endif %} {% set dias_txt =
-            (dias_restantes|string) if dias_restantes is not none else '-' %} {%
-            set wa_text = "Hola, quiero renovar mi membresía.\n" ~ "Cliente: " ~
-            nombre_completo|trim ~ "\n" ~ "Identificación: " ~ ident ~ "\n" ~
-            "Usuario: " ~ user ~ "\n" ~ "Vence: " ~ vence_txt ~ "\n" ~ "Días
-            restantes: " ~ dias_txt %}
-
-            <div class="mt-3">
-              <a
-                class="btn btn-sm btn-success"
-                target="_blank"
-                href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
-              >
-                <i class="bi bi-whatsapp"></i> Renovar
-              </a>
-            </div>
+            </p>
+          </div>
+          <div class="opacity-20">
+            <span class="material-symbols-outlined text-[64px]">military_tech</span>
           </div>
         </div>
-      </div>
 
-      <div class="col-12 col-md-6">
-        <div class="card shadow-sm h-100">
-          <div class="card-body">
-            <h6 class="card-subtitle mb-2 text-muted">Mis datos</h6>
-            {% if cliente %}
-            <div class="small">
-              <div><b>Nombre:</b> {{ cliente.nombre or '-' }}</div>
-              <div><b>Email:</b> {{ cliente.email or '-' }}</div>
-              <div><b>Teléfono:</b> {{ cliente.telefono or '-' }}</div>
-            </div>
-            {% else %}
-            <div class="text-muted small">No hay perfil de cliente.</div>
-            {% endif %}
-          </div>
-        </div>
-      </div>
-
-      <div class="col-12">
-        <div class="card shadow-sm">
-          <div
-            class="card-header d-flex justify-content-between align-items-center"
-          >
-            <span>Horario</span>
-            <a
-              href="{{ url_for('web.horarios_publico', view='week') }}"
-              class="btn btn-outline-primary btn-sm"
-            >
-              <i class="bi bi-calendar-week"></i> Reservar
+        {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
+          <div class="mt-5 flex flex-wrap gap-2">
+            <a href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}"
+               class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition inline-flex items-center gap-2">
+              <span class="material-symbols-outlined text-[18px]">download</span>
+              Descargar PDF
             </a>
           </div>
 
-          <div class="card-body p-0">
-            <div class="table-responsive">
-              <table class="table table-sm mb-0 align-middle">
-                <thead class="table-light">
-                  <tr>
-                    <th>Fecha</th>
-                    <th>Hora</th>
-                    <th>Entrenador</th>
-                    <th class="text-end">Estado</th>
-                    <th class="text-end">Acciones</th>
-                  </tr>
-                </thead>
-
-                <tbody>
-                  {% if clases_proximas and clases_proximas|length > 0 %} {% for
-                  c in clases_proximas %}
-                  <tr>
-                    <td>
-                      {{ c.dt.strftime('%d/%m/%Y') if c.dt else c.fecha_txt }}
-                    </td>
-                    <td>{{ c.hora }}</td>
-                    <td>{{ c.entrenador }}</td>
-                    <td class="text-end">
-                      <span class="badge text-bg-success">Próxima</span>
-                    </td>
-
-                    <td class="text-end">
-                      <form
-                        method="post"
-                        action="{{ url_for('web.cliente_cancelar_reserva', reserva_id=c._id) }}"
-                        class="d-inline"
-                        onsubmit="return confirm('¿Cancelar esta clase?');"
-                      >
-                        <button
-                          class="btn btn-sm btn-outline-danger"
-                          type="submit"
-                        >
-                          <i class="bi bi-x-circle"></i> Cancelar
-                        </button>
-                      </form>
-                    </td>
-                  </tr>
-                  {% endfor %} {% endif %} {% if clases_pasadas and
-                  clases_pasadas|length > 0 %} {% for c in clases_pasadas %}
-                  <tr>
-                    <td>
-                      {{ c.dt.strftime('%d/%m/%Y') if c.dt else c.fecha_txt }}
-                    </td>
-                    <td>{{ c.hora }}</td>
-                    <td>{{ c.entrenador }}</td>
-                    <td class="text-end">
-                      <span class="badge text-bg-secondary">Pasada</span>
-                    </td>
-                    <td class="text-end">-</td>
-                  </tr>
-                  {% endfor %} {% endif %} {% if (not clases_proximas or
-                  clases_proximas|length == 0) and (not clases_pasadas or
-                  clases_pasadas|length == 0) %}
-                  <tr>
-                    <td colspan="5" class="text-center text-muted py-3">
-                      Aún no tienes clases reservadas.
-                    </td>
-                  </tr>
-                  {% endif %}
-                </tbody>
-              </table>
-            </div>
+          <div class="mt-3 text-xs elite-muted">
+            {% set dt = plan_actual.updated_at or plan_actual.creado %}
+            {% if dt %}Actualizada: {{ dt.strftime('%d/%m/%Y %H:%M') }}{% endif %}
           </div>
+        {% endif %}
+      </div>
+
+      {# PRÓXIMAS RESERVAS #}
+      <div class="elite-soft-card rounded-2xl p-6 md:p-8">
+        <div class="flex items-end justify-between gap-4">
+          {% if puede_no_asistir %}
+          <form method="post"
+                action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
+                onsubmit="return confirm('¿Confirmas que no podrás asistir a la clase de mañana?');"
+                class="mt-4">
+            <button type="submit"
+                    class="elite-btn px-4 py-3 rounded-lg text-white font-bold text-sm uppercase tracking-widest transition w-full md:w-auto">
+              No podré asistir mañana
+            </button>
+          </form>
+        {% elif reserva_manana and reserva_manana.no_asistire %}
+          <div class="mt-4 elite-pill px-4 py-3 rounded-lg text-white/80 text-sm font-semibold">
+            Ya notificaste que no podrás asistir mañana.
+          </div>
+        {% endif %}
+
+          <div>
+            <div class="text-white font-semibold text-xl">Próximas reservas</div>
+            <div class="text-xs elite-muted uppercase tracking-widest mt-1">Tu agenda</div>
+          </div>
+          <a href="{{ url_for('web.horarios_publico', view='week') }}"
+             class="text-sm text-white/80 hover:text-white font-semibold transition inline-flex items-center gap-2">
+            Calendario completo
+            <span class="material-symbols-outlined text-[18px]">arrow_forward_ios</span>
+          </a>
+        </div>
+
+        <div class="mt-5 space-y-3">
+          {% if clases_proximas and clases_proximas|length > 0 %}
+            {% for c in clases_proximas[:4] %}
+              <div class="rounded-xl bg-white/3 border border-white/8 px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                <div class="flex items-start gap-4">
+                  <span class="elite-pill px-3 py-1 rounded-lg text-[11px] font-bold uppercase">
+                    Próxima
+                  </span>
+
+                  <div>
+                    <div class="text-white font-extrabold text-xl leading-none">{{ c.hora }}</div>
+                    <div class="text-sm elite-muted mt-1">
+                      {{ c.dt.strftime('%d/%m/%Y') if c.dt else c.fecha_txt }} · Entrenador:
+                      <span class="text-white font-semibold">{{ c.entrenador }}</span>
+                    </div>
+                  </div>
+                </div>
+
+                <form method="post"
+                      action="{{ url_for('web.cliente_cancelar_reserva', reserva_id=c._id) }}"
+                      onsubmit="return confirm('¿Cancelar esta clase?');">
+                  <button type="submit"
+                          class="elite-btn-danger px-4 py-2 rounded-lg text-white font-bold text-sm uppercase tracking-widest transition">
+                    Cancelar
+                  </button>
+                </form>
+              </div>
+            {% endfor %}
+          {% else %}
+            <div class="rounded-2xl border border-dashed border-white/12 p-8 text-center">
+              <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 mx-auto flex items-center justify-center">
+                <span class="material-symbols-outlined text-white/40">event_busy</span>
+              </div>
+              <div class="mt-4 text-white font-semibold">Sin reservas activas</div>
+              <div class="mt-1 elite-muted text-sm">Explora los horarios disponibles</div>
+              <a href="{{ url_for('web.horarios_publico', view='week') }}"
+                 class="mt-4 inline-flex elite-btn px-5 py-2 rounded-lg text-white font-semibold text-sm transition">
+                Ver horarios
+              </a>
+            </div>
+          {% endif %}
         </div>
       </div>
+
+      {# BOTONES RÁPIDOS (más sobrios para que calcen con el menú) #}
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
+        <a href="{{ url_for('web.horarios_publico', view='week') }}"
+           class="elite-soft-card rounded-2xl p-6 transition hover:translate-y-[-1px]">
+          <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-white/80 text-2xl">calendar_month</span>
+          </div>
+          <div class="text-white font-semibold">Horario</div>
+          <div class="text-sm elite-muted mt-1">Reserva y gestiona tus clases.</div>
+        </a>
+
+        <a href="{{ url_for('web.cliente_progreso') }}"
+           class="elite-soft-card rounded-2xl p-6 transition hover:translate-y-[-1px]">
+          <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-white/80 text-2xl">monitoring</span>
+          </div>
+          <div class="text-white font-semibold">Progreso</div>
+          <div class="text-sm elite-muted mt-1">Tu avance y estadísticas.</div>
+        </a>
+
+        <a href="{{ url_for('web.cliente_membresia') }}"
+           class="elite-soft-card rounded-2xl p-6 transition hover:translate-y-[-1px]">
+          <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-4">
+            <span class="material-symbols-outlined text-white/80 text-2xl">workspace_premium</span>
+          </div>
+          <div class="text-white font-semibold">Membresía</div>
+          <div class="text-sm elite-muted mt-1">Estado y renovación.</div>
+        </a>
+      </div>
+
     </div>
   </div>
-
-  <div class="d-none d-lg-block col-lg-3">
-    {% include "partials/sidebar_admin.html" %}
-  </div>
 </div>
-
-<div class="offcanvas offcanvas-end" tabindex="-1" id="menuOffcanvas">
-  <div class="offcanvas-header">
-    <h5 class="offcanvas-title">Menú</h5>
-    <button
-      type="button"
-      class="btn-close"
-      data-bs-dismiss="offcanvas"
-    ></button>
-  </div>
-  <div class="offcanvas-body">{% include "partials/sidebar_admin.html" %}</div>
-</div>
-
 {% endblock %}

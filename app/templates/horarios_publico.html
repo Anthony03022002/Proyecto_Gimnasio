@@ -3,42 +3,51 @@
 {% block title %}Horarios{% endblock %}
 
 {% block header %}
-<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
-  <div class="flex items-center gap-3">
-    <button
-      type="button"
-      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
-      onclick="openDrawer()"
-      aria-label="Abrir menú"
-    >
-      <span class="material-symbols-outlined">menu</span>
-    </button>
+<header class="h-20 bg-surface-dark/50 backdrop-blur-md px-3 sm:px-4 md:px-8 sticky top-0 z-10 border-b border-white/5">
+  <div class="h-full flex items-center gap-2 w-full min-w-0">
 
-    <div>
-      <h2 class="text-xl md:text-2xl font-bold text-white">Horarios</h2>
+    <!-- Izquierda: menú + título -->
+    <div class="flex items-center gap-2 min-w-0">
+      <button
+        type="button"
+        class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors shrink-0"
+        onclick="openDrawer()"
+        aria-label="Abrir menú"
+      >
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+
+      <!-- ✅ En móvil muy pequeño se oculta el título para que no reviente -->
+      <h2 class="hidden sm:block text-lg md:text-2xl font-bold text-white truncate">
+        Horarios
+      </h2>
     </div>
-  </div>
 
-  <div class="flex items-center gap-2">
-    {# ✅ Navegación semana / fecha #}
-    <form method="get" action="{{ url_for('web.horarios_publico') }}" class="flex items-center gap-2">
+    <!-- Derecha: navegación -->
+    <form
+      method="get"
+      action="{{ url_for('web.horarios_publico') }}"
+      class="flex items-center gap-2 ml-auto shrink-0"
+    >
       <input type="hidden" name="view" value="week">
 
+      <!-- ✅ Botones más pequeños en móvil -->
       <a
-        class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors shrink-0"
         href="{{ url_for('web.horarios_publico', view='week', fecha=prev_date.isoformat()) }}"
         aria-label="Semana anterior"
       >←</a>
 
+      <!-- ✅ Date con ancho controlado en móvil -->
       <input
         type="date"
         name="fecha"
         value="{{ fecha.isoformat() }}"
-        class="h-10 px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
+        class="h-9 sm:h-10 w-[128px] sm:w-[150px] md:w-auto px-2 sm:px-3 rounded-xl bg-white/5 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-white/10"
       >
 
       <a
-        class="inline-flex items-center justify-center w-10 h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors"
+        class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors shrink-0"
         href="{{ url_for('web.horarios_publico', view='week', fecha=next_date.isoformat()) }}"
         aria-label="Semana siguiente"
       >→</a>
@@ -48,277 +57,435 @@
 </header>
 {% endblock %}
 
+
 {% block content %}
 
 <style>
-  :root{
-    --core-bg: #1a1c1e;              /* background-dark */
-    --core-surface: #2d2f31;         /* surface-dark */
-    --core-border: rgba(255,255,255,.08);
-    --core-border-2: rgba(255,255,255,.06);
-    --core-muted: rgba(255,255,255,.55);  /* secondary */
-    --core-text: rgba(255,255,255,.92);
-    --core-accent: rgba(255,255,255,.75);
+  :root {
+    --bg: #1a1c1e;
+    --surface: #2d2f31;
+    --surface-2: rgba(255, 255, 255, 0.03);
+    --border: rgba(255, 255, 255, 0.08);
+    --border-2: rgba(255, 255, 255, 0.06);
+    --text: rgba(255, 255, 255, 0.92);
+    --muted: rgba(255, 255, 255, 0.55);
 
-    --core-pill-open: rgba(255,255,255,.06);
-    --core-pill-open-border: rgba(255,255,255,.10);
+    --open-bg: rgba(255, 255, 255, 0.05);
+    --open-bd: rgba(255, 255, 255, 0.1);
 
-    --core-pill-partial: rgba(245, 158, 11, .12);
-    --core-pill-partial-border: rgba(245, 158, 11, .22);
+    --partial-bg: rgba(245, 158, 11, 0.1);
+    --partial-bd: rgba(245, 158, 11, 0.22);
 
-    --core-pill-full: rgba(239, 68, 68, .12);
-    --core-pill-full-border: rgba(239, 68, 68, .24);
+    --full-bg: rgba(239, 68, 68, 0.1);
+    --full-bd: rgba(239, 68, 68, 0.22);
 
-    --core-pill-mine: rgba(16, 185, 129, .12);
-    --core-pill-mine-border: rgba(16, 185, 129, .24);
+    --mine-bg: rgba(16, 185, 129, 0.1);
+    --mine-bd: rgba(16, 185, 129, 0.22);
 
-    --core-today: rgba(255,255,255,.04);
+    --today: rgba(255, 255, 255, 0.035);
+
+    /* responsive sizing */
+    --time-col: 84px;
+    --day-col: 168px;
+    --cell-pad: 10px;
+    --radius: 16px;
   }
 
-  /* ===== Calendar wrapper ===== */
-  .cal-wrap{
-    border: 1px solid var(--core-border);
-    border-radius: 18px;
+  /* ===== CALENDAR WRAPPER ===== */
+  .cal-wrap {
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
     overflow: hidden;
-    background: var(--core-surface);
-    box-shadow: 0 10px 30px rgba(0,0,0,.25);
+    background: var(--surface);
+    box-shadow: 0 12px 34px rgba(0, 0, 0, 0.28);
   }
 
-  /* Sticky head (IMPORTANTE: z-index menor que modal) */
-  .cal-head{
-    background: rgba(45,47,49,.85);
+  .cal-head {
+    background: rgba(45, 47, 49, 0.86);
     backdrop-filter: blur(10px);
     position: sticky;
     top: 0;
-    z-index: 5;
-    border-bottom: 1px solid var(--core-border);
+    z-index: 10;
+    border-bottom: 1px solid var(--border);
   }
 
-  .cal-grid{
-    height: 70vh;
+  /* El grid debe poder scrollear horizontal y vertical con buena UX */
+  .cal-grid {
+    height: min(72vh, 760px);
     overflow: auto;
-    background: var(--core-surface);
+    background: var(--surface);
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    position: relative;
   }
 
-  .cal-row{
+  /* Mantén un ancho mínimo para que no se aplaste */
+  .cal-row {
     display: grid;
-    grid-template-columns: 90px repeat(7, 1fr);
+    grid-template-columns: var(--time-col) repeat(
+        7,
+        minmax(var(--day-col), 1fr)
+      );
+    min-width: calc(var(--time-col) + (7 * var(--day-col)));
   }
 
-  .cal-cell{
-    border-bottom: 1px solid var(--core-border-2);
-    border-right: 1px solid var(--core-border-2);
-    min-height: 52px;
-    padding: 8px;
+  .cal-cell {
+    border-bottom: 1px solid var(--border-2);
+    border-right: 1px solid var(--border-2);
+    min-height: 56px;
+    padding: var(--cell-pad);
     background: transparent;
   }
 
-  .cal-time{
-    background: rgba(0,0,0,.12);
-    font-size: .85rem;
-    color: var(--core-muted);
+  /* ===== STICKY COLUMNA HORA ===== */
+  .cal-time {
+    background: rgba(0, 0, 0, 0.1);
+    font-size: 0.82rem;
+    color: var(--muted);
     display: flex;
     align-items: flex-start;
     justify-content: flex-end;
     padding-right: 12px;
     padding-top: 10px;
-    letter-spacing: .2px;
+    letter-spacing: 0.2px;
+
+    position: sticky;
+    left: 0;
+    z-index: 6; /* por encima de celdas */
+  }
+  .cal-head .cal-time {
+    z-index: 12; /* por encima del header */
+    border-bottom: 0 !important;
   }
 
-  .cal-dayhdr{
+  .cal-dayhdr {
     padding: 12px 10px;
-    border-right: 1px solid var(--core-border-2);
+    border-right: 1px solid var(--border-2);
+    background: transparent;
   }
-  .cal-dayhdr .dow{
-    font-size: .75rem;
-    color: var(--core-muted);
+  .cal-dayhdr .dow {
+    font-size: 0.72rem;
+    color: var(--muted);
     text-transform: uppercase;
-    letter-spacing: .12em;
-    font-weight: 700;
-  }
-  .cal-dayhdr .dom{
+    letter-spacing: 0.12em;
     font-weight: 800;
-    color: var(--core-text);
+  }
+  .cal-dayhdr .dom {
+    font-weight: 900;
+    color: var(--text);
     margin-top: 2px;
   }
-  .cal-today{ background: var(--core-today); }
 
-  /* ===== Slot pills ===== */
-  .slot-pill{
+  .cal-today {
+    background: var(--today);
+  }
+
+  /* ===== SLOT PILL (minimal, limpio) ===== */
+  .slot-pill {
     border-radius: 14px;
-    padding: 9px 10px;
+    padding: 10px 10px;
     line-height: 1.15;
-    font-size: .86rem;
+    font-size: 0.86rem;
     display: block;
     width: 100%;
     border: 1px solid transparent;
-    background: var(--core-pill-open);
-    color: var(--core-text);
-    transition: transform .12s ease, box-shadow .12s ease, border-color .12s ease, background-color .12s ease;
+    background: var(--open-bg);
+    color: var(--text);
+    transition: background 0.12s ease, border-color 0.12s ease, transform 0.12s ease;
   }
-  .slot-pill .fw-semibold{
-    font-weight: 800 !important;
-    color: var(--core-text);
+  .slot-pill .fw-semibold {
+    font-weight: 900 !important;
+    color: var(--text);
+    letter-spacing: -0.01em;
   }
-  .slot-pill .cap{
-    color: var(--core-muted);
-    font-size: .75rem;
-    margin-top: 2px;
+  .slot-pill .cap {
+    color: var(--muted);
+    font-size: 0.76rem;
+    margin-top: 4px;
   }
 
-  /* botón pill (reset btn-link) */
-  button.slot-pill{
-    border: 1px solid var(--core-pill-open-border);
-    background: var(--core-pill-open);
+  button.slot-pill {
+    border: 1px solid var(--open-bd);
+    background: var(--open-bg);
     text-align: left;
   }
-  button.slot-pill:hover{
+  button.slot-pill:hover {
     transform: translateY(-1px);
-    box-shadow: 0 12px 20px rgba(0,0,0,.22);
-    border-color: rgba(255,255,255,.16);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
   }
-  button.slot-pill:focus{
+  button.slot-pill:focus {
     outline: none;
-    box-shadow: 0 0 0 3px rgba(255,255,255,.08);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.08);
   }
 
-  .slot-open{ background: var(--core-pill-open); border-color: var(--core-pill-open-border); }
-  .slot-partial{ background: var(--core-pill-partial); border-color: var(--core-pill-partial-border); }
-  .slot-full{ background: var(--core-pill-full); border-color: var(--core-pill-full-border); }
-  .slot-mine{ background: var(--core-pill-mine); border-color: var(--core-pill-mine-border); }
+  .slot-open { background: var(--open-bg); border-color: var(--open-bd); }
+  .slot-partial { background: var(--partial-bg); border-color: var(--partial-bd); }
+  .slot-full { background: var(--full-bg); border-color: var(--full-bd); }
+  .slot-mine { background: var(--mine-bg); border-color: var(--mine-bd); }
 
-  .slot-disabled{ opacity: .55; pointer-events: none; filter: grayscale(0.2); }
+  .slot-disabled { opacity: 0.55; pointer-events: none; }
 
-  /* ===== Top controls dark ===== */
-  input[type="date"].form-control{
-    background: rgba(255,255,255,.06) !important;
-    border-color: rgba(255,255,255,.10) !important;
-    color: rgba(255,255,255,.92) !important;
-  }
-  input[type="date"].form-control::-webkit-calendar-picker-indicator{
-    filter: invert(1);
-    opacity: .75;
-  }
-  .btn-outline-secondary{
-    border-color: rgba(255,255,255,.14) !important;
-    color: rgba(255,255,255,.85) !important;
-  }
-  .btn-outline-secondary:hover{
-    background: rgba(255,255,255,.08) !important;
-    border-color: rgba(255,255,255,.20) !important;
-    color: #fff !important;
-  }
-  .btn-outline-primary{
-    border-color: rgba(255,255,255,.14) !important;
-    color: rgba(255,255,255,.92) !important;
-  }
-  .btn-outline-primary:hover{
-    background: rgba(255,255,255,.08) !important;
-    border-color: rgba(255,255,255,.22) !important;
-    color: #fff !important;
-  }
-
-  /* ===== Scrollbar ===== */
-  .cal-grid::-webkit-scrollbar{ width: 10px; height: 10px; }
-  .cal-grid::-webkit-scrollbar-thumb{
-    background: rgba(255,255,255,.10);
+  /* ===== Scrollbar (limpio) ===== */
+  .cal-grid::-webkit-scrollbar { width: 10px; height: 10px; }
+  .cal-grid::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
     border-radius: 999px;
-    border: 2px solid rgba(0,0,0,0);
+    border: 2px solid rgba(0, 0, 0, 0);
     background-clip: padding-box;
   }
-  .cal-grid::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.16); }
-  .cal-grid::-webkit-scrollbar-track{ background: rgba(0,0,0,.15); }
+  .cal-grid::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); }
+  .cal-grid::-webkit-scrollbar-track { background: rgba(0, 0, 0, 0.12); }
 
-  @media (max-width: 992px){
-    .cal-row{ grid-template-columns: 70px repeat(7, 160px); }
-    .cal-grid{ overflow: auto; }
+  /* ===== Mostrar/ocultar según dispositivo ===== */
+  .cal-mobile { display: none; }
+  .cal-desktop { display: block; }
+
+  @media (max-width: 640px) {
+    .cal-desktop { display: none; }
+    .cal-mobile { display: block; }
+  }
+
+  /* ===== Agenda móvil (minimal) ===== */
+  .agenda-wrap { display: grid; gap: 14px; }
+
+  .agenda-day {
+    border: 1px solid var(--border);              /* ✅ FIX */
+    background: rgba(255, 255, 255, 0.02);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+
+  .agenda-dayhdr {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--border-2);     /* ✅ FIX */
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .agenda-dow {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.55);
+  }
+
+  .agenda-dom {
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .agenda-today { background: rgba(255, 255, 255, 0.05); }
+
+  .agenda-list {
+    padding: 12px 12px 14px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .agenda-card {
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 14px;
+    padding: 12px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .agenda-btn {
+    width: 100%;
+    text-align: left;
+    transition: transform 0.12s ease, background 0.12s ease, border-color 0.12s ease;
+  }
+
+  .agenda-btn:hover {
+    transform: translateY(-1px);
+    background: rgba(255, 255, 255, 0.06);
+    border-color: rgba(255, 255, 255, 0.14);
+  }
+
+  .agenda-time { font-weight: 900; letter-spacing: -0.01em; }
+
+  .agenda-meta {
+    margin-top: 4px;
+    font-size: 0.82rem;
+    color: rgba(255, 255, 255, 0.6);
+  }
+
+  .agenda-hint {
+    margin-top: 6px;
+    font-size: 0.76rem;
+    color: rgba(255, 255, 255, 0.45);
+  }
+
+  .agenda-mini {
+    margin-top: 10px;
+    width: 100%;
+    border-radius: 12px;
+    padding: 10px 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.05);
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 800;
+  }
+
+  .agenda-mini:hover { background: rgba(255, 255, 255, 0.08); }
+
+  .agenda-disabled { opacity: 0.6; pointer-events: none; }
+
+  .agenda-empty {
+    padding: 10px 6px;
+    text-align: center;
+    color: rgba(255, 255, 255, 0.5);
+    font-size: 0.9rem;
+  }
+
+  /* Reusa tus estados */
+  .agenda-card.slot-open { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.1); }
+  .agenda-card.slot-partial { background: rgba(245,158,11,0.1); border-color: rgba(245,158,11,0.22); }
+  .agenda-card.slot-full { background: rgba(239,68,68,0.1); border-color: rgba(239,68,68,0.22); }
+  .agenda-card.slot-mine { background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.22); }
+
+  /* ===== RESPONSIVE BREAKPOINTS ===== */
+  @media (max-width: 1200px) { :root { --day-col: 152px; } }
+  @media (max-width: 992px) {
+    :root { --time-col: 72px; --day-col: 144px; --cell-pad: 9px; }
+    .cal-grid { height: min(72vh, 680px); }
+  }
+  @media (max-width: 768px) {
+    :root { --time-col: 66px; --day-col: 132px; --cell-pad: 8px; }
+    .slot-pill { padding: 10px 9px; font-size: 0.84rem; }
+    .slot-pill .cap { font-size: 0.74rem; }
+  }
+  @media (max-width: 480px) {
+    :root { --time-col: 62px; --day-col: 124px; }
+    .cal-dayhdr .dow { font-size: 0.7rem; }
+    .cal-dayhdr .dom { font-size: 0.95rem; }
   }
 
   /* =========================================================
-     ✅ FIX: BOOTSTRAP MODALS + TABLES para tema DARK CORE
-     (esto es lo que te está rompiendo estilos y modales)
+     ✅ MODALES Bootstrap (Minimal + responsive)
      ========================================================= */
+  .modal { z-index: 2000; }
+  .modal-backdrop { z-index: 1990; }
 
-  /* Asegura que el modal SIEMPRE gane al sticky header */
-  .modal{ z-index: 2000; }
-  .modal-backdrop{ z-index: 1990; }
-  .modal-dialog{ z-index: 2001; }
+  #modalReservar .modal-dialog,
+  #modalAlumnos .modal-dialog,
+  #modalReservasStaff .modal-dialog { max-width: 560px; }
+  #modalReservasStaff .modal-dialog { max-width: 900px; }
 
-  /* Modal dark */
-  .modal-content{
-    background: var(--core-surface) !important;
-    color: var(--core-text) !important;
-    border: 1px solid var(--core-border) !important;
+  #modalReservar .modal-content,
+  #modalAlumnos .modal-content,
+  #modalReservasStaff .modal-content {
+    background: var(--surface) !important;
+    color: var(--text) !important;
+    border: 1px solid var(--border) !important;
     border-radius: 18px !important;
-    box-shadow: 0 20px 60px rgba(0,0,0,.55);
-  }
-  .modal-header, .modal-footer{
-    border-color: var(--core-border) !important;
+    box-shadow: 0 24px 70px rgba(0, 0, 0, 0.55);
+    overflow: hidden;
   }
 
-  /* Botón cerrar visible en dark */
-  .btn-close{
-    filter: invert(1);
-    opacity: .85;
-  }
-  .btn-close:hover{ opacity: 1; }
-
-  /* Text-muted en dark */
-  .text-muted, .form-text{
-    color: var(--core-muted) !important;
+  #modalReservar .modal-header,
+  #modalAlumnos .modal-header,
+  #modalReservasStaff .modal-header {
+    background: rgba(255, 255, 255, 0.02);
+    border-bottom: 1px solid var(--border) !important;
+    padding: 16px 18px;
   }
 
-  /* Inputs/selects dentro modales (evita blanco invisible) */
-  .form-control, .form-select{
-    background: rgba(255,255,255,.06) !important;
-    border-color: rgba(255,255,255,.12) !important;
-    color: rgba(255,255,255,.92) !important;
-  }
-  .form-control::placeholder{ color: rgba(255,255,255,.45) !important; }
+  #modalReservar .modal-body,
+  #modalAlumnos .modal-body,
+  #modalReservasStaff .modal-body { padding: 16px 18px; }
 
-  /* ✅ Fix dropdown options blancos/invisibles */
-  .form-select option, .form-select optgroup{
-    background: #ffffff !important;
-    color: #111827 !important;
-  }
-  .form-select{ color-scheme: dark; }
-
-  /* Tables dark */
-  .table{
-    color: rgba(255,255,255,.88) !important;
-  }
-  .table thead.table-light{
-    background: rgba(255,255,255,.06) !important;
-  }
-  .table thead.table-light th{
-    color: rgba(255,255,255,.70) !important;
-    border-color: rgba(255,255,255,.08) !important;
-  }
-  .table td, .table th{
-    border-color: rgba(255,255,255,.06) !important;
+  #modalReservar .modal-footer,
+  #modalAlumnos .modal-footer,
+  #modalReservasStaff .modal-footer {
+    border-top: 1px solid var(--border) !important;
+    padding: 14px 18px;
+    background: rgba(255, 255, 255, 0.02);
   }
 
-  /* List group dark (modal alumnos) */
-  .list-group-item{
-    background: rgba(255,255,255,.04) !important;
-    border-color: rgba(255,255,255,.08) !important;
-    color: rgba(255,255,255,.88) !important;
+  .btn-close { filter: invert(1); opacity: 0.85; }
+  .btn-close:hover { opacity: 1; }
+  .text-muted, .form-text { color: var(--muted) !important; }
+
+  #modalReservar .form-control,
+  #modalReservar .form-select {
+    background: rgba(255, 255, 255, 0.06) !important;
+    border-color: rgba(255, 255, 255, 0.12) !important;
+    color: rgba(255, 255, 255, 0.92) !important;
+    border-radius: 12px !important;
+    padding: 10px 12px !important;
+  }
+  #modalReservar .form-select option { background: #ffffff !important; color: #111827 !important; }
+
+  #modalReservasStaff .table-responsive {
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+  }
+  #modalReservasStaff table { margin: 0 !important; }
+  #modalReservasStaff thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: rgba(255, 255, 255, 0.06) !important;
+    color: rgba(255, 255, 255, 0.7) !important;
+    border-color: rgba(255, 255, 255, 0.1) !important;
+  }
+  #modalReservasStaff td,
+  #modalReservasStaff th { border-color: rgba(255, 255, 255, 0.06) !important; }
+
+  .cal-grid:after{
+    content:"";
+    position: sticky;
+    right: 0;
+    top: 0;
+    float: right;
+    width: 22px;
+    height: 100%;
+    pointer-events: none;
+    background: linear-gradient(to left, rgba(26,28,30,0.85), rgba(26,28,30,0));
   }
 
-  /* Badges (si ya usas bootstrap badge) */
-  .badge.text-bg-success{ background: rgba(16,185,129,.18) !important; color: #d1fae5 !important; }
-  .badge.text-bg-secondary{ background: rgba(255,255,255,.10) !important; color: rgba(255,255,255,.85) !important; }
-
+  @media (max-width: 576px) {
+    #modalReservar .modal-dialog,
+    #modalAlumnos .modal-dialog,
+    #modalReservasStaff .modal-dialog {
+      margin: 0;
+      max-width: none;
+      height: 100%;
+      display: flex;
+      align-items: flex-end;
+    }
+    #modalReservar .modal-content,
+    #modalAlumnos .modal-content,
+    #modalReservasStaff .modal-content {
+      width: 100%;
+      border-radius: 18px 18px 0 0 !important;
+      max-height: 92vh;
+    }
+    #modalReservar .modal-body,
+    #modalAlumnos .modal-body,
+    #modalReservasStaff .modal-body {
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+  }
 </style>
 
-
-
-
-
-<div class="cal-wrap shadow-sm">
+{# =========================
+   ✅ DESKTOP: GRID SEMANAL
+   ========================= #}
+<div class="cal-wrap shadow-sm cal-desktop">
   <div class="cal-head">
     <div class="cal-row">
-      <div class="cal-cell cal-time" style="border-right:1px solid var(--core-border-2); border-bottom:0;">
+      <div
+        class="cal-cell cal-time"
+        style="border-right: 1px solid var(--border-2); border-bottom: 0"  {# ✅ FIX var(--core-border-2) -> var(--border-2) #}
+      >
         <span class="small text-muted">Hora</span>
       </div>
 
@@ -328,9 +495,7 @@
           <div class="dow">
             {{ ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][loop.index0] }}
           </div>
-          <div class="dom">
-            {{ d.strftime('%d/%m') }}
-          </div>
+          <div class="dom">{{ d.strftime('%d/%m') }}</div>
         </div>
       {% endfor %}
     </div>
@@ -339,9 +504,7 @@
   <div class="cal-grid">
     {% for t in time_labels %}
       <div class="cal-row">
-        <div class="cal-cell cal-time">
-          {{ t }}
-        </div>
+        <div class="cal-cell cal-time">{{ t }}</div>
 
         {% for d in week_dates %}
           {% set key = d.isoformat() %}
@@ -350,7 +513,6 @@
             {% if s %}
               {% set usados = (s.cupo_usado or 0) %}
               {% set maximo = (s.cupo_maximo or 0) %}
-
               {% set is_full = (maximo > 0 and usados >= maximo) %}
               {% set is_partial = (usados > 0 and not is_full) %}
               {% set cupo_ok = (not is_full) %}
@@ -361,7 +523,6 @@
               {% set is_admin  = (session.get("user_role") == "admin") %}
 
               {% set ya_reservado = (mis_slot_ids is defined and (s._id in mis_slot_ids)) %}
-
               {% set res_dia = (reserva_por_fecha.get(key) if reserva_por_fecha is defined else none) %}
               {% set reserva_id_dia = (res_dia.get('reserva_id') if res_dia else '') %}
               {% set tiene_reserva_dia = (reserva_id_dia != '') %}
@@ -405,9 +566,7 @@
                 <div class="slot-pill {{ estado_class }} slot-disabled">
                   <div class="fw-semibold">{{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}</div>
                   <div class="cap">{{ usados }} / {{ maximo }} cupos</div>
-                  <div class="text-muted small mt-1">
-                    {{ msg_reserva or "Aún no habilitado" }}
-                  </div>
+                  <div class="text-muted small mt-1">{{ msg_reserva or "Aún no habilitado" }}</div>
                 </div>
 
               {% elif is_cliente and cupo_ok and tiene_reserva_dia %}
@@ -470,6 +629,128 @@
   </div>
 </div>
 
+{# =========================
+   ✅ MOBILE: AGENDA (FUERA DEL DESKTOP)
+   ========================= #}
+<div class="cal-mobile">
+  <div class="agenda-wrap">
+    {% for d in week_dates %}
+      {% set key = d.isoformat() %}
+      <div class="agenda-day">
+        <div class="agenda-dayhdr {% if d == (fecha.__class__.today()) %}agenda-today{% endif %}">
+          <div class="agenda-dow">
+            {{ ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][loop.index0] }}
+          </div>
+          <div class="agenda-dom">{{ d.strftime('%d/%m') }}</div>
+        </div>
+
+        <div class="agenda-list">
+          {% set any_slot = false %}
+          {% for t in time_labels %}
+            {% set s = slot_map.get(key, {}).get(t) %}
+            {% if s %}
+              {% set any_slot = true %}
+              {% set usados = (s.cupo_usado or 0) %}
+              {% set maximo = (s.cupo_maximo or 0) %}
+              {% set is_full = (maximo > 0 and usados >= maximo) %}
+              {% set is_partial = (usados > 0 and not is_full) %}
+
+              {% set is_cliente = (session.get("user_role") == "cliente") %}
+              {% set is_entrenador = (session.get("user_role") == "entrenador") %}
+              {% set is_cajero = (session.get("user_role") == "cajero") %}
+              {% set is_admin = (session.get("user_role") == "admin") %}
+
+              {% set ya_reservado = (mis_slot_ids is defined and (s._id in mis_slot_ids)) %}
+              {% set res_dia = (reserva_por_fecha.get(key) if reserva_por_fecha is defined else none) %}
+              {% set reserva_id_dia = (res_dia.get('reserva_id') if res_dia else '') %}
+
+              {% set estado_class = "slot-open" %}
+              {% if is_partial %}{% set estado_class = "slot-partial" %}{% endif %}
+              {% if is_full %}{% set estado_class = "slot-full" %}{% endif %}
+              {% if ya_reservado %}{% set estado_class = "slot-mine" %}{% endif %}
+
+              {% set reservable = true if (primera_vez is defined and primera_vez) else (s.reservable if s.reservable is defined else true) %}
+              {% set msg_reserva = (s.msg_reserva if s.msg_reserva is defined else '') %}
+
+              {% if is_cliente and ya_reservado %}
+                <div class="agenda-card {{ estado_class }}">
+                  <div class="agenda-time">{{ s.inicio.strftime('%H:%M') }}–{{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="agenda-meta">Reservado por ti</div>
+                </div>
+
+              {% elif is_cliente and reservable and (not is_full) %}
+                <button
+                  type="button"
+                  class="agenda-card {{ estado_class }} agenda-btn"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalReservar"
+                  data-slot-id="{{ s._id }}"
+                  data-fecha="{{ key }}"
+                  data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                  data-fin="{{ s.fin.strftime('%H:%M') }}"
+                  data-reserva-id="{{ reserva_id_dia }}"
+                >
+                  <div class="agenda-time">{{ s.inicio.strftime('%H:%M') }}–{{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="agenda-meta">{{ usados }} / {{ maximo }} cupos</div>
+                  <div class="agenda-hint">{{ "Clic para cambiar reserva" if reserva_id_dia else "Clic para reservar" }}</div>
+                </button>
+
+              {% elif is_cliente and not reservable %}
+                <div class="agenda-card {{ estado_class }} agenda-disabled">
+                  <div class="agenda-time">{{ s.inicio.strftime('%H:%M') }}–{{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="agenda-meta">{{ usados }} / {{ maximo }} cupos</div>
+                  <div class="agenda-hint">{{ msg_reserva or "Aún no habilitado" }}</div>
+                </div>
+
+              {% elif is_entrenador %}
+                <button
+                  type="button"
+                  class="agenda-card {{ estado_class }} agenda-btn"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modalAlumnos"
+                  data-slot-id="{{ s._id }}"
+                  data-fecha="{{ key }}"
+                  data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                  data-fin="{{ s.fin.strftime('%H:%M') }}"
+                >
+                  <div class="agenda-time">{{ s.inicio.strftime('%H:%M') }}–{{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="agenda-meta">{{ usados }} alumno(s)</div>
+                  <div class="agenda-hint">Ver alumnos</div>
+                </button>
+
+              {% else %}
+                <div class="agenda-card {{ estado_class }}">
+                  <div class="agenda-time">{{ s.inicio.strftime('%H:%M') }}–{{ s.fin.strftime('%H:%M') }}</div>
+                  <div class="agenda-meta">{{ usados }} / {{ maximo }} cupos</div>
+
+                  {% if (is_cajero or is_admin) and usados > 0 %}
+                    <button
+                      type="button"
+                      class="agenda-mini"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modalReservasStaff"
+                      data-slot-id="{{ s._id }}"
+                      data-fecha="{{ key }}"
+                      data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+                      data-fin="{{ s.fin.strftime('%H:%M') }}"
+                    >
+                      Ver reservas
+                    </button>
+                  {% endif %}
+                </div>
+              {% endif %}
+            {% endif %}
+          {% endfor %}
+
+          {% if not any_slot %}
+            <div class="agenda-empty">Sin horarios para este día.</div>
+          {% endif %}
+        </div>
+      </div>
+    {% endfor %}
+  </div>
+</div>
+
 {# ===========================
    ✅ MODAL RESERVAR (CLIENTE)
    =========================== #}
@@ -487,9 +768,9 @@
         </div>
 
         <div class="modal-body">
-          <input type="hidden" name="slot_id" id="inpSlotId">
-          <input type="hidden" name="fecha_ref" id="inpFechaRef" value="{{ fecha.isoformat() }}">
-          <input type="hidden" name="reserva_id" id="inpReservaId" value="">
+          <input type="hidden" name="slot_id" id="inpSlotId" />
+          <input type="hidden" name="fecha_ref" id="inpFechaRef" value="{{ fecha.isoformat() }}" />
+          <input type="hidden" name="reserva_id" id="inpReservaId" value="" />
 
           <label class="form-label">Entrenador</label>
           <select class="form-select" name="entrenador_id" required>
@@ -499,9 +780,7 @@
             {% endfor %}
           </select>
 
-          <div class="form-text mt-2">
-            Al confirmar, el cupo se toma inmediatamente.
-          </div>
+          <div class="form-text mt-2">Al confirmar, el cupo se toma inmediatamente.</div>
         </div>
 
         <div class="modal-footer">
@@ -516,79 +795,80 @@
 </div>
 
 <form method="post" id="formCambiarReserva" class="d-none">
-  <input type="hidden" name="slot_id" id="inpNuevoSlotId">
-  <input type="hidden" name="fecha_ref" value="{{ fecha.isoformat() }}">
+  <input type="hidden" name="slot_id" id="inpNuevoSlotId" />
+  <input type="hidden" name="fecha_ref" value="{{ fecha.isoformat() }}" />
 </form>
 
 <script>
-(function(){
-  const modal = document.getElementById('modalReservar');
-  if (!modal) return;
+  (function () {
+    const modal = document.getElementById("modalReservar");
+    if (!modal) return;
 
-  const form = document.getElementById('formReservar');
-  const inpSlotId = document.getElementById('inpSlotId');
-  const inpReservaId = document.getElementById('inpReservaId');
-  const txtSlotInfo = document.getElementById('txtSlotInfo');
+    const form = document.getElementById("formReservar");
+    const inpSlotId = document.getElementById("inpSlotId");
+    const inpReservaId = document.getElementById("inpReservaId");
+    const txtSlotInfo = document.getElementById("txtSlotInfo");
 
-  const URL_RESERVAR = "{{ url_for('web.cliente_reservar') }}";
-  const URL_CAMBIAR_TPL = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
+    const URL_RESERVAR = "{{ url_for('web.cliente_reservar') }}";
+    const URL_CAMBIAR_TPL = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
 
-  if (form && form.dataset.bound === "1") return;
-  if (form) form.dataset.bound = "1";
+    if (form && form.dataset.bound === "1") return;
+    if (form) form.dataset.bound = "1";
 
-  modal.addEventListener('show.bs.modal', function (event) {
-    const btn = event.relatedTarget;
-    if (!btn) return;
+    modal.addEventListener("show.bs.modal", function (event) {
+      const btn = event.relatedTarget;
+      if (!btn) return;
 
-    const slotId = btn.getAttribute('data-slot-id') || '';
-    const fecha  = btn.getAttribute('data-fecha') || '';
-    const inicio = btn.getAttribute('data-inicio') || '';
-    const fin    = btn.getAttribute('data-fin') || '';
-    const reservaId = btn.getAttribute('data-reserva-id') || '';
+      const slotId = btn.getAttribute("data-slot-id") || "";
+      const fecha = btn.getAttribute("data-fecha") || "";
+      const inicio = btn.getAttribute("data-inicio") || "";
+      const fin = btn.getAttribute("data-fin") || "";
+      const reservaId = btn.getAttribute("data-reserva-id") || "";
 
-    if (inpSlotId) inpSlotId.value = slotId;
-    if (inpReservaId) inpReservaId.value = reservaId;
-    if (txtSlotInfo) txtSlotInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+      if (inpSlotId) inpSlotId.value = slotId;
+      if (inpReservaId) inpReservaId.value = reservaId;
+      if (txtSlotInfo) txtSlotInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
 
-    if (form) {
-      form.action = reservaId ? URL_CAMBIAR_TPL.replace("__RID__", encodeURIComponent(reservaId)) : URL_RESERVAR;
-    }
-  });
-
-  if (form) {
-    form.addEventListener("submit", function (e) {
-      const reservaId = (inpReservaId && inpReservaId.value) ? inpReservaId.value : "";
-      if (reservaId && !confirm("¿Seguro deseas cambiar tu reserva a este horario?")) {
-        e.preventDefault();
+      if (form) {
+        form.action = reservaId ? URL_CAMBIAR_TPL.replace("__RID__", encodeURIComponent(reservaId)) : URL_RESERVAR;
       }
     });
-  }
-})();
-(function(){
-  const form = document.getElementById("formCambiarReserva");
-  const inpNuevo = document.getElementById("inpNuevoSlotId");
-  if (!form || !inpNuevo) return;
 
-  const urlTpl = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
+    if (form) {
+      form.addEventListener("submit", function (e) {
+        const reservaId = inpReservaId && inpReservaId.value ? inpReservaId.value : "";
+        if (reservaId && !confirm("¿Seguro deseas cambiar tu reserva a este horario?")) {
+          e.preventDefault();
+        }
+      });
+    }
+  })();
 
-  document.addEventListener("click", (e) => {
-    const btn = e.target.closest(".btn-cambiar-slot");
-    if (!btn) return;
+  (function () {
+    const form = document.getElementById("formCambiarReserva");
+    const inpNuevo = document.getElementById("inpNuevoSlotId");
+    if (!form || !inpNuevo) return;
 
-    const reservaId = btn.getAttribute("data-reserva-id") || "";
-    const nuevoSlotId = btn.getAttribute("data-nuevo-slot-id") || "";
-    const fecha = btn.getAttribute("data-fecha") || "";
-    const inicio = btn.getAttribute("data-inicio") || "";
-    const fin = btn.getAttribute("data-fin") || "";
+    const urlTpl = "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
 
-    if (!reservaId || !nuevoSlotId) return;
-    if (!confirm(`Ya tienes una reserva el ${fecha}.\n¿Deseas cambiarla a ${inicio} - ${fin}?`)) return;
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".btn-cambiar-slot");
+      if (!btn) return;
 
-    inpNuevo.value = nuevoSlotId;
-    form.action = urlTpl.replace("__RID__", encodeURIComponent(reservaId));
-    form.submit();
-  });
-})();
+      const reservaId = btn.getAttribute("data-reserva-id") || "";
+      const nuevoSlotId = btn.getAttribute("data-nuevo-slot-id") || "";
+      const fecha = btn.getAttribute("data-fecha") || "";
+      const inicio = btn.getAttribute("data-inicio") || "";
+      const fin = btn.getAttribute("data-fin") || "";
+
+      if (!reservaId || !nuevoSlotId) return;
+      if (!confirm(`Ya tienes una reserva el ${fecha}.\n¿Deseas cambiarla a ${inicio} - ${fin}?`)) return;
+
+      inpNuevo.value = nuevoSlotId;
+      form.action = urlTpl.replace("__RID__", encodeURIComponent(reservaId));
+      form.submit();
+    });
+  })();
 </script>
 {% endif %}
 
@@ -620,56 +900,56 @@
 </div>
 
 <script>
-(function(){
-  const modalAlumnos = document.getElementById('modalAlumnos');
-  const alumnosList = document.getElementById('alumnosList');
-  const alumnosStatus = document.getElementById('alumnosStatus');
-  const txtInfo = document.getElementById('txtAlumnosSlotInfo');
+  (function () {
+    const modalAlumnos = document.getElementById("modalAlumnos");
+    const alumnosList = document.getElementById("alumnosList");
+    const alumnosStatus = document.getElementById("alumnosStatus");
+    const txtInfo = document.getElementById("txtAlumnosSlotInfo");
 
-  if (!modalAlumnos) return;
+    if (!modalAlumnos) return;
 
-  modalAlumnos.addEventListener('show.bs.modal', async function (event) {
-    const btn = event.relatedTarget;
-    if (!btn) return;
+    modalAlumnos.addEventListener("show.bs.modal", async function (event) {
+      const btn = event.relatedTarget;
+      if (!btn) return;
 
-    const slotId = btn.getAttribute('data-slot-id') || '';
-    const fecha  = btn.getAttribute('data-fecha') || '';
-    const inicio = btn.getAttribute('data-inicio') || '';
-    const fin    = btn.getAttribute('data-fin') || '';
+      const slotId = btn.getAttribute("data-slot-id") || "";
+      const fecha = btn.getAttribute("data-fecha") || "";
+      const inicio = btn.getAttribute("data-inicio") || "";
+      const fin = btn.getAttribute("data-fin") || "";
 
-    if (txtInfo) txtInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+      if (txtInfo) txtInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
 
-    alumnosList.innerHTML = '';
-    alumnosStatus.textContent = 'Cargando...';
+      alumnosList.innerHTML = "";
+      alumnosStatus.textContent = "Cargando...";
 
-    try {
-      const resp = await fetch(`/entrenador/slot-alumnos?slot_id=${encodeURIComponent(slotId)}`);
-      const data = await resp.json();
+      try {
+        const resp = await fetch(`/entrenador/slot-alumnos?slot_id=${encodeURIComponent(slotId)}`);
+        const data = await resp.json();
 
-      if (!resp.ok || !data.ok) {
-        alumnosStatus.textContent = (data && data.error) ? data.error : 'Error al cargar alumnos';
-        return;
+        if (!resp.ok || !data.ok) {
+          alumnosStatus.textContent = data && data.error ? data.error : "Error al cargar alumnos";
+          return;
+        }
+
+        const alumnos = data.alumnos || [];
+        alumnosStatus.textContent = `${alumnos.length} alumno(s)`;
+
+        if (alumnos.length === 0) {
+          alumnosList.innerHTML = `<li class="list-group-item text-muted">Sin alumnos</li>`;
+          return;
+        }
+
+        for (const a of alumnos) {
+          const li = document.createElement("li");
+          li.className = "list-group-item";
+          li.textContent = a.nombre || "-";
+          alumnosList.appendChild(li);
+        }
+      } catch (e) {
+        alumnosStatus.textContent = "Error de red";
       }
-
-      const alumnos = data.alumnos || [];
-      alumnosStatus.textContent = `${alumnos.length} alumno(s)`;
-
-      if (alumnos.length === 0) {
-        alumnosList.innerHTML = `<li class="list-group-item text-muted">Sin alumnos</li>`;
-        return;
-      }
-
-      for (const a of alumnos) {
-        const li = document.createElement('li');
-        li.className = 'list-group-item';
-        li.textContent = a.nombre || '-';
-        alumnosList.appendChild(li);
-      }
-    } catch (e) {
-      alumnosStatus.textContent = 'Error de red';
-    }
-  });
-})();
+    });
+  })();
 </script>
 {% endif %}
 
@@ -715,128 +995,127 @@
 </div>
 
 <script>
-(function(){
-  const modalReservas   = document.getElementById('modalReservasStaff');
-  const reservasTbody   = document.getElementById('reservasTbody');
-  const reservasStatus  = document.getElementById('reservasStatus');
-  const txtReservasInfo = document.getElementById('txtReservasSlotInfo');
+  (function () {
+    const modalReservas = document.getElementById("modalReservasStaff");
+    const reservasTbody = document.getElementById("reservasTbody");
+    const reservasStatus = document.getElementById("reservasStatus");
+    const txtReservasInfo = document.getElementById("txtReservasSlotInfo");
 
-  if (!modalReservas || !reservasTbody) return;
+    if (!modalReservas || !reservasTbody) return;
 
-  if (reservasTbody.dataset.bound === "1") return;
-  reservasTbody.dataset.bound = "1";
+    if (reservasTbody.dataset.bound === "1") return;
+    reservasTbody.dataset.bound = "1";
 
-  async function cargarReservas(slotId, fecha, inicio, fin){
-    if (txtReservasInfo) txtReservasInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
+    async function cargarReservas(slotId, fecha, inicio, fin) {
+      if (txtReservasInfo) txtReservasInfo.textContent = `Fecha: ${fecha} | ${inicio} - ${fin}`;
 
-    reservasTbody.innerHTML = '';
-    if (reservasStatus) reservasStatus.textContent = 'Cargando...';
+      reservasTbody.innerHTML = "";
+      if (reservasStatus) reservasStatus.textContent = "Cargando...";
 
-    try {
-      const resp = await fetch(`/staff/slot-reservas?slot_id=${encodeURIComponent(slotId)}`);
-      const data = await resp.json();
+      try {
+        const resp = await fetch(`/staff/slot-reservas?slot_id=${encodeURIComponent(slotId)}`);
+        const data = await resp.json();
 
-      if (!resp.ok || !data.ok) {
-        if (reservasStatus) reservasStatus.textContent = (data && data.error) ? data.error : 'Error al cargar reservas';
-        return;
+        if (!resp.ok || !data.ok) {
+          if (reservasStatus) reservasStatus.textContent = data && data.error ? data.error : "Error al cargar reservas";
+          return;
+        }
+
+        const rows = data.reservas || [];
+        if (reservasStatus) reservasStatus.textContent = `${rows.length} reserva(s)`;
+
+        if (rows.length === 0) {
+          reservasTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Sin reservas</td></tr>`;
+          return;
+        }
+
+        for (const r of rows) {
+          const estado = (r.estado || "").toLowerCase();
+          const yaCancelada = estado === "cancelada";
+
+          const tr = document.createElement("tr");
+          tr.innerHTML = `
+            <td class="fw-semibold">${r.cliente || "-"}</td>
+            <td>${r.identificacion || "-"}</td>
+            <td>${r.entrenador || "-"}</td>
+            <td>
+              <span class="badge ${yaCancelada ? "text-bg-secondary" : "text-bg-success"}">
+                ${r.estado || "-"}
+              </span>
+            </td>
+            <td class="text-end">
+              <button
+                type="button"
+                class="btn btn-sm btn-outline-danger btn-cancelar-reserva"
+                data-reserva-id="${r.reserva_id}"
+                ${yaCancelada ? "disabled" : ""}
+              >
+                <i class="bi bi-x-circle"></i> Cancelar
+              </button>
+            </td>
+          `;
+          reservasTbody.appendChild(tr);
+        }
+      } catch (e) {
+        if (reservasStatus) reservasStatus.textContent = "Error de red";
       }
-
-      const rows = data.reservas || [];
-      if (reservasStatus) reservasStatus.textContent = `${rows.length} reserva(s)`;
-
-      if (rows.length === 0) {
-        reservasTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Sin reservas</td></tr>`;
-        return;
-      }
-
-      for (const r of rows) {
-        const estado = (r.estado || '').toLowerCase();
-        const yaCancelada = (estado === 'cancelada');
-
-        const tr = document.createElement('tr');
-        tr.innerHTML = `
-          <td class="fw-semibold">${(r.cliente || '-')}</td>
-          <td>${(r.identificacion || '-')}</td>
-          <td>${(r.entrenador || '-')}</td>
-          <td>
-            <span class="badge ${yaCancelada ? 'text-bg-secondary' : 'text-bg-success'}">
-              ${r.estado || '-'}
-            </span>
-          </td>
-          <td class="text-end">
-            <button
-              type="button"
-              class="btn btn-sm btn-outline-danger btn-cancelar-reserva"
-              data-reserva-id="${r.reserva_id}"
-              ${yaCancelada ? 'disabled' : ''}
-            >
-              <i class="bi bi-x-circle"></i> Cancelar
-            </button>
-          </td>
-        `;
-        reservasTbody.appendChild(tr);
-      }
-    } catch (e) {
-      if (reservasStatus) reservasStatus.textContent = 'Error de red';
     }
-  }
 
-  modalReservas.addEventListener('show.bs.modal', function (event) {
-    const btn = event.relatedTarget;
-    if (!btn) return;
+    modalReservas.addEventListener("show.bs.modal", function (event) {
+      const btn = event.relatedTarget;
+      if (!btn) return;
 
-    const slotId = btn.getAttribute('data-slot-id') || '';
-    const fecha  = btn.getAttribute('data-fecha') || '';
-    const inicio = btn.getAttribute('data-inicio') || '';
-    const fin    = btn.getAttribute('data-fin') || '';
+      const slotId = btn.getAttribute("data-slot-id") || "";
+      const fecha = btn.getAttribute("data-fecha") || "";
+      const inicio = btn.getAttribute("data-inicio") || "";
+      const fin = btn.getAttribute("data-fin") || "";
 
-    if (!slotId) return;
-    cargarReservas(slotId, fecha, inicio, fin);
-  });
+      if (!slotId) return;
+      cargarReservas(slotId, fecha, inicio, fin);
+    });
 
-  reservasTbody.addEventListener("click", async (e) => {
-    const btn = e.target.closest(".btn-cancelar-reserva");
-    if (!btn) return;
+    reservasTbody.addEventListener("click", async (e) => {
+      const btn = e.target.closest(".btn-cancelar-reserva");
+      if (!btn) return;
 
-    const reservaId = btn.getAttribute("data-reserva-id");
-    if (!reservaId) return;
+      const reservaId = btn.getAttribute("data-reserva-id");
+      if (!reservaId) return;
 
-    if (!confirm("¿Cancelar esta reserva?")) return;
+      if (!confirm("¿Cancelar esta reserva?")) return;
 
-    btn.disabled = true;
-    const oldHtml = btn.innerHTML;
-    btn.innerHTML = "Cancelando...";
+      btn.disabled = true;
+      const oldHtml = btn.innerHTML;
+      btn.innerHTML = "Cancelando...";
 
-    try {
-      const resp = await fetch(`/staff/reservas/${encodeURIComponent(reservaId)}/cancelar`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-      });
+      try {
+        const resp = await fetch(`/staff/reservas/${encodeURIComponent(reservaId)}/cancelar`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+        });
 
-      const data = await resp.json();
-      if (!resp.ok || !data.ok) {
-        alert((data && data.error) ? data.error : "No se pudo cancelar");
+        const data = await resp.json();
+        if (!resp.ok || !data.ok) {
+          alert(data && data.error ? data.error : "No se pudo cancelar");
+          btn.disabled = false;
+          btn.innerHTML = oldHtml;
+          return;
+        }
+
+        const tr = btn.closest("tr");
+        const badge = tr ? tr.querySelector("td:nth-child(4) .badge") : null;
+        if (badge) {
+          badge.className = "badge text-bg-secondary";
+          badge.textContent = "cancelada";
+        }
+        btn.innerHTML = `<i class="bi bi-x-circle"></i> Cancelada`;
+        btn.disabled = true;
+      } catch (err) {
+        alert("Error de red");
         btn.disabled = false;
         btn.innerHTML = oldHtml;
-        return;
       }
-
-      const tr = btn.closest("tr");
-      const badge = tr ? tr.querySelector("td:nth-child(4) .badge") : null;
-      if (badge) {
-        badge.className = "badge text-bg-secondary";
-        badge.textContent = "cancelada";
-      }
-      btn.innerHTML = `<i class="bi bi-x-circle"></i> Cancelada`;
-      btn.disabled = true;
-
-    } catch (err) {
-      alert("Error de red");
-      btn.disabled = false;
-      btn.innerHTML = oldHtml;
-    }
-  });
-})();
+    });
+  })();
 </script>
 {% endif %}
 

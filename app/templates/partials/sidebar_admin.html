@@ -64,6 +64,15 @@ session.get("username") or "Usuario" %} {% set active = active or "" %}
       <span class="material-symbols-outlined">person_outline</span>
       Clientes
     </a>
+    <a
+      href="{{ url_for('web.admin_no_asistire_manana') }}"
+      class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_no_asistire_manana' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
+    >
+      <span class="material-symbols-outlined">person_outline</span>
+      No asistirán mañana
+    </a>
+  
+
 
     <a
       href="{{ url_for('web.admin_ventas_listado') }}"
