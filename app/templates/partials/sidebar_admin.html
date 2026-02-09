@@ -68,7 +68,7 @@ session.get("username") or "Usuario" %} {% set active = active or "" %}
       href="{{ url_for('web.admin_no_asistire_manana') }}"
       class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='admin_no_asistire_manana' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
     >
-      <span class="material-symbols-outlined">person_outline</span>
+      <span class="material-symbols-outlined">event_busy</span>
       No asistirán mañana
     </a>
   
@@ -139,11 +139,11 @@ session.get("username") or "Usuario" %} {% set active = active or "" %}
     </a>
 
     <a
-      href="{{ url_for('web.entrenador_mis_alumnos') }}"
+      href="{{ url_for('web.entrenador_alumnos') }}"
       class="flex items-center gap-3 px-4 py-3 text-sm font-medium rounded-lg transition-all {% if active=='entrenador_mis_alumnos' %}sidebar-item-active text-white rounded-r-lg{% else %}text-secondary hover:text-white hover:bg-white/5{% endif %}"
     >
       <span class="material-symbols-outlined">group</span>
-      Mis alumnos
+      Alumnos
     </a>
     {% endif %} {% if role == "cliente" %} {% if session.get("membresia_activa")
     %}

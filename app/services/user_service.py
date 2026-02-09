@@ -116,7 +116,7 @@ def delete_cajero(cajero_id):
 
 # CREAR CLIENTE Y USUARIO
 
-def find_or_create_cliente(identificacion, nombre, email=None, telefono=None, fecha_nacimiento=None, apellido=None):
+def find_or_create_cliente(identificacion, nombre, email=None, telefono=None, fecha_nacimiento=None, apellido=None, nickname=None, sexo=None, contacto_emergencia=None):
     users = get_users_collection()
     clientes_col = get_clientes_collection()
 
@@ -140,6 +140,9 @@ def find_or_create_cliente(identificacion, nombre, email=None, telefono=None, fe
         "email": email,
         "telefono": telefono,
         "fecha_nacimiento": fecha_nacimiento,
+        "nickname": nickname,
+        "sexo": sexo,
+        "contacto_emergencia": contacto_emergencia,
     }
 
     cliente_existente = clientes_col.find_one({"identificacion": identificacion}, {"_id": 1})

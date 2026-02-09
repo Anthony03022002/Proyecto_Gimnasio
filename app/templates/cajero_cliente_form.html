@@ -55,9 +55,9 @@
             <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Nombre</label>
             <input
               class="mt-1 w-full px-4 py-2.5 rounded-xl
-                     bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                     text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
-                     outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
               name="nombre"
               value="{{ cliente.nombre or '' }}"
               required
@@ -65,25 +65,91 @@
           </div>
 
           <div>
+            <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Apellido</label>
+            <input
+              class="mt-1 w-full px-4 py-2.5 rounded-xl
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+              name="apellido"
+              value="{{ cliente.apellido or '' }}"
+            >
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Nickname</label>
+            <input
+              class="mt-1 w-full px-4 py-2.5 rounded-xl
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+              name="nickname"
+              value="{{ cliente.nickname or '' }}"
+              placeholder="Ej: tony"
+            >
+          </div>
+
+          <div>
+            <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Sexo</label>
+            <select
+              name="sexo"
+              class="mt-1 w-full px-4 py-2.5 rounded-xl
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+            >
+              {% set sx = (cliente.sexo or '')|upper %}
+              <option value="" {% if sx == '' %}selected{% endif %}>Seleccionar…</option>
+              <option value="M" {% if sx == 'M' %}selected{% endif %}>Masculino (M)</option>
+              <option value="F" {% if sx == 'F' %}selected{% endif %}>Femenino (F)</option>
+            </select>
+          </div>
+
+          <div>
             <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Identificación</label>
             <input
               class="mt-1 w-full px-4 py-2.5 rounded-xl
-                     bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                     text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
-                     outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
               name="identificacion"
               value="{{ cliente.identificacion or '' }}"
             >
           </div>
 
           <div>
+            <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Fecha de nacimiento</label>
+
+            {% set fn = cliente.fecha_nacimiento %}
+            {% set fn_ymd = '' %}
+            {% if fn %}
+              {% if fn is string %}
+                {% set fn_ymd = fn[:10] %}
+              {% else %}
+                {% set fn_ymd = fn.strftime('%Y-%m-%d') %}
+              {% endif %}
+            {% endif %}
+
+            <input
+              type="date"
+              class="mt-1 w-full px-4 py-2.5 rounded-xl
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+              name="fecha_nacimiento"
+              value="{{ fn_ymd }}"
+            >
+          </div>
+
+
+          <div>
             <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Email</label>
             <input
               type="email"
               class="mt-1 w-full px-4 py-2.5 rounded-xl
-                     bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                     text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
-                     outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
               name="email"
               value="{{ cliente.email or '' }}"
             >
@@ -93,12 +159,48 @@
             <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Teléfono</label>
             <input
               class="mt-1 w-full px-4 py-2.5 rounded-xl
-                     bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                     text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
-                     outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                    bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                    text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                    outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
               name="telefono"
               value="{{ cliente.telefono or '' }}"
             >
+          </div>
+
+          <!-- Contacto de emergencia -->
+          <div class="md:col-span-2 mt-2">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="material-symbols-outlined text-primary text-base">health_and_safety</span>
+              <p class="text-sm font-semibold text-[rgba(255,255,255,0.85)]">Contacto de emergencia</p>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Nombre</label>
+                <input
+                  class="mt-1 w-full px-4 py-2.5 rounded-xl
+                        bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                        text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                        outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                  name="contacto_emergencia_nombre"
+                  value="{{ (cliente.contacto_emergencia.nombre if cliente.contacto_emergencia else '') or '' }}"
+                  placeholder="Ej: emergencia"
+                >
+              </div>
+
+              <div>
+                <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Teléfono</label>
+                <input
+                  class="mt-1 w-full px-4 py-2.5 rounded-xl
+                        bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
+                        text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
+                        outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                  name="contacto_emergencia_telefono"
+                  value="{{ (cliente.contacto_emergencia.telefono if cliente.contacto_emergencia else '') or '' }}"
+                  placeholder="Ej: 0987..."
+                >
+              </div>
+            </div>
           </div>
 
           {# Activo #}
@@ -106,7 +208,7 @@
             <label class="inline-flex items-center gap-3 cursor-pointer select-none">
               <input
                 class="h-4 w-4 rounded border-[rgba(255,255,255,0.12)] bg-[rgba(255,255,255,0.02)]
-                       text-accent focus:ring-accent/40"
+                      text-accent focus:ring-accent/40"
                 type="checkbox"
                 name="activo"
                 id="activo"
@@ -122,13 +224,14 @@
         <div class="flex justify-end mt-6 pt-5 border-t border-[rgba(255,255,255,0.07)]">
           <button
             class="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90
-                   text-sm font-semibold text-white transition-colors"
+                  text-sm font-semibold text-white transition-colors"
             type="submit"
           >
             Guardar cambios
           </button>
         </div>
       </form>
+
 
     </div>
   </div>

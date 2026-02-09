@@ -2,349 +2,499 @@
 {% block title %}Panel Cliente{% endblock %}
 {% set active = "cliente_dashboard" %}
 
+{# --- LÓGICA DE DATOS --- #}
 {% set nombre_cliente = ((cliente.nombre or '') ~ ' ' ~ (cliente.apellido or ''))|trim if cliente else (session.get('username') or 'Cliente') %}
 {% set estado = estado_membresia or "Sin membresía" %}
 {% set dias = dias_restantes if dias_restantes is not none else None %}
-
 {% set WHATSAPP_NUM = "593992899479" %}
 {% set ident = cliente.identificacion or '' if cliente else '' %}
 {% set user = session.get('username') or '' %}
+
 {% if membresia and membresia.fecha_hasta %}
   {% set vence_txt = membresia.fecha_hasta.strftime('%d/%m/%Y') %}
 {% else %}
   {% set vence_txt = '-' %}
 {% endif %}
+
 {% set dias_txt = (dias_restantes|string) if dias_restantes is not none else '-' %}
-{% set wa_text = "Hola, quiero renovar mi membresía.\n" ~
-  "Cliente: " ~ nombre_cliente ~ "\n" ~
-  "Identificación: " ~ ident ~ "\n" ~
-  "Usuario: " ~ user ~ "\n" ~
-  "Vence: " ~ vence_txt ~ "\n" ~
-  "Días restantes: " ~ dias_txt
-%}
+{% set wa_text = "Hola, quiero renovar mi membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ident %}
 
 {% block header_title %}{{ nombre_cliente }}{% endblock %}
 
-{% block header_actions %}
-  <a href="{{ url_for('web.horarios_publico', view='week') }}"
-     class="px-4 py-2 rounded-lg bg-white/10 hover:bg-white/15 border border-white/10
-            text-white font-semibold text-sm transition flex items-center gap-2">
-    <span class="material-symbols-outlined text-[18px]">calendar_month</span>
-    Reservar
-  </a>
-{% endblock %}
-
 {% block content %}
 <style>
-  /* Solo afecta a este dashboard */
-  .elite-soft-card{
-    background: rgba(255,255,255,0.04);
-    border: 1px solid rgba(255,255,255,0.08);
-    box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+  :root {
+    --primary: #818cf8;
+    --primary-glow: rgba(129, 140, 248, 0.4);
+    --secondary: #f472b6;
+    --success: #34d399;
+
+    --bg-glass: rgba(30, 30, 40, 0.6);
+    --bg-card: rgba(255, 255, 255, 0.03);
+    --border-glass: rgba(255, 255, 255, 0.08);
+    --text-main: #ffffff;
+    --text-muted: #94a3b8;
+
+    --radius-lg: 24px;
+    --radius-md: 16px;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   }
-  .elite-soft-card:hover{
-    border-color: rgba(255,255,255,0.12);
+
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(15px); }
+    to   { opacity: 1; transform: translateY(0); }
   }
-  .elite-divider{ border-color: rgba(255,255,255,0.08); }
-  .elite-muted{ color: rgba(255,255,255,0.55); }
-  .elite-pill{
-    border: 1px solid rgba(255,255,255,0.18);
-    background: rgba(0,0,0,0.15);
+  @keyframes pulse-glow {
+    0%   { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0.4); }
+    70%  { box-shadow: 0 0 0 10px rgba(129, 140, 248, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(129, 140, 248, 0); }
   }
-  .elite-btn{
-    border: 1px solid rgba(255,255,255,0.16);
-    background: rgba(255,255,255,0.06);
+
+  .dash-container {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding-bottom: 40px;
+    max-width: 1200px;
+    margin: 0 auto;
+    animation: fadeInUp 0.6s ease-out;
   }
-  .elite-btn:hover{ background: rgba(255,255,255,0.10); }
-  .elite-btn-danger{
-    border: 1px solid rgba(255,80,80,0.35);
-    background: rgba(255,80,80,0.08);
+
+  /* --- HERO --- */
+  .hero-box {
+    background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(236, 72, 153, 0.1));
+    border: 1px solid var(--border-glass);
+    border-radius: var(--radius-lg);
+    padding: 32px 20px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(10px);
   }
-  .elite-btn-danger:hover{ background: rgba(255,80,80,0.12); }
+  .hero-box::before {
+    content: "";
+    position: absolute;
+    top: -50%;
+    left: -50%;
+    width: 200%;
+    height: 200%;
+    background: radial-gradient(circle, rgba(255, 255, 255, 0.03) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-title {
+    margin: 0;
+    font-size: 2rem;
+    font-weight: 800;
+    letter-spacing: 2px;
+    background: linear-gradient(to right, #fff, #c7d2fe);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    text-transform: uppercase;
+  }
+  .hero-subtitle {
+    color: var(--text-muted);
+    margin-top: 8px;
+    font-size: 1rem;
+  }
+
+  /* --- ACTION BAR --- */
+  .action-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-content: center;
+    gap: 14px;
+    padding: 20px;
+    background: var(--bg-card);
+    border-radius: var(--radius-md);
+    border: 1px solid rgba(129, 140, 248, 0.2);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
+  }
+  @media (min-width: 768px) {
+    .action-bar {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 32px;
+      gap: 16px;
+    }
+  }
+
+  .action-label {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    color: var(--text-main);
+    font-weight: 700;
+    font-size: 1.05rem;
+    white-space: nowrap;
+  }
+
+  .next-pill {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 10px 12px;
+    border-radius: 16px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.04);
+    min-width: 240px;
+    flex: 1;
+  }
+  .next-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: rgba(52, 211, 153, 0.95);
+    box-shadow: 0 0 0 6px rgba(52, 211, 153, 0.12);
+    flex: 0 0 auto;
+  }
+  .next-info { min-width: 0; }
+  .next-title {
+    font-weight: 900;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 0.86rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    line-height: 1.1;
+  }
+  .next-sub {
+    margin-top: 3px;
+    color: var(--text-muted);
+    font-size: 0.88rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .action-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+  }
+
+  .btn-primary-glow {
+    background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 50px;
+    font-weight: 800;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition);
+    border: none;
+    box-shadow: 0 4px 15px rgba(79, 70, 229, 0.4);
+    animation: pulse-glow 3s infinite;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+  .btn-primary-glow:hover {
+    transform: translateY(-2px) scale(1.02);
+    box-shadow: 0 8px 25px rgba(79, 70, 229, 0.6);
+    color: white;
+  }
+
+  .btn-ghost-danger {
+    background: rgba(239, 68, 68, 0.1);
+    color: #fca5a5;
+    padding: 10px 18px;
+    border-radius: 50px;
+    border: 1px solid rgba(239, 68, 68, 0.3);
+    font-size: 0.9rem;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    transition: var(--transition);
+    cursor: pointer;
+    white-space: nowrap;
+  }
+  .btn-ghost-danger:hover {
+    background: rgba(239, 68, 68, 0.2);
+    border-color: #ef4444;
+    color: #fff;
+  }
+
+  .cards-grid{
+    display: grid;
+    gap: 42px;                
+    grid-template-columns: repeat(3, minmax(0, 1fr)); 
+    align-items: center;
+    justify-items: center;     
+    width: 100%;
+    max-width: 980px;          
+    margin: 0 auto;           
+    padding: 0 10px;           
+  }
+  @media (max-width: 620px){
+    .cards-grid{
+      grid-template-columns: 1fr;
+      gap: 18px;
+      max-width: 420px;
+    }
+  }
+
+  @media (min-width: 621px) and (max-width: 900px){
+    .cards-grid{
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+      max-width: 720px;
+    }
+  }
+
+  .tile-img{
+    position:relative;
+    display:block;
+    border-radius: 30px;
+    overflow:hidden;
+    text-decoration:none;
+
+    background: rgba(10, 16, 28, .6);
+    border: 1px solid rgba(255, 169, 64, .28);
+    box-shadow:
+      0 14px 40px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.03) inset,
+      0 0 28px 6px rgba(255,153,38,0.10);
+
+    transition: transform .28s cubic-bezier(.4,0,.2,1),
+                box-shadow .28s cubic-bezier(.4,0,.2,1),
+                filter .28s cubic-bezier(.4,0,.2,1);
+    will-change: transform, box-shadow, filter;
+  }
+
+  .tile-img::before{
+    content:"";
+    position:absolute;
+    inset:10px;
+    border-radius: 24px;
+    border: 1px solid rgba(255, 169, 64, .14);
+    pointer-events:none;
+    z-index:2;
+  }
+
+  .tile-img::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    bottom:16px;
+    transform: translateX(-50%);
+    width:72%;
+    height:2px;
+    background: radial-gradient(circle, rgba(255,180,90,0.9) 0%, rgba(255,180,90,0.15) 55%, transparent 70%);
+    opacity:.9;
+    pointer-events:none;
+    z-index:2;
+  }
+
+  .tile-img img{
+    width:100%;
+    aspect-ratio: 1 / 1;
+    object-fit: cover;
+    display:block;
+    transform: scale(1.01);
+  }
+
+  .tile-img:hover{
+    transform: translateY(-6px);
+    box-shadow:
+      0 18px 55px rgba(0,0,0,0.62),
+      0 0 0 1px rgba(255,169,64,0.45),
+      0 0 40px 12px rgba(255,153,38,0.18);
+    filter: saturate(1.07);
+  }
+
+  .tile-img.is-disabled{
+    opacity:.65;
+    cursor: default;
+  }
+  .tile-img.is-disabled:hover{
+    transform:none;
+    filter:none;
+    box-shadow:
+      0 14px 40px rgba(0,0,0,0.55),
+      0 0 0 1px rgba(255,255,255,0.03) inset,
+      0 0 28px 6px rgba(255,153,38,0.08);
+  }
+  .tile-img.is-disabled img{
+    filter: grayscale(1);
+  }
+
+  /* --- FOOTER MEMBRESÍA --- */
+  .membresia-footer {
+    margin-top: 10px;
+    background: linear-gradient(to right, rgba(255, 255, 255, 0.02), rgba(255, 255, 255, 0.04));
+    border-top: 1px solid var(--border-glass);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 15px;
+  }
+
+  .memb-info {
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    color: var(--text-muted);
+    font-size: 0.9rem;
+  }
+
+  .memb-tag {
+    background: rgba(255, 255, 255, 0.1);
+    padding: 4px 12px;
+    border-radius: 12px;
+    color: #fff;
+    font-weight: 700;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+
+  .memb-tag.tag-ok {
+    background: rgba(52, 211, 153, 0.18);
+    border-color: rgba(52, 211, 153, 0.25);
+    color: #a7f3d0;
+  }
+  .memb-tag.tag-bad {
+    background: rgba(239, 68, 68, 0.18);
+    border-color: rgba(239, 68, 68, 0.25);
+    color: #fecaca;
+  }
+
+  .btn-link-simple {
+    color: var(--primary);
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 0.9rem;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .btn-link-simple:hover { text-decoration: underline; }
 </style>
 
-<div class="space-y-8">
+<div class="dash-container">
+  <div class="hero-box">
+    <h2 class="hero-title">Forja tu Interior</h2>
+    <p class="hero-subtitle">Tu panel de control para superar tus límites.</p>
+  </div>
 
-  {# ALERTAS #}
-  {% if alertas_membresia and alertas_membresia|length > 0 %}
-    <div class="space-y-2">
-      {% for msg in alertas_membresia %}
-        <div class="elite-soft-card rounded-2xl p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-          <div class="text-sm text-white/90">
-            <span class="font-semibold">Aviso:</span> <span class="elite-muted">{{ msg }}</span>
-          </div>
-          <a target="_blank"
-             href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
-             class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition flex items-center gap-2">
-            <span class="material-symbols-outlined text-[18px]">chat</span>
-            Renovar
-          </a>
-        </div>
-      {% endfor %}
+  {# ✅ usamos las próximas reservas si vienen del backend (clases_proximas) #}
+  {% set prox = (clases_proximas[0] if clases_proximas and clases_proximas|length > 0 else None) %}
+
+  <div class="action-bar">
+    <div class="action-label">
+      <span class="material-symbols-outlined" style="color: var(--primary)">calendar_today</span>
+      <span>Próxima Clase</span>
     </div>
-  {% endif %}
 
-  {# HERO #}
-  <div class="relative rounded-3xl overflow-hidden min-h-[200px] md:min-h-[220px] elite-soft-card">
-    <img class="absolute inset-0 w-full h-full object-cover opacity-50"
-         src="https://lh3.googleusercontent.com/aida-public/AB6AXuDBHUxRDHF8aLnkJWF__FXQiznlb_DyP8MqdvCpYrpXsDSwtWESlQAOfgFDs2pfRZHG1YplsRdZiVIZRJ-pQGYuAgTqUWvshtx3nDplNSOJitv7vF815ZwBt_9fRjCvj6tv6sTQQhvYd36MN6Y8nxy250Do5lVjuvfCTQEnG7dlBYYXP8QwRq3PGMjq7iRXebtZMP9FoByqL7Qtvuo8PmRsu6EcZGNEXccoRlFw7yh703x6z8sl3J_FkYicHJbfC7dRL6ChfPcQbH6C"
-         alt="Hero"/>
-
-    <div class="absolute inset-0 bg-gradient-to-r from-black/70 via-black/45 to-transparent"></div>
-
-    <div class="relative z-10 p-7 md:p-10 max-w-3xl">
-      <h2 class="text-4xl md:text-5xl font-extrabold text-white tracking-tight">
-        FORJA TU INTERIOR
-      </h2>
-      <p class="mt-3 text-base md:text-lg elite-muted max-w-xl">
-        Tu excelencia comienza hoy. Revisa tu estado, descarga tu planificación y gestiona tus reservas.
-      </p>
-
-      <div class="mt-6 flex flex-wrap gap-2">
-        <a href="{{ url_for('web.horarios_publico', view='week') }}"
-           class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition">
-          Ver horarios
-        </a>
-
-        {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
-          <a href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}"
-             class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition">
-            Descargar PDF
-          </a>
-        {% endif %}
+    {% if prox %}
+      <div class="next-pill">
+        <span class="next-dot"></span>
+        <div class="next-info">
+          <div class="next-title">
+            {{ prox.nombre_clase or prox.clase or 'Clase' }}
+          </div>
+          <div class="next-sub">
+            {{ prox.dt.strftime('%d/%m/%Y') if prox.dt else prox.fecha_txt }} · {{ prox.hora }}
+            {% if prox.entrenador %} · {{ prox.entrenador }}{% endif %}
+          </div>
+        </div>
       </div>
+    {% else %}
+      <div class="next-pill" style="opacity: 0.85">
+        <span class="material-symbols-outlined" style="font-size: 18px; color: rgba(255, 255, 255, 0.6)">event</span>
+        <div class="next-info">
+          <div class="next-title">Sin reservas</div>
+          <div class="next-sub">Aún no tienes clases agendadas.</div>
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="action-actions">
+      <a href="{{ url_for('web.horarios_publico', view='week') }}" class="btn-primary-glow">
+        <span class="material-symbols-outlined">add_circle</span>
+        Reservar Ahora
+      </a>
+
+      {% if puede_no_asistir %}
+        <form method="post"
+              action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
+              onsubmit="return confirm('¿Seguro que no podrás asistir mañana?');"
+              style="margin: 0">
+          <button type="submit" class="btn-ghost-danger">
+            <span class="material-symbols-outlined" style="font-size: 18px">event_busy</span>
+            Cancelar mañana
+          </button>
+        </form>
+      {% elif reserva_manana and reserva_manana.no_asistire %}
+        <div style="color: var(--text-muted); font-size: 0.9rem; display: flex; align-items: center; gap: 6px;">
+          <span class="material-symbols-outlined" style="font-size: 16px">check_circle</span>
+          Avisaste inasistencia
+        </div>
+      {% endif %}
     </div>
   </div>
 
-  {# GRID PRINCIPAL #}
-  <div class="grid grid-cols-1 lg:grid-cols-12 gap-8">
+  {# ✅ BOTONES COMO IMÁGENES #}
+  <div class="cards-grid">
 
-    {# IZQUIERDA #}
-    <div class="lg:col-span-4 space-y-6">
+    {# 1) RESERVAR / MIS RESERVAS #}
+    <a href="{{ url_for('web.horarios_publico', view='week') }}" class="tile-img">
+      <img src="{{ url_for('static', filename='images/reservar.png') }}" alt="Reservar / Mis Reservas">
+    </a>
 
-      {# MEMBRESÍA #}
-      <div class="elite-soft-card rounded-2xl p-6">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <div class="text-white font-semibold text-lg">Membresía</div>
-            <div class="text-xs elite-muted mt-1">
-              {{ (membresia.meses ~ " mes(es)") if membresia and membresia.meses else "Sin plan" }}
-            </div>
-          </div>
-
-          {% if estado == "Activa" %}
-            <span class="elite-pill px-3 py-1 rounded-lg text-xs font-bold text-white/90 uppercase">Activa</span>
-          {% elif estado == "Vencida" %}
-            <span class="elite-pill px-3 py-1 rounded-lg text-xs font-bold text-white/90 uppercase">Vencida</span>
-          {% else %}
-            <span class="elite-pill px-3 py-1 rounded-lg text-xs font-bold text-white/70 uppercase">Sin membresía</span>
-          {% endif %}
-        </div>
-
-        <div class="mt-5 space-y-3 text-sm">
-          <div class="flex justify-between items-center border-b elite-divider pb-2">
-            <span class="elite-muted uppercase text-xs tracking-widest">Vence</span>
-            <span class="text-white font-semibold">
-              {{ membresia.fecha_hasta.strftime('%d/%m/%Y') if membresia and membresia.fecha_hasta else '-' }}
-            </span>
-          </div>
-          <div class="flex justify-between items-center border-b elite-divider pb-2">
-            <span class="elite-muted uppercase text-xs tracking-widest">Inicio</span>
-            <span class="text-white font-semibold">
-              {{ membresia.fecha_desde.strftime('%d/%m/%Y') if membresia and membresia.fecha_desde else '-' }}
-            </span>
-          </div>
-          <div class="flex justify-between items-center">
-            <span class="elite-muted uppercase text-xs tracking-widest">Días restantes</span>
-            <span class="text-white font-extrabold text-base">
-              {{ dias if dias is not none else '--' }}
-            </span>
-          </div>
-        </div>
-
-        <a target="_blank"
-           href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
-           class="mt-5 w-full elite-btn px-4 py-3 rounded-lg text-white font-bold text-sm uppercase tracking-widest transition flex items-center justify-center gap-2">
-          <span class="material-symbols-outlined text-[18px]">workspace_premium</span>
-          Renovar privilegios
-        </a>
+    {# 2) PLAN / ENTRENAMIENTO (PDF si está disponible) #}
+    {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
+      <a href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}" class="tile-img">
+        <img src="{{ url_for('static', filename='images/entrenamiento.png') }}" alt="Plan de entrenamiento">
+      </a>
+    {% else %}
+      <div class="tile-img is-disabled" title="Tu entrenador la está preparando">
+        <img src="{{ url_for('static', filename='images/entrenamiento.png') }}" alt="Planificación en preparación">
       </div>
+    {% endif %}
 
-      {# MIS DATOS #}
-      <div class="elite-soft-card rounded-2xl p-6">
-        <div class="text-white font-semibold text-lg">Mis datos</div>
+    {# 3) PROGRESO #}
+    <a href="{{ url_for('web.cliente_progreso') }}" class="tile-img">
+      <img src="{{ url_for('static', filename='images/progreso.png') }}" alt="Mi progreso">
+    </a>
 
-        <div class="mt-4 space-y-4">
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-              <span class="material-symbols-outlined text-white/80">alternate_email</span>
-            </div>
-            <div>
-              <div class="text-xs elite-muted uppercase tracking-widest">E-mail</div>
-              <div class="text-white font-semibold">{{ cliente.email or '-' if cliente else '-' }}</div>
-            </div>
-          </div>
+  </div>
 
-          <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-lg bg-white/5 border border-white/10 flex items-center justify-center">
-              <span class="material-symbols-outlined text-white/80">phone_iphone</span>
-            </div>
-            <div>
-              <div class="text-xs elite-muted uppercase tracking-widest">Contacto</div>
-              <div class="text-white font-semibold">{{ cliente.telefono or '-' if cliente else '-' }}</div>
-            </div>
-          </div>
-        </div>
+  <div class="membresia-footer">
+    <div class="memb-info">
+      {% set _estado = (estado|string)|default('Sin membresía', true) %}
+      {% set tag_class = 'tag-ok' if _estado != 'Sin membresía' else 'tag-bad' %}
 
-        <a href="{{ url_for('web.cliente_config') }}"
-           class="mt-5 inline-flex w-full justify-center elite-btn px-4 py-3 rounded-lg text-white font-semibold text-sm transition">
-          Editar información
-        </a>
-      </div>
+      <span>
+        Estado:
+        <span class="memb-tag {{ tag_class }}">{{ _estado }}</span>
+      </span>
 
+      <span>Vence: <strong>{{ vence_txt }}</strong></span>
+      <span>Días restantes: <strong>{{ dias_txt }}</strong></span>
     </div>
 
-    {# DERECHA #}
-    <div class="lg:col-span-8 space-y-6">
-
-      {# PLANIFICACIÓN #}
-      <div class="elite-soft-card rounded-2xl p-6 md:p-8">
-        <div class="flex items-start justify-between gap-4">
-          <div>
-            <div class="text-white font-semibold text-2xl">Planificación</div>
-            <p class="mt-2 elite-muted">
-              {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
-                Tu planificación ya está lista. Descárgala y síguela.
-              {% else %}
-                Tu entrenador está preparando tu próxima ruta. Te avisaremos cuando tu plan esté listo.
-              {% endif %}
-            </p>
-          </div>
-          <div class="opacity-20">
-            <span class="material-symbols-outlined text-[64px]">military_tech</span>
-          </div>
-        </div>
-
-        {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
-          <div class="mt-5 flex flex-wrap gap-2">
-            <a href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}"
-               class="elite-btn px-4 py-2 rounded-lg text-white font-semibold text-sm transition inline-flex items-center gap-2">
-              <span class="material-symbols-outlined text-[18px]">download</span>
-              Descargar PDF
-            </a>
-          </div>
-
-          <div class="mt-3 text-xs elite-muted">
-            {% set dt = plan_actual.updated_at or plan_actual.creado %}
-            {% if dt %}Actualizada: {{ dt.strftime('%d/%m/%Y %H:%M') }}{% endif %}
-          </div>
-        {% endif %}
-      </div>
-
-      {# PRÓXIMAS RESERVAS #}
-      <div class="elite-soft-card rounded-2xl p-6 md:p-8">
-        <div class="flex items-end justify-between gap-4">
-          {% if puede_no_asistir %}
-          <form method="post"
-                action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
-                onsubmit="return confirm('¿Confirmas que no podrás asistir a la clase de mañana?');"
-                class="mt-4">
-            <button type="submit"
-                    class="elite-btn px-4 py-3 rounded-lg text-white font-bold text-sm uppercase tracking-widest transition w-full md:w-auto">
-              No podré asistir mañana
-            </button>
-          </form>
-        {% elif reserva_manana and reserva_manana.no_asistire %}
-          <div class="mt-4 elite-pill px-4 py-3 rounded-lg text-white/80 text-sm font-semibold">
-            Ya notificaste que no podrás asistir mañana.
-          </div>
-        {% endif %}
-
-          <div>
-            <div class="text-white font-semibold text-xl">Próximas reservas</div>
-            <div class="text-xs elite-muted uppercase tracking-widest mt-1">Tu agenda</div>
-          </div>
-          <a href="{{ url_for('web.horarios_publico', view='week') }}"
-             class="text-sm text-white/80 hover:text-white font-semibold transition inline-flex items-center gap-2">
-            Calendario completo
-            <span class="material-symbols-outlined text-[18px]">arrow_forward_ios</span>
-          </a>
-        </div>
-
-        <div class="mt-5 space-y-3">
-          {% if clases_proximas and clases_proximas|length > 0 %}
-            {% for c in clases_proximas[:4] %}
-              <div class="rounded-xl bg-white/3 border border-white/8 px-4 py-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                <div class="flex items-start gap-4">
-                  <span class="elite-pill px-3 py-1 rounded-lg text-[11px] font-bold uppercase">
-                    Próxima
-                  </span>
-
-                  <div>
-                    <div class="text-white font-extrabold text-xl leading-none">{{ c.hora }}</div>
-                    <div class="text-sm elite-muted mt-1">
-                      {{ c.dt.strftime('%d/%m/%Y') if c.dt else c.fecha_txt }} · Entrenador:
-                      <span class="text-white font-semibold">{{ c.entrenador }}</span>
-                    </div>
-                  </div>
-                </div>
-
-                <form method="post"
-                      action="{{ url_for('web.cliente_cancelar_reserva', reserva_id=c._id) }}"
-                      onsubmit="return confirm('¿Cancelar esta clase?');">
-                  <button type="submit"
-                          class="elite-btn-danger px-4 py-2 rounded-lg text-white font-bold text-sm uppercase tracking-widest transition">
-                    Cancelar
-                  </button>
-                </form>
-              </div>
-            {% endfor %}
-          {% else %}
-            <div class="rounded-2xl border border-dashed border-white/12 p-8 text-center">
-              <div class="w-12 h-12 rounded-full bg-white/5 border border-white/10 mx-auto flex items-center justify-center">
-                <span class="material-symbols-outlined text-white/40">event_busy</span>
-              </div>
-              <div class="mt-4 text-white font-semibold">Sin reservas activas</div>
-              <div class="mt-1 elite-muted text-sm">Explora los horarios disponibles</div>
-              <a href="{{ url_for('web.horarios_publico', view='week') }}"
-                 class="mt-4 inline-flex elite-btn px-5 py-2 rounded-lg text-white font-semibold text-sm transition">
-                Ver horarios
-              </a>
-            </div>
-          {% endif %}
-        </div>
-      </div>
-
-      {# BOTONES RÁPIDOS (más sobrios para que calcen con el menú) #}
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-5">
-        <a href="{{ url_for('web.horarios_publico', view='week') }}"
-           class="elite-soft-card rounded-2xl p-6 transition hover:translate-y-[-1px]">
-          <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-4">
-            <span class="material-symbols-outlined text-white/80 text-2xl">calendar_month</span>
-          </div>
-          <div class="text-white font-semibold">Horario</div>
-          <div class="text-sm elite-muted mt-1">Reserva y gestiona tus clases.</div>
-        </a>
-
-        <a href="{{ url_for('web.cliente_progreso') }}"
-           class="elite-soft-card rounded-2xl p-6 transition hover:translate-y-[-1px]">
-          <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-4">
-            <span class="material-symbols-outlined text-white/80 text-2xl">monitoring</span>
-          </div>
-          <div class="text-white font-semibold">Progreso</div>
-          <div class="text-sm elite-muted mt-1">Tu avance y estadísticas.</div>
-        </a>
-
-        <a href="{{ url_for('web.cliente_membresia') }}"
-           class="elite-soft-card rounded-2xl p-6 transition hover:translate-y-[-1px]">
-          <div class="w-12 h-12 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center mb-4">
-            <span class="material-symbols-outlined text-white/80 text-2xl">workspace_premium</span>
-          </div>
-          <div class="text-white font-semibold">Membresía</div>
-          <div class="text-sm elite-muted mt-1">Estado y renovación.</div>
-        </a>
-      </div>
-
+    <div style="display: flex; gap: 20px; flex-wrap: wrap">
+      <a href="{{ url_for('web.cliente_membresia') }}" class="btn-link-simple">
+        Ver detalles
+      </a>
+      <a target="_blank"
+         href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
+         class="btn-link-simple"
+         style="color: var(--success)">
+        Renovar por WhatsApp
+        <span class="material-symbols-outlined" style="font-size: 16px">open_in_new</span>
+      </a>
     </div>
   </div>
 </div>

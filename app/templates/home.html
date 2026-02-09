@@ -4,6 +4,7 @@
     <meta charset="utf-8" />
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>CORE Functional Gym | Premium Training</title>
+
     <link href="https://fonts.googleapis.com" rel="preconnect" />
     <link crossorigin="" href="https://fonts.gstatic.com" rel="preconnect" />
     <link
@@ -15,13 +16,14 @@
       rel="stylesheet"
     />
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography"></script>
+
     <script>
-      tailwind.config = { 
+      tailwind.config = {
         darkMode: "class",
         theme: {
           extend: {
             colors: {
-              primary: "#C48B58", 
+              primary: "#C48B58",
               "background-light": "#F8F9FA",
               "background-dark": "#0D151D",
               "card-dark": "rgba(30, 41, 51, 0.6)",
@@ -37,6 +39,7 @@
         },
       };
     </script>
+
     <style>
       .glass {
         background: rgba(30, 41, 51, 0.4);
@@ -47,8 +50,8 @@
       .hero-gradient {
         background: linear-gradient(
           to right,
-          rgba(13, 21, 29, 0.9) 20%,
-          rgba(13, 21, 29, 0.4) 50%,
+          rgba(13, 21, 29, 0.92) 18%,
+          rgba(13, 21, 29, 0.55) 52%,
           rgba(13, 21, 29, 0) 100%
         );
       }
@@ -60,271 +63,376 @@
       }
       .btn-bronze {
         background: linear-gradient(135deg, #c48b58 0%, #8e5d34 100%);
-        transition: all 0.3s ease;
+        transition: all 0.25s ease;
       }
       .btn-bronze:hover {
-        filter: brightness(1.1);
+        filter: brightness(1.08);
         transform: translateY(-2px);
       }
       .logo_gym {
-        height: 100px;
-        width: 100px;
-        border-radius: 25px;
+        height: 96px;
+        width: 96px;
+        border-radius: 22px;
       }
       .logo_nav {
-        height: 80px;
-        width: 80px;
-        border-radius: 15px;
+        height: 64px;
+        width: 64px;
+        border-radius: 14px;
       }
 
-
+      /* evita saltos por header fijo */
+      .header-spacer {
+        height: 88px;
+      }
+      @media (min-width: 768px) {
+        .header-spacer {
+          height: 96px;
+        }
+      }
     </style>
   </head>
+
   <body
     class="bg-background-light dark:bg-background-dark font-sans text-slate-800 dark:text-slate-200 transition-colors duration-300"
   >
+    <!-- HEADER -->
     <header class="fixed top-0 left-0 right-0 z-50 transition-all duration-300">
-     <nav class="container mx-auto px-6 py-4 flex items-center justify-between relative">
-        <div class="flex items-center gap-2">
-            <img src="../static/images/logo_gym.jpeg" class="logo_nav" alt="">
+      <nav class="container mx-auto px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <img src="../static/images/logo_gym.jpeg" class="logo_nav" alt="CORE Functional Gym" />
+          <div class="hidden sm:block leading-tight">
+            <div class="font-display tracking-widest text-lg text-slate-900 dark:text-white">CORE</div>
+            <div class="text-xs tracking-widest text-slate-500 dark:text-slate-400 uppercase">Functional Gym</div>
+          </div>
         </div>
 
-        <div class="flex items-center">
-            <a
+        <div class="flex items-center gap-3">
+          <a
             href="/login"
-            class="btn-bronze inline-flex items-center justify-center px-6 py-3 rounded
-                    text-white font-display text-lg tracking-widest shadow-xl
-                    hover:brightness-110 transition"
-            >
+            class="btn-bronze inline-flex items-center justify-center px-4 sm:px-6 py-2.5 sm:py-3 rounded-xl text-white font-display text-base sm:text-lg tracking-widest shadow-xl"
+          >
             Iniciar Sesión
-            </a>
+          </a>
         </div>
-        </nav>
-
+      </nav>
     </header>
+
+    <div class="header-spacer"></div>
+
     <main>
-      <section
-        class="relative h-screen min-h-[700px] flex items-center overflow-hidden"
-      >
+      <!-- HERO -->
+      <section class="relative min-h-[680px] md:min-h-[760px] flex items-center overflow-hidden">
         <div class="absolute inset-0 z-0">
           <img
             alt="Athlete training in a premium gym environment"
-            class="w-full h-full object-cover"
-            src="https://lh3.googleusercontent.com/aida-public/AB6AXuAIQkjr2DN0b678I1UyBs6lHTXRIDrJ9HPkku6IIPsRFLBCJvEm8CP2u7EuXY-UJTsRmqo15CQsnWwlhaP1cjb2oVZg9DQvsZS5qbG7U6odzGeFnWq_iFz8X9ixpv8PLMy5csMBCfVPg1EbXtY596g27kn6BzRaLXX4L_7ST7fp7GyM7baBv5mDaEpqJ32UTq5g9U4C9V97-IEOmH48aBZK7fU2aXcJtH71bw4fQEcRP9leApSVD_3GJkIkN1QS0ugPnkF3bQQ3Br4"
+            class="w-full h-full object-cover object-[70%_20%] md:object-[70%_15%]"
+            src="../static/images/inicio.jpeg"
           />
           <div class="absolute inset-0 hero-gradient dark:block hidden"></div>
           <div class="absolute inset-0 bg-white/40 dark:hidden"></div>
         </div>
-        <div class="container mx-auto px-6 relative z-10">
+
+        <div class="container mx-auto px-4 sm:px-6 relative z-10">
           <div class="max-w-2xl">
-            <h1
-              class="font-display text-7xl md:text-9xl mb-4 leading-[0.9] text-bronze-gradient"
-            >
+            <h1 class="font-display text-6xl sm:text-7xl md:text-9xl mb-4 leading-[0.9] text-bronze-gradient">
               FORJA TU<br />INTERIOR
             </h1>
-            <p
-              class="text-lg md:text-xl text-slate-700 dark:text-[#E6E4DA] mb-10 max-w-lg leading-relaxed font-light"
-            >
-              Entrenamiento funcional de élite donde el lujo se encuentra con la
-              potencia. Descubre tu mejor versión en un entorno exclusivo.
+
+            <p class="text-base sm:text-lg md:text-xl text-slate-700 dark:text-[#E6E4DA] mb-8 sm:mb-10 max-w-lg leading-relaxed font-light">
+              Entrena con criterio. Cuida tu cuerpo con resultados sostenibles
             </p>
+
             <a
-              class="btn-bronze inline-block px-10 py-5 rounded text-white font-display text-xl tracking-widest shadow-xl"
               href="#"
+              data-wa="hero"
+              class="btn-bronze w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-4 rounded-xl text-white font-display text-lg sm:text-xl tracking-widest shadow-xl"
             >
               EMPIEZA EL CAMBIO
             </a>
           </div>
         </div>
-        <div
-          class="absolute bottom-10 left-1/2 -translate-x-1/2 animate-bounce hidden md:block"
-        >
-          <span class="material-symbols-outlined text-primary"
-            >expand_more</span
-          >
+
+        <div class="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce hidden md:block">
+          <span class="material-symbols-outlined text-primary">expand_more</span>
         </div>
       </section>
-      <section class="py-24 px-6 relative">
-        <div class="container mx-auto">
-          <div class="grid md:grid-cols-3 gap-8">
-            <div
-              class="glass p-10 rounded-2xl text-center group hover:scale-[1.02] transition-transform duration-500"
-            >
-              <div class="mb-8 inline-block">
-                <span
-                  class="material-symbols-outlined text-primary text-6xl group-hover:scale-110 transition-transform duration-300"
-                  >fitness_center</span
-                >
+
+      <!-- SECTION 1 (PLAN + NUTRICIÓN) -->
+      <section class="relative py-16 sm:py-20 md:py-24 overflow-hidden">
+        <div class="absolute inset-0 -z-10">
+          <div class="absolute inset-0 dark:bg-[#0B1219] bg-slate-50"></div>
+          <div class="absolute -top-32 -left-24 h-80 w-80 rounded-full blur-3xl bg-primary/20"></div>
+          <div class="absolute -bottom-40 -right-20 h-96 w-96 rounded-full blur-3xl bg-primary/15"></div>
+        </div>
+
+        <div class="w-full px-4 sm:px-6 lg:px-10">
+          <div class="glass rounded-2xl overflow-hidden border border-primary/20 shadow-2xl">
+            <div class="grid grid-cols-1 lg:grid-cols-2">
+              <div class="p-7 sm:p-10 lg:p-14">
+                <div class="text-center lg:text-left">
+                  <h1 class="font-display tracking-widest text-center text-3xl sm:text-4xl lg:text-6xl leading-[0.95]">
+                    <span class="text-bronze-gradient">SISTEMA CORE</span>
+                  </h1>
+                  <h2 class="font-display tracking-widest text-3xl sm:text-3xl lg:text-3xl leading-[0.95]">
+                    <span class="text-bronze-gradient">Entrenamiento con plan +</span><br />
+                    <span class="text-bronze-gradient">nutrición profesional personalizada</span>
+                  </h2>
+
+                  <div class="mt-6 flex items-center justify-center lg:justify-start gap-4">
+                    <span class="h-px w-16 bg-primary/40"></span>
+                    <span class="h-px w-28 bg-primary/20"></span>
+                    <span class="h-px w-16 bg-primary/40"></span>
+                  </div>
+                </div>
+
+                <div class="mt-8">
+                  
+
+                  <p class="text-slate-700 dark:text-slate-300 leading-relaxed mb-8">
+                    <strong>Deja de entrenar entre multitudes.<br />
+                    Empieza a entrenar con guía real.<br /></strong>
+                    Entrenamiento funcional en grupos reducidos.
+                  </p>
+
+                  <ul class="space-y-4 sm:space-y-5 mb-10">
+                    <li class="flex items-start gap-3">
+                      <span class="material-symbols-outlined text-primary mt-0.5"
+                        style="font-variation-settings:'FILL' 1,'wght' 600">check_circle</span>
+                      <span class="text-slate-700 dark:text-slate-200 font-semibold">Máx. 6 personas por horario</span>
+                    </li>
+
+                    <li class="flex items-start gap-3">
+                      <span class="material-symbols-outlined text-primary mt-0.5"
+                        style="font-variation-settings:'FILL' 1,'wght' 600">check_circle</span>
+                      <span class="text-slate-700 dark:text-slate-200 font-semibold">Sesiones guiadas y planificadas</span>
+                    </li>
+
+                    <li class="flex items-start gap-3">
+                      <span class="material-symbols-outlined text-primary mt-0.5"
+                        style="font-variation-settings:'FILL' 1,'wght' 600">check_circle</span>
+                      <span class="text-slate-700 dark:text-slate-200 font-semibold">Nutrición personalizada incluida</span>
+                    </li>
+
+                    <li class="flex items-start gap-3">
+                      <span class="material-symbols-outlined text-primary mt-0.5"
+                        style="font-variation-settings:'FILL' 1,'wght' 600">check_circle</span>
+                      <span class="text-slate-700 dark:text-slate-200 font-semibold">Ambiente funcional, limpio y sin aglomeraciones</span>
+                    </li>
+                  </ul>
+
+                  <div class="flex flex-col sm:flex-row gap-3 sm:gap-4 sm:items-center">
+                    <a
+                      href="#"
+                      data-wa="evaluacion"
+                      class="btn-bronze w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-4 rounded-xl text-white font-display text-lg sm:text-xl tracking-widest shadow-xl"
+                    >
+                      AGENDA TU EVALUACIÓN
+                    </a>
+
+                    <div class="text-center sm:text-left text-xs tracking-widest uppercase text-slate-600 dark:text-slate-400">
+                      IBARRA <span class="mx-2 opacity-60">|</span> ECUADOR
+                    </div>
+                  </div>
+                </div>
               </div>
-              <h3
-                class="font-display text-3xl tracking-widest mb-4 text-primary"
-              >
-                FUERZA PURA
-              </h3>
-              <p
-                class="text-slate-600 dark:text-slate-400 font-light leading-relaxed"
-              >
-                Entrenamiento funcional de élite donde el lujo se encuentra con
-                la potencia para maximizar tu fuerza física.
-              </p>
-            </div>
-            <div
-              class="glass p-10 rounded-2xl text-center group hover:scale-[1.02] transition-transform duration-500"
-            >
-              <div class="mb-8 inline-block">
-                <span
-                  class="material-symbols-outlined text-primary text-6xl group-hover:scale-110 transition-transform duration-300"
-                  >directions_run</span
-                >
+
+              <div class="relative min-h-[280px] sm:min-h-[360px] lg:min-h-full">
+                <img src="../static/images/img_2.png" alt="CORE Functional Gym" class="w-full h-full object-cover" />
+                <div class="absolute inset-0 bg-gradient-to-r from-background-dark/80 via-background-dark/30 to-transparent"></div>
               </div>
-              <h3
-                class="font-display text-3xl tracking-widest mb-4 text-primary"
-              >
-                HÍBRIDO
-              </h3>
-              <p
-                class="text-slate-600 dark:text-slate-400 font-light leading-relaxed"
-              >
-                Equilibrio perfecto entre resistencia y potencia. La metodología
-                más completa para el atleta contemporáneo.
-              </p>
-            </div>
-            <div
-              class="glass p-10 rounded-2xl text-center group hover:scale-[1.02] transition-transform duration-500"
-            >
-              <div class="mb-8 inline-block">
-                <span
-                  class="material-symbols-outlined text-primary text-6xl group-hover:scale-110 transition-transform duration-300"
-                  >self_improvement</span
-                >
-              </div>
-              <h3
-                class="font-display text-3xl tracking-widest mb-4 text-primary"
-              >
-                MOVILIDAD
-              </h3>
-              <p
-                class="text-slate-600 dark:text-slate-400 font-light leading-relaxed"
-              >
-                Optimiza tus rangos de movimiento y recupera el flujo natural de
-                tu cuerpo con técnicas avanzadas de estiramiento.
-              </p>
             </div>
           </div>
         </div>
       </section>
-      <section class="py-20 bg-slate-100 dark:bg-[#151d26]">
-        <div
-          class="container mx-auto px-6 flex flex-col md:flex-row items-center gap-12"
-        >
+
+      <!-- SECTION 2 (NO ENTRENES A CIEGAS) -->
+      <section class="relative py-16 sm:py-20 md:py-24 overflow-hidden">
+        <div class="absolute inset-0 -z-10">
+          <div class="absolute inset-0 dark:bg-[#0B1219] bg-slate-50"></div>
+          <div class="absolute -top-32 -left-24 h-80 w-80 rounded-full blur-3xl bg-primary/20"></div>
+          <div class="absolute -bottom-40 -right-20 h-96 w-96 rounded-full blur-3xl bg-primary/15"></div>
+        </div>
+
+        <div class="w-full px-4 sm:px-6 lg:px-10">
+          <div class="glass rounded-2xl border border-primary/20 shadow-2xl overflow-hidden">
+            <div class="p-7 sm:p-10 lg:p-14">
+              <div class="text-center max-w-4xl mx-auto">
+                <h2 class="font-display tracking-widest text-3xl sm:text-5xl lg:text-6xl leading-[0.95]">
+                  <span class="text-bronze-gradient">NO ENTRENES “A CIEGAS”</span>
+                </h2>
+                <p class="mt-4 text-slate-700 dark:text-slate-300 text-base sm:text-lg leading-relaxed">
+                  Aquí no improvisas.<br class="hidden sm:block" />
+                  Entrenas siguiendo un plan, con cupos limitados para acompañarte de verdad 
+                </p>
+              </div>
+
+              <div class="mt-10 sm:mt-12 grid grid-cols-1 md:grid-cols-3 gap-5 sm:gap-6 lg:gap-8">
+                <div class="glass rounded-2xl p-6 sm:p-7 text-center border border-primary/15 hover:border-primary/30 transition">
+                  <div class="mx-auto mb-5 h-14 w-14 rounded-2xl flex items-center justify-center bg-primary/10 border border-primary/20">
+                    <span class="material-symbols-outlined text-primary text-3xl"
+                      style="font-variation-settings:'FILL' 1,'wght' 600">assignment</span>
+                  </div>
+                  <h3 class="font-display text-2xl tracking-widest text-primary mb-3">Entrenamiento con<br />sentido</h3>
+                  <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    Plan personalizado, evaluado y ajustado según tu progreso.
+                  </p>
+                </div>
+
+                <div class="glass rounded-2xl p-6 sm:p-7 text-center border border-primary/15 hover:border-primary/30 transition">
+                  <div class="mx-auto mb-5 h-14 w-14 rounded-2xl flex items-center justify-center bg-primary/10 border border-primary/20">
+                    <span class="material-symbols-outlined text-primary text-3xl"
+                      style="font-variation-settings:'FILL' 1,'wght' 600">nutrition</span>
+                  </div>
+                  <h3 class="font-display text-2xl tracking-widest text-primary mb-3">Nutrición<br />sin improvisar</h3>
+                  <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    Nutrición profesional adaptada a ti, con seguimiento y ajustes.
+                  </p>
+                </div>
+
+                <div class="glass rounded-2xl p-6 sm:p-7 text-center border border-primary/15 hover:border-primary/30 transition">
+                  <div class="mx-auto mb-5 h-14 w-14 rounded-2xl flex items-center justify-center bg-primary/10 border border-primary/20">
+                    <span class="material-symbols-outlined text-primary text-3xl"
+                      style="font-variation-settings:'FILL' 1,'wght' 600">verified</span>
+                  </div>
+                  <h3 class="font-display text-2xl tracking-widest text-primary mb-3">Seguimos<br />tu progreso</h3>
+                  <p class="text-sm text-slate-700 dark:text-slate-300 leading-relaxed">
+                    Te guiamos, medimos y ajustamos cada paso hacia tu objetivo.
+                  </p>
+                </div>
+              </div>
+
+              <div class="mt-10 sm:mt-12 flex flex-col items-center gap-4">
+                <a
+                  href="#"
+                  data-wa="cupo"
+                  class="btn-bronze w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-4 rounded-xl text-white font-display text-base sm:text-xl tracking-widest shadow-xl"
+                >
+                  ESCRÍBENOS “CUPO” PARA HORARIOS DISPONIBLES
+                </a>
+
+                <div class="text-center text-xs tracking-widest uppercase text-slate-600 dark:text-slate-400">
+                  IBARRA <span class="mx-2 opacity-60">|</span> @corefunctionalibarra 
+                  <span class="mx-2 opacity-60">|</span> ESCRIBE “CUPO” Y RESPONDEMOS
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- EXPERIENCIA PREMIUM -->
+      <section class="py-16 sm:py-20 bg-slate-100 dark:bg-[#151d26]">
+        <div class="container mx-auto px-4 sm:px-6 flex flex-col md:flex-row items-center gap-10 md:gap-12">
           <div class="w-full md:w-1/2">
             <img
               alt="Functional training equipment"
-              class="rounded-lg shadow-2xl border border-primary/20"
-              src="https://lh3.googleusercontent.com/aida-public/AB6AXuAvEw1LvpTNc4cVU4X1Ka2zL_KmW265PZ0cUR5PNp5sS0lvWp5HC1LQOKSQAGrBFzi5XTgKYR3rWEAg4HRKlDjHT3mQnE-bTNXSCKmB61WuUj3N9EvF7iQZDDpMf88fObrWU1ICfRFQqdL9_80EKf7iuxQ9CAJgX9R5WH9kE1b2It-FIeBIW4MpTGvEfrhXuW4DWcv7AsCHPIn_JsdJBFI5uOjvUUOXuvbPRBcPK76F-wIkEPzPVvGYJXs_6m9FZi-OBa6a3mvXbmI"
+              class="rounded-2xl shadow-2xl border border-primary/20 w-full h-[280px] sm:h-[360px] md:h-[460px] object-cover"
+              src="../static/images/img_3.png"
             />
           </div>
+
           <div class="w-full md:w-1/2">
-            <h2
-              class="font-display text-5xl mb-6 text-slate-800 dark:text-white"
-            >
-              EXPERIENCIA PREMIUM
-            </h2>
-            <p class="text-slate-600 dark:text-slate-400 mb-8 leading-relaxed">
-              En CORE, no solo vienes a entrenar. Vienes a transformar tu
-              realidad. Nuestras instalaciones cuentan con tecnología de punta y
-              un equipo de profesionales dedicados a tu éxito personal.
-            </p>
+            <div class="mb-8">
+              <h2 class="font-display text-5xl md:text-6xl mb-4 text-slate-800 dark:text-white tracking-widest">
+                Progreso <span class="text-bronze-gradient">Guiado</span>
+              </h2>
+
+              <div class="flex items-center gap-4">
+                <span class="h-px w-12 bg-primary/50"></span>
+                <p class="font-display text-lg md:text-2xl tracking-[0.30em] text-slate-700 dark:text-slate-200 uppercase">
+                  100% Personalizado
+                </p>
+                <span class="h-px flex-1 bg-primary/20"></span>
+              </div>
+            </div>
+
             <ul class="space-y-4 mb-8">
               <li class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-primary"
-                  >check_circle</span
-                >
-                <span class="dark:text-slate-300"
-                  >Entrenamiento personalizado 1 a 1</span
-                >
+                <span class="material-symbols-outlined text-primary">check_circle</span>
+                <span class="dark:text-slate-300">Diseñado para entrenar con control.</span>
               </li>
               <li class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-primary"
-                  >check_circle</span
-                >
-                <span class="dark:text-slate-300"
-                  >Zonas de recuperación criogénica</span
-                >
+                <span class="material-symbols-outlined text-primary">check_circle</span>
+                <span class="dark:text-slate-300">Menos gente, más guía, mejores resultados.</span>
               </li>
               <li class="flex items-center gap-3">
-                <span class="material-symbols-outlined text-primary"
-                  >check_circle</span
-                >
-                <span class="dark:text-slate-300"
-                  >Nutrición deportiva avanzada</span
-                >
+                <span class="material-symbols-outlined text-primary">check_circle</span>
+                <span class="dark:text-slate-300">Un lugar donde cuidamos de ti.</span>
               </li>
             </ul>
+
+            <a
+              href="#"
+              data-wa="premium"
+              class="btn-bronze w-full sm:w-auto inline-flex items-center justify-center px-8 sm:px-10 py-4 rounded-xl text-white font-display text-lg tracking-widest shadow-xl"
+            >
+              QUIERO MÁS INFO
+            </a>
           </div>
         </div>
       </section>
     </main>
-    <footer class="bg-white dark:bg-[#090e13] border-t border-slate-200 dark:border-slate-800 py-16">
-        <div class="container mx-auto px-6">
-            
-            <div class="max-w-5xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-10 md:gap-16 mb-12 place-items-center">
-            
-            <div class="flex flex-col items-center text-center">
-                <div class="flex items-center justify-center mb-6">
-                <img src="../static/images/logo_gym.jpeg" class="logo_gym" alt="">
-                </div>
-                <p class="text-slate-500 dark:text-slate-400 text-sm leading-relaxed max-w-sm">
-                Redefiniendo el entrenamiento funcional a través de la excelencia y el diseño.
-                </p>
-            </div>
 
-            <div class="flex flex-col items-center text-center">
-                <h4 class="font-bold mb-6 tracking-widest text-xs uppercase text-slate-400">
-                CONTACTO
-                </h4>
+    <!-- FOOTER minimal + logo centrado -->
+    <footer class="bg-white dark:bg-[#090e13] border-t border-slate-200 dark:border-slate-800">
+      <div class="container mx-auto px-4 sm:px-6 py-10">
+        <div class="flex flex-col items-center text-center gap-4">
+          <img src="../static/images/logo_gym.jpeg" class="logo_gym" alt="CORE Functional Gym" />
+          <p class="text-slate-500 dark:text-slate-400 text-sm max-w-md leading-relaxed">
+            Donde entrenar bien es la norma, no la excepción.
+          </p>
 
-                <ul class="space-y-4 text-sm text-slate-600 dark:text-slate-400">
-                <li class="flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined text-xs">location_on</span>
-                    Ibarra en una esquina
-                </li>
-                <li class="flex items-center justify-center gap-2">
-                    <span class="material-symbols-outlined text-xs">mail</span>
-                    info@coregym.com
-                </li>
-                </ul>
-            </div>
-
-            </div>
-
-            <!-- Footer bottom -->
-            <div class="pt-8 border-t border-slate-200 dark:border-slate-800 flex justify-center items-center text-xs text-slate-500">
-            <p>© 2026 CORE Functional Gym. Todos los derechos reservados.</p>
-            </div>
+          <div class="flex flex-wrap items-center justify-center gap-3">
+            <a href="#" data-wa="ubicacion" class="text-xs tracking-widest uppercase text-slate-600 dark:text-slate-400 hover:text-primary transition">
+              Ibarra ° Ecuador
+            </a>
+          </div>
         </div>
-        </footer>
 
+        <div class="mt-8 pt-6 border-t border-slate-200 dark:border-slate-800 text-center text-xs text-slate-500">
+          © 2026 CORE Functional Gym. Todos los derechos reservados.
+        </div>
+      </div>
+    </footer>
 
     <script>
+      const WHATSAPP_NUMBER = "593000000000";
+
+      const WA_MESSAGES = {
+        hero: "Hola CORE 👋 Quiero empezar el cambio. ¿Me dan información de cupos, horarios y costos?",
+        evaluacion: "Hola CORE 👋 Quiero agendar mi evaluación. ¿Qué horarios tienen disponibles?",
+        cupo: "Hola CORE 👋 ESCRIBO 'CUPO'. Quiero tiempos y costos. ¿Cómo reservo?",
+        premium: "Hola CORE 👋 Quiero más info del plan premium (limitado y funcional). ¿Qué incluye y precios?",
+        ubicacion: "Hola CORE 👋 ¿Me comparten la ubicación exacta y cómo llegar?",
+        horarios: "Hola CORE 👋 ¿Cuáles son los horarios disponibles y cupos por sesión?",
+      };
+
+      // Construye URL WA
+      function openWhatsApp(key) {
+        const msg = WA_MESSAGES[key] || "Hola CORE 👋 Quiero información.";
+        const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
+        window.open(url, "_blank");
+      }
+
+      // Asigna clicks a todos los elementos con data-wa
+      document.querySelectorAll("[data-wa]").forEach((el) => {
+        el.addEventListener("click", (e) => {
+          e.preventDefault();
+          openWhatsApp(el.getAttribute("data-wa"));
+        });
+      });
+
+      // Header shadow on scroll
       window.addEventListener("scroll", () => {
         const header = document.querySelector("header");
         if (window.scrollY > 50) {
-          header.classList.add(
-            "bg-white/80",
-            "dark:bg-[#0D151D]/80",
-            "backdrop-blur-md",
-            "shadow-lg",
-          );
+          header.classList.add("bg-white/80", "dark:bg-[#0D151D]/80", "backdrop-blur-md", "shadow-lg");
         } else {
-          header.classList.remove(
-            "bg-white/80",
-            "dark:bg-[#0D151D]/80",
-            "backdrop-blur-md",
-            "shadow-lg",
-          );
+          header.classList.remove("bg-white/80", "dark:bg-[#0D151D]/80", "backdrop-blur-md", "shadow-lg");
         }
       });
+
+      // Deja dark fijo como lo tenías
       document.documentElement.classList.add("dark");
     </script>
   </body>

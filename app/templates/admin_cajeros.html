@@ -212,13 +212,43 @@
                           </button>
                         </div>
 
-                        <div class="p-5 md:p-6 space-y-4">
+                       <div class="p-5 md:p-6 space-y-4">
                           <div>
-                            <label class="block text-sm font-semibold text-white mb-2">Nueva contraseña</label>
-                            <input type="password" name="new_password" required
-                                   class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+                            <!-- ✅ WRAPPER correcto -->
+                            <div class="relative">
+                              <input
+                                id="inpResetPwd{{ c._id }}"
+                                type="password"
+                                name="new_password"
+                                required
+                                placeholder="••••••••"
+                                class="w-full pr-12 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/30
+                                      focus:outline-none focus:ring-2 focus:ring-white/10 focus:border-white/20 transition"
+                              />
+
+                               <button
+                                type="button"
+                                class="absolute right-4 top-1/2 -translate-y-1/2
+                                      inline-flex items-center justify-center
+                                      w-8 h-8 rounded-md
+                                      bg-transparent border-0
+                                      text-white/35 hover:text-white/70
+                                      focus:outline-none focus:ring-0 transition"
+                                aria-label="Mostrar/ocultar contraseña"
+                                onclick="togglePassword('inpResetPwd{{ c._id }}', this)"
+
+
+                              >
+                                <span class="material-symbols-outlined text-[20px] leading-none">visibility</span>
+                              </button>
+                            </div>
+
+                            <p class="mt-2 text-xs text-secondary/80">
+                              Usa al menos 8 caracteres. Evita contraseñas fáciles.
+                            </p>
                           </div>
                         </div>
+
 
                         <div class="p-5 md:p-6 border-t border-white/10 flex justify-end gap-3">
                           <button type="button"
@@ -296,9 +326,27 @@
 
             <div>
               <label class="block text-sm font-semibold text-white mb-2">Contraseña</label>
-              <input type="password" name="password" required
-                     class="w-full px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"/>
+
+              <div class="relative">
+                <input
+                  id="inpCreatePwd"
+                  type="password"
+                  name="password"
+                  required
+                  class="w-full pr-12 px-4 py-3 rounded-xl bg-white/5 border border-white/10 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-white/10"
+                />
+
+                <button
+                  type="button"
+                  class="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+                  aria-label="Mostrar/ocultar contraseña"
+                  onclick="togglePassword('inpCreatePwd', this)"
+                >
+                  <span class="material-symbols-outlined text-[20px]">visibility</span>
+                </button>
+              </div>
             </div>
+
 
             <div class="flex justify-end pt-2">
               <button type="submit"
@@ -348,5 +396,19 @@
       document.querySelectorAll("[id^='editModal'], [id^='pwdModal']").forEach(m => m.classList.add("hidden"));
     }
   });
+  function togglePassword(inputId, btn) {
+    const inp = document.getElementById(inputId);
+    if (!inp) return;
+
+    const icon = btn ? btn.querySelector(".material-symbols-outlined") : null;
+
+    if (inp.type === "password") {
+      inp.type = "text";
+      if (icon) icon.textContent = "visibility_off";
+    } else {
+      inp.type = "password";
+      if (icon) icon.textContent = "visibility";
+    }
+  }
 </script>
 {% endblock %}

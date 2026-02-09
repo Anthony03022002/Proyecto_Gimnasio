@@ -23,9 +23,6 @@ block header %}
  {% block content %} {% set active = "admin_ventas" %}
 
 <style>
-  /* =========================
-     UX/UI: Ventas (Dark)
-     ========================= */
   :root {
     --card-bg: rgba(35, 37, 39, 0.92);
     --card-border: rgba(255, 255, 255, 0.06);
@@ -599,17 +596,19 @@ block header %}
                 </div>
               </td>
             </tr>
-            {% endfor %} {% else %}
+            {% endfor %} 
+            {% else %}
             <tr>
-              <td
-                colspan="9"
-                class="td-muted"
-                style="padding: 18px; text-align: center"
-              >
-                No hay ventas con esos filtros.
+              <td colspan="9" class="td-muted" style="padding: 18px; text-align: center">
+                {% if has_filters %}
+                  No hay ventas con esos filtros.
+                {% else %}
+                  Ingresa un filtro y presiona <b>Filtrar</b> para ver ventas.
+                {% endif %}
               </td>
             </tr>
             {% endif %}
+
           </tbody>
         </table>
       </div>

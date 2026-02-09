@@ -26,7 +26,6 @@
 {% block content %}
 
 <style>
-  /* Selects: evita opciones “blancas/invisibles” en tema oscuro */
   .select-core { color-scheme: dark; }
   .select-core option, .select-core optgroup { background: #ffffff; color: #111827; }
 </style>
@@ -92,9 +91,58 @@
     <div class="p-6 border-b border-white/5 flex items-center justify-between gap-3">
       <div>
         <h3 class="text-lg font-bold text-white">Listado</h3>
-        <p class="text-xs text-secondary mt-1">{{ usuarios|length if usuarios else 0 }} usuario(s)</p>
+        <p class="text-xs text-secondary mt-1">
+          {% if has_filters %}
+            {{ total }} usuario(s) — Página {{ page }} de {{ total_pages }}
+          {% else %}
+            Ingresa un filtro para ver resultados.
+          {% endif %}
+        </p>
       </div>
     </div>
+
+    {% if has_filters and total_pages and total_pages > 1 %}
+    <div class="px-6 py-4 border-b border-white/5 flex items-center justify-between gap-3">
+      <div class="text-xs text-secondary">
+        {% set start = ((page - 1) * limit) + 1 %}
+        {% set end = ((page - 1) * limit) + (usuarios|length) %}
+        Mostrando {{ start }}–{{ end }} de {{ total }}
+      </div>
+
+      <div class="flex items-center gap-2">
+        {# Prev #}
+        {% if page > 1 %}
+          <a
+            class="inline-flex items-center justify-center h-10 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white transition-colors"
+            href="{{ url_for('web.admin_usuarios', q=q, role=role, page=page-1, limit=limit) }}"
+          >
+            ‹ Anterior
+          </a>
+        {% else %}
+          <span class="inline-flex items-center justify-center h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-bold text-white/30">
+            ‹ Anterior
+          </span>
+        {% endif %}
+
+        {# Next #}
+        {% if page < total_pages %}
+          <a
+            class="inline-flex items-center justify-center h-10 px-4 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white transition-colors"
+            href="{{ url_for('web.admin_usuarios', q=q, role=role, page=page+1, limit=limit) }}"
+          >
+            Siguiente ›
+          </a>
+        {% else %}
+          <span class="inline-flex items-center justify-center h-10 px-4 rounded-xl bg-white/5 border border-white/10 text-sm font-bold text-white/30">
+            Siguiente ›
+          </span>
+        {% endif %}
+      </div>
+    </div>
+  {% endif %}
+  
+
+    
 
     {# Desktop table #}
     <div class="hidden lg:block">
@@ -185,7 +233,11 @@
             {% else %}
               <tr>
                 <td colspan="6" class="px-5 py-10 text-center text-secondary">
-                  No hay usuarios.
+                  {% if has_filters %}
+                    No hay usuarios con esos filtros.
+                  {% else %}
+                    Ingresa un filtro y presiona <b>Buscar</b> para ver resultados.
+                  {% endif %}
                 </td>
               </tr>
             {% endif %}
@@ -262,7 +314,11 @@
         {% endfor %}
       {% else %}
         <div class="rounded-2xl border border-white/10 bg-white/5 p-6 text-center text-secondary">
-          No hay usuarios.
+          {% if has_filters %}
+            No hay usuarios con esos filtros.
+          {% else %}
+            Ingresa un filtro y presiona <b>Buscar</b> para ver resultados.
+          {% endif %}
         </div>
       {% endif %}
     </div>

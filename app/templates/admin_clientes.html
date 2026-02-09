@@ -241,6 +241,50 @@
                             >
                             <div class="form-text">Actual: {{ c.fecha_nacimiento_str or '-' }}</div>
                           </div>
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Nickname</label>
+                            <input type="text" name="nickname" class="form-control" value="{{ c.nickname or '' }}" placeholder="Ej: tony">
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Sexo</label>
+                            {% set sx = (c.sexo or '')|upper %}
+                            <select name="sexo" class="form-select">
+                              <option value="" {% if sx=='' %}selected{% endif %}>Seleccionar…</option>
+                              <option value="M" {% if sx=='M' %}selected{% endif %}>Masculino (M)</option>
+                              <option value="F" {% if sx=='F' %}selected{% endif %}>Femenino (F)</option>
+                            </select>
+                          </div>
+
+                          <div class="col-12">
+                            <div class="d-flex align-items-center gap-2 mt-2">
+                              <span class="material-symbols-outlined" style="font-size:18px;color:rgba(255,255,255,.7);">health_and_safety</span>
+                              <div class="fw-bold" style="color:rgba(255,255,255,.85);">Contacto de emergencia</div>
+                            </div>
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Nombre contacto</label>
+                            <input
+                              type="text"
+                              name="contacto_emergencia_nombre"
+                              class="form-control"
+                              value="{{ (c.contacto_emergencia.nombre if c.contacto_emergencia else '') or '' }}"
+                              placeholder="Ej: emergencia"
+                            >
+                          </div>
+
+                          <div class="col-12 col-md-6">
+                            <label class="form-label">Teléfono contacto</label>
+                            <input
+                              type="text"
+                              name="contacto_emergencia_telefono"
+                              class="form-control"
+                              value="{{ (c.contacto_emergencia.telefono if c.contacto_emergencia else '') or '' }}"
+                              placeholder="Ej: 0987..."
+                            >
+                          </div>
+
                         </div>
                       </div>
 
@@ -260,7 +304,11 @@
           {% else %}
             <tr>
               <td colspan="5" class="px-6 py-10 text-center text-secondary">
-                No hay clientes registrados.
+                {% if has_filters %}
+                  No hay clientes con esos filtros.
+                {% else %}
+                  Ingresa un filtro y presiona <b>Buscar</b> para ver clientes.
+                {% endif %}
               </td>
             </tr>
           {% endif %}

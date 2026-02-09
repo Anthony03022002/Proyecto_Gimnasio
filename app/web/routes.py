@@ -1,20 +1,23 @@
 import calendar
 from functools import wraps
+from math import ceil
 import os
 import re
 import shutil
 from zoneinfo import ZoneInfo
 from bson import ObjectId
+from bson.errors import InvalidId
 from flask import abort, jsonify, render_template, redirect, send_file, url_for, request, session, flash
 from pymongo import ReturnDocument
-
+from flask import request, redirect, url_for, flash, current_app as app
 from app.services.alertas_clientes import obtener_clientes_por_vencer
 from app.services.bloques import _get_blocks_for_date, _open_time_for_block, _slot_block_num, _turno_permite
+from app.services.cumple_cliente import es_cumple_hoy, generar_notificaciones_cumple
 from app.services.indicadores import _as_float_form, _build_kpi_and_chart
 from . import web_bp
 from app.services.user_service import get_users_collection, create_cajero, list_cajeros, reset_password_cliente, update_cajero, reset_password_cajero, delete_cajero, create_entrenador, list_entrenadores, update_entrenador, reset_password_entrenador, delete_entrenador
 from app.extensions import bcrypt
-from app.services.ventas_service import crear_venta, listar_ventas_por_cajero, resumen_ventas_hoy_por_cajero, get_ventas_collection
+from app.services.ventas_service import contar_ventas_por_cajero, crear_venta, listar_ventas_por_cajero, resumen_ventas_hoy_por_cajero, get_ventas_collection
 from datetime import date, datetime, timedelta, timezone, time as dtime
 import time as pytime
 import app.extensions as extensions
@@ -185,27 +188,25 @@ def admin_dashboard():
     users = db["users"]
     clientes = db["clientes"]
     ventas = db["ventas"]
-    noti_col = db["notificaciones"]  # ✅ NUEVO
+    noti_col = db["notificaciones"]  
+    
+    generar_notificaciones_cumple(db, para_rol="admin")
 
     total_clientes = clientes.count_documents({})
     total_entrenadores = users.count_documents({"role": "entrenador"})
     total_cajeros = users.count_documents({"role": "cajero"})
 
-    # --- tu lista actual ---
     clientes_por_vencer_raw = obtener_clientes_por_vencer(db, dias_objetivo=(2,1,0), limitar=300) or []
 
-    # ✅ convertir esa lista a NOTIFICACIONES persistentes
     now_ec = datetime.now(TZ_EC)
     clientes_por_vencer = []
 
     for c in clientes_por_vencer_raw:
-        # AJUSTE: tu función normalmente trae cliente_id; si no, intenta _id
         cid = _to_oid(c.get("cliente_id") or c.get("_id") or c.get("idCliente"))
         if not cid:
             continue
 
         fh_key = _fecha_key(c.get("fecha_hasta") or c.get("hasta") or c.get("vence"))
-        # clave estable (un aviso por cliente+fecha_hasta)
         key = {"tipo": "renovacion", "cliente_id": cid, "fecha_hasta": fh_key}
 
         doc = noti_col.find_one_and_update(
@@ -220,7 +221,6 @@ def admin_dashboard():
                 },
                 "$set": {
                     "updated_at": now_ec,
-                    # snapshot para mostrar en modal aunque cambien datos
                     "payload": {
                         "nombre": c.get("nombre"),
                         "identificacion": c.get("identificacion"),
@@ -236,12 +236,10 @@ def admin_dashboard():
             return_document=ReturnDocument.AFTER,
         )
 
-        # ✅ Solo mandar al template las NO vistas (esto hace que “desaparezcan”)
         if not doc.get("visto", False):
-            c["noti_id"] = str(doc["_id"])   # ✅ ID de la notificación
+            c["noti_id"] = str(doc["_id"])   
             clientes_por_vencer.append(c)
 
-    # --- tu lógica de ventas hoy (sin tocar) ---
     ahora = datetime.now(timezone.utc)
     inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
     fin = ahora.replace(hour=23, minute=59, second=59, microsecond=999000)
@@ -269,6 +267,14 @@ def admin_dashboard():
         }},
     ]
     ultimas_ventas = list(ventas.aggregate(pipeline))
+    
+    notificaciones = list(
+        noti_col.find({"para_rol": "admin", "visto": False})
+                .sort([("creado_at", -1)])
+                .limit(50)
+    )
+
+    noti_count = len(notificaciones)
 
     return render_template(
         "dashboard_admin.html",
@@ -276,29 +282,32 @@ def admin_dashboard():
         show_publicidad=True,
         total_entrenadores=total_entrenadores,
         total_cajeros=total_cajeros,
-        clientes_por_vencer=clientes_por_vencer,  # ✅ ya filtrado: solo NO vistos
+        notificaciones=notificaciones,
+        noti_count=noti_count,
+        clientes_por_vencer=clientes_por_vencer,  
         ventas_hoy=ventas_hoy,
         ultimas_ventas=ultimas_ventas,
     )
     
 
 
-@web_bp.post("/admin/notificaciones/renovacion/<noti_id>/visto")
+@web_bp.post("/admin/notificaciones/<tipo>/<noti_id>/visto")
 @login_required(role="admin")
-def admin_noti_renovacion_visto(noti_id):
+def admin_noti_visto(tipo, noti_id):
     db = extensions.mongo_db
     noti_col = db["notificaciones"]
 
+    # ✅ soporta _id ObjectId o string
     try:
-        oid = ObjectId(noti_id)
-    except Exception:
-        return jsonify(ok=False, error="ID inválido"), 400
+        _id = ObjectId(noti_id)
+    except (InvalidId, TypeError):
+        _id = noti_id
 
     now_ec = datetime.now(TZ_EC)
     admin_id = _to_oid(session.get("user_id"))
 
     res = noti_col.update_one(
-        {"_id": oid, "tipo": "renovacion"},
+        {"_id": _id, "tipo": tipo, "para_rol": "admin"},
         {"$set": {"visto": True, "visto_at": now_ec, "visto_por": admin_id}},
     )
 
@@ -306,6 +315,8 @@ def admin_noti_renovacion_visto(noti_id):
         return jsonify(ok=False, error="Notificación no encontrada"), 404
 
     return jsonify(ok=True)
+
+
 
 @web_bp.get("/admin/ventas")
 @login_required(role="admin")
@@ -318,6 +329,21 @@ def admin_ventas_listado():
     q = (request.args.get("q") or "").strip()
     desde = (request.args.get("desde") or "").strip()
     hasta = (request.args.get("hasta") or "").strip()
+    
+    dt_desde = _parse_date_yyyy_mm_dd(desde)
+    dt_hasta = _parse_date_yyyy_mm_dd(hasta)
+
+    has_filters = bool(q or dt_desde or dt_hasta)
+    if not has_filters:
+        return render_template(
+            "admin_ventas.html",
+            ventas=[],
+            cajeros=cajeros,
+            q=q, desde=desde, hasta=hasta,
+            page=1, total_pages=0, total=0,
+            has_filters=False
+        )
+
 
     page = request.args.get("page", "1")
     try:
@@ -365,13 +391,11 @@ def admin_ventas_listado():
             }
         })
 
-    # total para paginación
     total_pipe = pipeline_base + [{"$count": "total"}]
     total_res = list(ventas_col.aggregate(total_pipe))
     total = total_res[0]["total"] if total_res else 0
     total_pages = (total + limit - 1) // limit
 
-    # data
     pipeline_data = pipeline_base + [
         {"$sort": {"fecha": -1}},
         {"$skip": skip},
@@ -396,6 +420,7 @@ def admin_ventas_listado():
         cajeros=cajeros,
         q=q, desde=desde, hasta=hasta,
         page=page, total_pages=total_pages, total=total,
+        has_filters=True
     )
     
 @web_bp.get("/admin/ventas/<venta_id>/edit")
@@ -644,11 +669,13 @@ def admin_no_asistire_manana():
         {"$match": {
             "fecha": manana_key,
             "no_asistire": True,
-            "estado": {"$ne": "cancelada"},
-            "cancelada": {"$ne": True},
 
-            # ✅ SOLO NO VISTOS
             "no_asistire_visto_admin": {"$ne": True},
+
+            "$or": [
+                {"estado": {"$ne": "cancelada"}, "cancelada": {"$ne": True}},
+                {"cancelada_por": "cliente_no_asistire_manana"}
+            ]
         }},
         {"$lookup": {
             "from": "clientes",
@@ -843,8 +870,33 @@ def admin_usuarios():
     q = (request.args.get("q") or "").strip()
     role = (request.args.get("role") or "").strip()
 
-    filtro = {}
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
 
+    try:
+        page_size = int(request.args.get("limit", "25"))
+    except ValueError:
+        page_size = 25
+
+    page_size = max(5, min(page_size, 100))
+
+    has_filters = bool(q or role)
+    if not has_filters:
+        return render_template(
+            "admin_usuarios.html",
+            usuarios=[],
+            q=q,
+            role=role,
+            has_filters=False,
+            page=1,
+            limit=page_size,
+            total=0,
+            total_pages=0,
+        )
+
+    filtro = {}
 
     if role:
         filtro["role"] = role
@@ -865,7 +917,6 @@ def admin_usuarios():
         )
         for c in clientes_cursor:
             clientes_ids.append(c["_id"])
-
 
         or_conditions = [
             {"username": regex},
@@ -894,8 +945,20 @@ def admin_usuarios():
         else:
             filtro["$or"] = or_conditions
 
-    usuarios = list(users_col.find(filtro).sort("username", 1))
+    total = users_col.count_documents(filtro)
+    total_pages = max(1, ceil(total / page_size)) if total else 0
 
+    if total_pages and page > total_pages:
+        page = total_pages
+
+    skip = (page - 1) * page_size
+
+    usuarios = list(
+        users_col.find(filtro)
+        .sort("username", 1)
+        .skip(skip)
+        .limit(page_size)
+    )
 
     cliente_ids_tabla = []
     for u in usuarios:
@@ -916,19 +979,26 @@ def admin_usuarios():
             full = (nom + " " + ape).strip() or "-"
             clientes_map[str(c["_id"])] = full
 
-
     for u in usuarios:
         if u.get("role") == "cliente":
             cid = u.get("cliente_id") or u.get("_id")
             u["nombre_mostrar"] = clientes_map.get(str(cid), "-")
         else:
-            u["nombre_mostrar"] = u.get("nombre") or "-"
             nom = (u.get("nombre") or "").strip()
             ape = (u.get("apellido") or "").strip()
             u["nombre_mostrar"] = (nom + " " + ape).strip() or "-"
 
-
-    return render_template("admin_usuarios.html", usuarios=usuarios, q=q, role=role)
+    return render_template(
+        "admin_usuarios.html",
+        usuarios=usuarios,
+        q=q,
+        role=role,
+        has_filters=True,
+        page=page,
+        limit=page_size,
+        total=total,
+        total_pages=total_pages,
+    )
 
 
 @web_bp.get("/admin/usuarios/<user_id>")
@@ -1184,17 +1254,27 @@ def admin_clientes():
 
     q = (request.args.get("q") or "").strip()
 
-    match = {}
-    if q:
-        match["$or"] = [
+    # ✅ si no hay filtro, NO cargamos todos los clientes
+    has_filters = bool(q)
+    if not has_filters:
+        return render_template(
+            "admin_clientes.html",
+            clientes=[],
+            q=q,
+            has_filters=False
+        )
+
+    match = {
+        "$or": [
             {"nombre": {"$regex": q, "$options": "i"}},
             {"identificacion": {"$regex": q, "$options": "i"}},
             {"email": {"$regex": q, "$options": "i"}},
             {"apellido": {"$regex": q, "$options": "i"}},
             {"telefono": {"$regex": q, "$options": "i"}},
+            # ⚠️ deja este si de verdad "fecha_nacimiento" es string en algunos docs
             {"fecha_nacimiento": {"$regex": q, "$options": "i"}},
         ]
-
+    }
 
     pipeline = [
         {"$match": match},
@@ -1218,6 +1298,7 @@ def admin_clientes():
         {"$addFields": {
             "fecha_hasta": "$ultima_venta.membresia.fecha_hasta"
         }},
+
         {"$addFields": {
             "fecha_nacimiento_str": {
                 "$cond": [
@@ -1239,11 +1320,16 @@ def admin_clientes():
                 ]
             }
         }},
-
     ]
 
     clientes = list(clientes_col.aggregate(pipeline))
-    return render_template("admin_clientes.html", clientes=clientes, q=q)
+
+    return render_template(
+        "admin_clientes.html",
+        clientes=clientes,
+        q=q,
+        has_filters=True
+    )
 
 
 @web_bp.post("/admin/clientes/editar/<cliente_id>")
@@ -1263,23 +1349,45 @@ def admin_clientes_editar(cliente_id):
     email = (request.form.get("email") or "").strip() or None
     telefono = (request.form.get("telefono") or "").strip() or None
     apellido = (request.form.get("apellido") or "").strip() or None
-    fecha_nacimiento = (request.form.get("fecha_nacimiento") or "").strip() or None
+    
+    nickname = (request.form.get("nickname") or "").strip() or None
+    sexo = (request.form.get("sexo") or "").strip().upper() or None
+
+    ce_nombre = (request.form.get("contacto_emergencia_nombre") or "").strip()
+    ce_telefono = (request.form.get("contacto_emergencia_telefono") or "").strip()
 
     if not nombre or not identificacion:
         flash("Nombre e identificación son obligatorios.", "danger")
         return redirect(url_for("web.admin_clientes"))
+    
+    if sexo and sexo not in ("M", "F"):
+        flash("Sexo inválido. Use M o F.", "danger")
+        return redirect(url_for("web.admin_clientes"))
 
-    clientes_col.update_one(
-        {"_id": oid},
-        {"$set": {
-            "nombre": nombre,
-            "apellido": apellido,
-            "identificacion": identificacion,
-            "email": email,
-            "telefono": telefono,
-            "fecha_nacimiento": fecha_nacimiento,
-        }}
-    )
+    set_doc = {
+        "nombre": nombre,
+        "apellido": apellido,
+        "identificacion": identificacion,
+        "email": email,
+        "telefono": telefono,
+        "nickname": nickname,
+        "sexo": sexo,
+    }
+
+    # ✅ NO pisar fecha si viene vacío
+    fecha_nacimiento_raw = (request.form.get("fecha_nacimiento") or "").strip()
+    if fecha_nacimiento_raw:
+        set_doc["fecha_nacimiento"] = fecha_nacimiento_raw  # o parseado si usas date
+
+    update = {"$set": set_doc}
+
+    # contacto_emergencia
+    if ce_nombre or ce_telefono:
+        update["$set"]["contacto_emergencia"] = {"nombre": ce_nombre, "telefono": ce_telefono}
+    else:
+        update["$unset"] = {"contacto_emergencia": ""}
+
+    clientes_col.update_one({"_id": oid}, update)
 
     flash("Cliente actualizado.", "success")
     return redirect(url_for("web.admin_clientes"))
@@ -1307,7 +1415,11 @@ def facturacion_nueva_post():
     apellido = (request.form.get("apellido") or "").strip() or None
     telefono = request.form.get("telefono") or None
     fecha_nacimiento_raw = request.form.get("fecha_nacimiento") or None
-
+    
+    nickname = (request.form.get("nickname") or "").strip() or None
+    sexo = (request.form.get("sexo") or "").strip() or None
+    contacto_emergencia_nombre = (request.form.get("contacto_emergencia_nombre") or "").strip() or None
+    contacto_emergencia_numero = (request.form.get("contacto_emergencia_numero") or "").strip() or None
 
     meses_raw = request.form.get("meses") or "1"
     fecha_desde_raw = request.form.get("fecha_desde")
@@ -1324,6 +1436,19 @@ def facturacion_nueva_post():
         except ValueError:
             flash("Fecha de nacimiento inválida.", "danger")
             return redirect(url_for("web.facturacion_nueva"))
+        
+    # sexo permitido: ajusta a tu gusto
+    if sexo and sexo not in ("M", "F", "O"):
+        flash("Sexo inválido (use M, F u O).", "danger")
+        return redirect(url_for("web.facturacion_nueva"))
+
+    # teléfono emergencia: mínimo 7 dígitos (simple)
+    if contacto_emergencia_numero:
+        solo_digitos = "".join(ch for ch in contacto_emergencia_numero if ch.isdigit())
+        if len(solo_digitos) < 7:
+            flash("Número de contacto de emergencia inválido.", "danger")
+            return redirect(url_for("web.facturacion_nueva"))
+
 
 
     try:
@@ -1363,6 +1488,13 @@ def facturacion_nueva_post():
         "email": email,
         "telefono": telefono,
         "fecha_nacimiento": fecha_nacimiento,
+        
+        "nickname": nickname,
+        "sexo": sexo,
+        "contacto_emergencia": {
+            "nombre": contacto_emergencia_nombre,
+            "telefono": contacto_emergencia_numero,
+        },
     }
 
     membresia = {
@@ -1545,6 +1677,7 @@ def admin_publicidad_desactivar(pub_id):
 
 
 
+
 # CAJERO
 @web_bp.get("/cajero")
 @login_required(role="cajero")
@@ -1555,17 +1688,54 @@ def cajero_dashboard():
 
     username = session.get("username")
 
+    generar_notificaciones_cumple(db, para_rol="cajero")
+
+    noti_col = db["notificaciones"]
+    notificaciones = list(
+        noti_col.find({"para_rol": "cajero", "visto": False})
+                .sort([("creado_at", -1)])
+                .limit(50)
+    )
+    noti_count = len(notificaciones)
+
     q = (request.args.get("q") or "").strip()
     desde = (request.args.get("desde") or "").strip()
     hasta = (request.args.get("hasta") or "").strip()
 
-    ventas = listar_ventas_por_cajero(
-        username,
-        limit=20,
-        q=q,
-        fecha_desde=desde,
-        fecha_hasta=hasta,
-    )
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+
+    limit = 20
+    skip = (page - 1) * limit
+
+    has_filters = bool(q or desde or hasta)
+
+    ventas = []
+    total = 0
+    total_pages = 0
+
+    if has_filters:
+        total = contar_ventas_por_cajero(
+            username,
+            q=q,
+            fecha_desde=desde,
+            fecha_hasta=hasta,
+        )
+        total_pages = (total + limit - 1) // limit if total else 0
+        if total_pages and page > total_pages:
+            page = total_pages
+            skip = (page - 1) * limit
+
+        ventas = listar_ventas_por_cajero(
+            username,
+            limit=limit,
+            skip=skip,
+            q=q,
+            fecha_desde=desde,
+            fecha_hasta=hasta,
+        )
 
     resumen_hoy = resumen_ventas_hoy_por_cajero(username)
 
@@ -1581,11 +1751,20 @@ def cajero_dashboard():
     return render_template(
         "dashboard_cajero.html",
         ventas=ventas,
+        total=total,
+        page=page,
+        total_pages=total_pages,
+        limit=limit,
+        has_filters=has_filters,
+
         resumen_hoy=resumen_hoy,
         show_publicidad=True,
         ultima_venta=ultima_venta,
         clientes_por_vencer=clientes_por_vencer,
+
         q=q, desde=desde, hasta=hasta,
+        notificaciones=notificaciones,
+        noti_count=noti_count,
     )
 
 
@@ -1597,12 +1776,57 @@ def cajero_clientes():
     clientes_col = db["clientes"]
     users_col = db["users"]
 
-    # ✅ ahora sacamos TODOS los clientes
-    clientes_docs = list(clientes_col.find({}).sort("nombre", 1))
+    q = (request.args.get("q") or "").strip()
+
+    try:
+        page = max(1, int(request.args.get("page", "1")))
+    except ValueError:
+        page = 1
+
+    limit = 25
+    skip = (page - 1) * limit
+
+    has_filters = bool(q)
+    if not has_filters:
+        return render_template(
+            "cajero_clientes.html",
+            clientes=[],
+            q=q,
+            has_filters=False,
+            page=1,
+            total=0,
+            total_pages=0,
+            limit=limit,
+        )
+
+    regex = {"$regex": q, "$options": "i"}
+
+    user_matches = list(users_col.find({"username": regex}, {"cliente_id": 1, "username": 1, "activo": 1}))
+    clientes_ids_por_username = [u.get("cliente_id") for u in user_matches if u.get("cliente_id")]
+
+    match_clientes = {"$or": [
+        {"nombre": regex},
+        {"apellido": regex},
+        {"telefono": regex},
+    ]}
+
+    if clientes_ids_por_username:
+        match_clientes["$or"].append({"_id": {"$in": clientes_ids_por_username}})
+
+    total = clientes_col.count_documents(match_clientes)
+    total_pages = (total + limit - 1) // limit if total else 0
+    if total_pages and page > total_pages:
+        page = total_pages
+        skip = (page - 1) * limit
+
+    clientes_docs = list(
+        clientes_col.find(match_clientes)
+        .sort("nombre", 1)
+        .skip(skip)
+        .limit(limit)
+    )
 
     clientes = []
-    hoy = date.today()
-
     for cdoc in clientes_docs:
         cid = cdoc["_id"]
 
@@ -1613,19 +1837,26 @@ def cajero_clientes():
             sort=[("fecha", -1)],
             projection={"membresia": 1, "fecha": 1}
         )
-        memb = ultima.get("membresia") if ultima else None
-        fh = _to_date(memb.get("fecha_hasta")) if isinstance(memb, dict) else None
 
         clientes.append({
             "_id": cid,
-            "nombre": cdoc.get("nombre", ""),
-            "apellido": cdoc.get("apellido", ""),
+            "nombre": (cdoc.get("nombre") or "").strip(),
+            "apellido": (cdoc.get("apellido") or "").strip(),
             "telefono": cdoc.get("telefono", ""),
             "username": u.get("username", ""),
             "user_activo": bool(u.get("activo", True)),
         })
 
-    return render_template("cajero_clientes.html", clientes=clientes)
+    return render_template(
+        "cajero_clientes.html",
+        clientes=clientes,
+        q=q,
+        has_filters=True,
+        page=page,
+        total=total,
+        total_pages=total_pages,
+        limit=limit,
+    )
 
 
 
@@ -1670,10 +1901,17 @@ def cajero_cliente_editar_post(cliente_id):
         return redirect(url_for("web.cajero_clientes"))
 
     nombre = (request.form.get("nombre") or "").strip()
+    identificacion = (request.form.get("identificacion") or "").strip()
+
     apellido = (request.form.get("apellido") or "").strip()
     telefono = (request.form.get("telefono") or "").strip()
     email = (request.form.get("email") or "").strip()
-    identificacion = (request.form.get("identificacion") or "").strip()
+
+    nickname = (request.form.get("nickname") or "").strip()
+    sexo = (request.form.get("sexo") or "").strip().upper()
+
+    ce_nombre = (request.form.get("contacto_emergencia_nombre") or "").strip()
+    ce_telefono = (request.form.get("contacto_emergencia_telefono") or "").strip()
 
     activo = (request.form.get("activo") == "on")
 
@@ -1681,16 +1919,36 @@ def cajero_cliente_editar_post(cliente_id):
         flash("El nombre es obligatorio.", "danger")
         return redirect(url_for("web.cajero_cliente_editar", cliente_id=cliente_id))
 
-    clientes_col.update_one(
-        {"_id": oid},
-        {"$set": {
-            "nombre": nombre,
-            "apellido": apellido,
-            "telefono": telefono,
-            "email": email,
-            "identificacion": identificacion,
-        }}
-    )
+    if sexo and sexo not in ("M", "F"):
+        flash("Sexo inválido. Use M o F.", "danger")
+        return redirect(url_for("web.cajero_cliente_editar", cliente_id=cliente_id))
+
+    set_doc = {
+        "nombre": nombre,
+    }
+
+    if apellido:
+        set_doc["apellido"] = apellido
+    if telefono:
+        set_doc["telefono"] = telefono
+    if email:
+        set_doc["email"] = email
+    if identificacion:
+        set_doc["identificacion"] = identificacion
+    if nickname:
+        set_doc["nickname"] = nickname
+    if sexo:
+        set_doc["sexo"] = sexo
+
+    update = {"$set": set_doc}
+
+    if ce_nombre or ce_telefono:
+        update["$set"]["contacto_emergencia"] = {
+            "nombre": ce_nombre,
+            "telefono": ce_telefono
+        }
+
+    clientes_col.update_one({"_id": oid}, update)
 
     users_col.update_one(
         {"cliente_id": oid},
@@ -1700,6 +1958,7 @@ def cajero_cliente_editar_post(cliente_id):
 
     flash("Cliente actualizado.", "success")
     return redirect(url_for("web.cajero_dashboard"))
+
 
 
 
@@ -1808,7 +2067,6 @@ def cajero_renovar():
             cliente = None
             ultima_venta = None
 
-    # calcula estado de membresía para mostrar
     if ultima_venta and isinstance(ultima_venta.get("membresia"), dict):
         m = ultima_venta["membresia"]
         fh = m.get("fecha_hasta")
@@ -1869,7 +2127,6 @@ def cajero_renovar():
     )
     
 def add_months(d: date, months: int) -> date:
-    """Suma meses a una fecha (sin dependencias extrnas)."""
     y = d.year + (d.month - 1 + months) // 12
     m = (d.month - 1 + months) % 12 + 1
     last_day = calendar.monthrange(y, m)[1]
@@ -1911,13 +2168,11 @@ def cajero_renovar_post():
         flash("Meses inválidos.", "danger")
         return redirect(url_for("web.cajero_renovar", cliente_id=cliente_id))
 
-    # --- 1) Cliente ---
     cliente = clientes_col.find_one({"_id": oid})
     if not cliente:
         flash("Cliente no encontrado.", "danger")
         return redirect(url_for("web.cajero_renovar"))
 
-    # --- 2) Obtener última venta/membresía ---
     ultima_venta = ventas_col.find_one(
         {"cliente_id": oid},
         sort=[("fecha", -1)]
@@ -1934,14 +2189,12 @@ def cajero_renovar_post():
 
     hoy = date.today()
 
-    # --- 3) Regla pedida: inicio = fecha_hasta anterior si está activa, sino hoy ---
     f_desde = hoy
     if ultima_venta and isinstance(ultima_venta.get("membresia"), dict):
         fh = to_date(ultima_venta["membresia"].get("fecha_hasta"))
         if fh and fh >= hoy:
-            f_desde = fh  # ✅ tu regla
-            # Si quisieras que empiece al día siguiente:
-            # f_desde = fh + timedelta(days=1)
+            f_desde = fh  
+
 
     f_hasta = add_months(f_desde, meses)
 
@@ -1995,7 +2248,29 @@ def cajero_cliente_password(cliente_id):
 
     return redirect(url_for("web.cajero_clientes"))
 
+@web_bp.post("/cajero/notificaciones/<tipo>/<noti_id>/visto")
+@login_required(role="cajero")
+def cajero_noti_visto(tipo, noti_id):
+    db = extensions.mongo_db
+    noti_col = db["notificaciones"]
 
+    try:
+        oid = ObjectId(noti_id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    now_ec = datetime.now(TZ_EC)
+    cajero_id = _to_oid(session.get("user_id"))
+
+    res = noti_col.update_one(
+        {"_id": oid, "para_rol": "cajero"},  
+        {"$set": {"visto": True, "visto_at": now_ec, "visto_por": cajero_id, "tipo": tipo}},
+    )
+
+    if res.matched_count == 0:
+        return jsonify(ok=False, error="Notificación no encontrada"), 404
+
+    return jsonify(ok=True)
 
 @web_bp.get("/staff/slot-reservas")
 @login_required()
@@ -2093,14 +2368,35 @@ def staff_cancelar_reserva(reserva_id):
 @web_bp.get("/entrenador")
 @login_required(role="entrenador")
 def entrenador_dashboard():
+    db = extensions.mongo_db
     users = get_users_collection()
+
     entrenador = users.find_one({"username": session.get("username"), "role": "entrenador"})
     if not entrenador:
         flash("Entrenador no encontrado.", "danger")
         return redirect(url_for("web.logout"))
 
-    # ✅ SOLO hoy + ORDENADO (más reciente primero)
     ahora_local, clases_hoy, tz = obtener_clases_hoy_entrenador(entrenador["_id"])
+
+    noti_col = db["notificaciones"]
+    entrenador_user_id = ObjectId(session["user_id"])
+
+    generar_notificaciones_cumple(
+        db,
+        para_rol="entrenador",
+        para_user_id=entrenador_user_id,
+        entrenador_id=entrenador_user_id,
+    )
+
+    notificaciones = list(
+        noti_col.find({
+            "para_rol": "entrenador",
+            "para_user_id": entrenador_user_id,
+            "visto": False
+        }).sort([("creado_at", -1)]).limit(50)
+    )
+
+    noti_count = len(notificaciones)
 
     return render_template(
         "dashboard_entrenador.html",
@@ -2110,7 +2406,40 @@ def entrenador_dashboard():
         clases_hoy=clases_hoy,
         tz=tz,
         activate="entrenador_dashboard",
+
+        # ✅ pásalas al HTML
+        notificaciones=notificaciones,
+        noti_count=noti_count,
     )
+@web_bp.post("/entrenador/notificaciones/<tipo>/<noti_id>/visto")
+@login_required(role="entrenador")
+def entrenador_noti_visto(tipo, noti_id):
+    db = extensions.mongo_db
+    noti_col = db["notificaciones"]
+
+    try:
+        oid = ObjectId(noti_id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    now_ec = datetime.now(TZ_EC)
+    user_id = ObjectId(session["user_id"])
+
+    res = noti_col.update_one(
+        {
+            "_id": oid,
+            "para_rol": "entrenador",
+            "para_user_id": user_id,
+            "tipo": tipo,
+        },
+        {"$set": {"visto": True, "visto_at": now_ec, "visto_por": user_id}},
+    )
+
+    if res.matched_count == 0:
+        return jsonify(ok=False, error="Notificación no encontrada"), 404
+
+    return jsonify(ok=True)
+
 
 
 @web_bp.get("/entrenador/slot-alumnos")
@@ -2261,71 +2590,215 @@ def entrenador_configuracion_password():
 
 @web_bp.get("/entrenador/alumnos")
 @login_required(role="entrenador")
-def entrenador_mis_alumnos():
+def entrenador_alumnos():
     db = extensions.mongo_db
     if db is None:
         raise RuntimeError("mongo_db no está inicializado.")
 
     reservas_col = db["reservas"]
-    plan_col = db["planificaciones"]
+    clientes_col = db["clientes"]
 
+    # --- entrenador ---
     try:
         entrenador_oid = ObjectId(session["user_id"])
     except Exception:
         flash("Entrenador inválido.", "danger")
         return redirect(url_for("web.logout"))
 
-    # ✅ Alumnos = clientes que tienen al menos 1 reserva con este entrenador
-    pipeline = [
-        {"$match": {"entrenador_id": entrenador_oid, "estado": {"$ne": "cancelada"}}},
-        {"$group": {"_id": "$cliente_id", "total_reservas": {"$sum": 1}}},
-        {"$lookup": {
-            "from": "clientes",
-            "localField": "_id",
-            "foreignField": "_id",
-            "as": "cliente"
-        }},
-        {"$unwind": {"path": "$cliente", "preserveNullAndEmptyArrays": True}},
+    # --- scope ---
+    scope = (request.args.get("scope") or "mine").strip().lower()
+    if scope not in ("mine", "all"):
+        scope = "mine"
 
-        # ✅ Traer planificación (como es 1 por alumno, trae 0 o 1)
-        {"$lookup": {
-            "from": "planificaciones",
-            "let": {"cid": "$_id"},
-            "pipeline": [
-                {"$match": {"$expr": {"$and": [
-                    {"$eq": ["$cliente_id", "$$cid"]},
-                    {"$eq": ["$entrenador_id", entrenador_oid]},
-                ]}}},
-                {"$project": {"filename": 1, "bytes": 1, "updated_at": 1, "creado": 1}},
-            ],
-            "as": "plan"
-        }},
-        {"$addFields": {"plan": {"$arrayElemAt": ["$plan", 0]}}},
-        {"$project": {
-            "_id": 1,
-            "total_reservas": 1,
-            "nombre": {"$ifNull": ["$cliente.nombre", ""]},
-            "apellido": {"$ifNull": ["$cliente.apellido", ""]},
-            "telefono": {"$ifNull": ["$cliente.telefono", ""]},
-            "plan_id": {"$toString": "$plan._id"},
-            "plan_filename": "$plan.filename",
-            "plan_bytes": "$plan.bytes",
-            "plan_updated_at": {"$ifNull": ["$plan.updated_at", "$plan.creado"]},
-        }},
-        {"$sort": {"apellido": 1, "nombre": 1}},
-    ]
+    # --- filtro ---
+    q = (request.args.get("q") or "").strip()
 
-    alumnos = list(reservas_col.aggregate(pipeline))
+    # --- paginación ---
+    page_qs = request.args.get("page", "1")
+    try:
+        page = max(1, int(page_qs))
+    except ValueError:
+        page = 1
 
-    # Normaliza plan_id (si no existe, queda None)
-    for a in alumnos:
-        if not a.get("plan_filename"):
-            a["plan_id"] = None
+    limit = 25
+    skip = (page - 1) * limit
+
+    # ✅ primero filtra (si no hay q, no consultes ni muestres)
+    has_filters = bool(q)
+    if not has_filters:
+        return render_template(
+            "alumnos.html",
+            alumnos=[],
+            scope=scope,
+            q=q,
+            has_filters=False,
+            page=1,
+            total=0,
+            total_pages=0,
+            limit=limit,
+        )
+
+    rx = re.escape(q)
+
+    # =========================
+    # MIS ALUMNOS (con reservas)
+    # =========================
+    if scope == "mine":
+        pipeline_base = [
+            {"$match": {"entrenador_id": entrenador_oid, "estado": {"$ne": "cancelada"}}},
+            {"$group": {"_id": "$cliente_id", "total_reservas": {"$sum": 1}}},
+            {"$lookup": {
+                "from": "clientes",
+                "localField": "_id",
+                "foreignField": "_id",
+                "as": "cliente"
+            }},
+            {"$unwind": {"path": "$cliente", "preserveNullAndEmptyArrays": True}},
+            {"$match": {"cliente": {"$ne": None}}},
+            {"$match": {"$or": [
+                {"cliente.nombre": {"$regex": rx, "$options": "i"}},
+                {"cliente.apellido": {"$regex": rx, "$options": "i"}},
+                {"cliente.identificacion": {"$regex": rx, "$options": "i"}},
+                {"cliente.telefono": {"$regex": rx, "$options": "i"}},
+            ]}},
+        ]
+
+        # ✅ total (alumnos únicos)
+        total_res = list(reservas_col.aggregate(pipeline_base + [{"$count": "total"}]))
+        total = total_res[0]["total"] if total_res else 0
+        total_pages = (total + limit - 1) // limit if total else 0
+
+        if total_pages and page > total_pages:
+            page = total_pages
+            skip = (page - 1) * limit
+
+        pipeline_data = pipeline_base + [
+            {"$lookup": {
+                "from": "planificaciones",
+                "let": {"cid": "$_id"},
+                "pipeline": [
+                    {"$match": {"$expr": {"$and": [
+                        {"$eq": ["$cliente_id", "$$cid"]},
+                    ]}}},
+                    {"$sort": {"updated_at": -1, "creado": -1}},
+                    {"$limit": 1},
+                    {"$project": {"filename": 1, "bytes": 1, "updated_at": 1, "creado": 1}},
+                ],
+                "as": "plan"
+            }},
+            {"$addFields": {"plan": {"$arrayElemAt": ["$plan", 0]}}},
+            {"$project": {
+                "_id": {"$toString": "$_id"},
+                "total_reservas": 1,
+                "nombre": {"$ifNull": ["$cliente.nombre", ""]},
+                "apellido": {"$ifNull": ["$cliente.apellido", ""]},
+                "telefono": {"$ifNull": ["$cliente.telefono", ""]},
+                "identificacion": {"$ifNull": ["$cliente.identificacion", ""]},
+
+                "plan_id": {"$cond": [
+                    {"$ifNull": ["$plan._id", False]},
+                    {"$toString": "$plan._id"},
+                    None
+                ]},
+                "plan_filename": "$plan.filename",
+                "plan_bytes": "$plan.bytes",
+                "plan_updated_at": {"$ifNull": ["$plan.updated_at", "$plan.creado"]},
+            }},
+            {"$sort": {"apellido": 1, "nombre": 1}},
+            {"$skip": int(skip)},
+            {"$limit": int(limit)},
+        ]
+
+        alumnos = list(reservas_col.aggregate(pipeline_data))
+
+    # =========================
+    # TODOS (clientes del sistema)
+    # =========================
+    else:
+        cliente_match = {"$or": [
+            {"nombre": {"$regex": rx, "$options": "i"}},
+            {"apellido": {"$regex": rx, "$options": "i"}},
+            {"identificacion": {"$regex": rx, "$options": "i"}},
+            {"telefono": {"$regex": rx, "$options": "i"}},
+        ]}
+
+        pipeline_base = [
+            {"$match": cliente_match},
+            {"$lookup": {
+                "from": "reservas",
+                "let": {"cid": "$_id"},
+                "pipeline": [
+                    {"$match": {"$expr": {"$and": [
+                        {"$eq": ["$cliente_id", "$$cid"]},
+                        {"$ne": ["$estado", "cancelada"]},
+                    ]}}},
+                    {"$count": "n"}
+                ],
+                "as": "r"
+            }},
+            {"$addFields": {
+                "total_reservas": {"$ifNull": [{"$arrayElemAt": ["$r.n", 0]}, 0]}
+            }},
+        ]
+
+        # ✅ total clientes filtrados
+        total_res = list(clientes_col.aggregate(pipeline_base + [{"$count": "total"}]))
+        total = total_res[0]["total"] if total_res else 0
+        total_pages = (total + limit - 1) // limit if total else 0
+
+        if total_pages and page > total_pages:
+            page = total_pages
+            skip = (page - 1) * limit
+
+        pipeline_data = pipeline_base + [
+            {"$lookup": {
+                "from": "planificaciones",
+                "let": {"cid": "$_id"},
+                "pipeline": [
+                    {"$match": {"$expr": {"$and": [
+                        {"$eq": ["$cliente_id", "$$cid"]},
+                    ]}}},
+                    {"$sort": {"updated_at": -1, "creado": -1}},
+                    {"$limit": 1},
+                    {"$project": {"filename": 1, "bytes": 1, "updated_at": 1, "creado": 1}},
+                ],
+                "as": "plan"
+            }},
+            {"$addFields": {"plan": {"$arrayElemAt": ["$plan", 0]}}},
+            {"$project": {
+                "_id": {"$toString": "$_id"},
+                "nombre": {"$ifNull": ["$nombre", ""]},
+                "apellido": {"$ifNull": ["$apellido", ""]},
+                "telefono": {"$ifNull": ["$telefono", ""]},
+                "identificacion": {"$ifNull": ["$identificacion", ""]},
+                "total_reservas": 1,
+
+                "plan_id": {"$cond": [
+                    {"$ifNull": ["$plan._id", False]},
+                    {"$toString": "$plan._id"},
+                    None
+                ]},
+                "plan_filename": "$plan.filename",
+                "plan_bytes": "$plan.bytes",
+                "plan_updated_at": {"$ifNull": ["$plan.updated_at", "$plan.creado"]},
+            }},
+            {"$sort": {"apellido": 1, "nombre": 1}},
+            {"$skip": int(skip)},
+            {"$limit": int(limit)},
+        ]
+
+        alumnos = list(clientes_col.aggregate(pipeline_data))
 
     return render_template(
         "alumnos.html",
         alumnos=alumnos,
-        active="entrenador_mis_alumnos",
+        scope=scope,
+        q=q,
+        has_filters=True,
+        page=page,
+        total=total,
+        total_pages=total_pages,
+        limit=limit,
     )
 
 @web_bp.get("/entrenador/alumnos/<cliente_id>")
@@ -2345,28 +2818,27 @@ def entrenador_alumno_detalle(cliente_id):
         cliente_oid = ObjectId(cliente_id)
     except Exception:
         flash("ID inválido.", "danger")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
 
-    # ✅ seguridad: debe ser su alumno (tiene reservas con él)
-    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
-        flash("Ese alumno no pertenece a tu agenda.", "warning")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
 
     alumno = clientes_col.find_one({"_id": cliente_oid}, {"nombre": 1, "apellido": 1, "telefono": 1, "email": 1})
     if not alumno:
         flash("Alumno no encontrado.", "danger")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
+
 
     plan = plan_col.find_one(
-        {"entrenador_id": entrenador_oid, "cliente_id": cliente_oid},
-        projection={"filename": 1, "bytes": 1, "images": 1, "updated_at": 1, "creado": 1}
+        {"cliente_id": cliente_oid},
+        sort=[("updated_at", -1), ("creado", -1)],
+        projection={"filename": 1, "bytes": 1, "images": 1, "updated_at": 1, "creado": 1, "entrenador_id": 1}
     )
+
     
     medidas_col = db["progreso_medidas"]
 
     medidas = list(
         medidas_col.find(
-            {"cliente_id": cliente_oid, "entrenador_id": entrenador_oid},
+            {"cliente_id": cliente_oid},
             projection={"fecha": 1, "peso_kg": 1, "grasa_pct": 1, "musculo_pct": 1}
         ).sort("fecha", 1).limit(60)
     )
@@ -2391,7 +2863,7 @@ def entrenador_alumno_detalle(cliente_id):
         fotos_progreso=fotos_progreso,
         kpi_prev=prev,
         chart_json=chart_json,
-        active="entrenador_mis_alumnos",
+        active="entrenador_alumnos",
     )
 
 @web_bp.post("/entrenador/alumno/<cliente_id>/medidas")
@@ -2408,23 +2880,16 @@ def entrenador_medidas_crear(cliente_id):
         cliente_oid = ObjectId(cliente_id)
     except Exception:
         flash("ID inválido.", "danger")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
 
-    # seguridad: alumno pertenece al entrenador
-    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
-        flash("Ese alumno no pertenece a tu agenda.", "warning")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
 
-    # valores
     fecha_raw = (request.form.get("fecha") or "").strip()
     peso_raw = request.form.get("peso_kg")
     grasa_raw = request.form.get("grasa_pct")
     musculo_raw = request.form.get("musculo_pct")
 
-    # fecha (opcional) -> si no viene, hoy UTC
     if fecha_raw:
         try:
-            # input type="date" => YYYY-MM-DD
             fecha_dt = datetime.strptime(fecha_raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
             flash("Fecha inválida.", "danger")
@@ -2447,6 +2912,7 @@ def entrenador_medidas_crear(cliente_id):
         "peso_kg": float(peso),
         "grasa_pct": float(grasa),
         "musculo_pct": float(musculo),
+        "entrenador_id": entrenador_oid
     })
 
     flash("Medición guardada.", "success")
@@ -2465,10 +2931,6 @@ def entrenador_progreso_ver_foto(cliente_id, foto_id):
         fid = ObjectId(foto_id)
     except Exception:
         abort(400)
-
-    # ✅ seguridad: solo si el alumno pertenece al entrenador
-    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
-        abort(403)
 
     doc = fotos_col.find_one({"_id": fid})
     if not doc:
@@ -2530,12 +2992,8 @@ def entrenador_progreso_eliminar_foto(cliente_id, foto_id):
         fid = ObjectId(foto_id)
     except Exception:
         flash("ID inválido.", "danger")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
 
-    # ✅ seguridad: solo si el alumno pertenece al entrenador
-    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
-        flash("Ese alumno no pertenece a tu agenda.", "warning")
-        return redirect(url_for("web.entrenador_mis_alumnos"))
 
     doc = fotos_col.find_one({"_id": fid})
     if not doc:
@@ -2566,6 +3024,47 @@ def entrenador_progreso_eliminar_foto(cliente_id, foto_id):
 
     flash("Foto eliminada.", "success")
     return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+
+@web_bp.post("/entrenador/alumno/<cliente_id>/mensaje")
+@login_required(role="entrenador")
+def entrenador_enviar_mensaje(cliente_id):
+    db = extensions.mongo_db
+    if db is None:
+        return jsonify(ok=False, error="mongo_db no inicializado"), 500
+
+    noti_col = db["notificaciones"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    # ✅ leer JSON (compat con fetch)
+    payload = request.get_json(silent=True) or {}
+    mensaje = (payload.get("mensaje") or "").strip()
+
+    if not mensaje:
+        return jsonify(ok=False, error="Escribe un mensaje."), 400
+
+    if len(mensaje) > 180:
+        mensaje = mensaje[:180]
+
+    noti_col.insert_one({
+        "tipo": "mensaje_entrenador",
+        "para_rol": "cliente",
+        "para_user_id": cliente_oid,
+        "de_rol": "entrenador",
+        "de_user_id": entrenador_oid,
+        "mensaje": mensaje,
+        "visto": False,
+        # si quieres hora Ecuador: usa TZ_EC; si no, UTC está bien
+        "creado_at": datetime.now(timezone.utc),
+    })
+
+    return jsonify(ok=True)
+
 
 # Cliente
 
@@ -2638,7 +3137,7 @@ def cliente_dashboard():
     ventas_col = db["ventas"]
     reservas_col = db["reservas"]
     noti_col = db["notificaciones"]
-    users_col = db["users"]  # ✅ NUEVO (para mostrar entrenador)
+    users_col = db["users"] 
     plan_col = db["planificaciones"]
 
     user_id = session.get("user_id")
@@ -2654,19 +3153,22 @@ def cliente_dashboard():
     )
 
 
-    # --- cliente perfil ---
     cliente = clientes_col.find_one({"_id": cliente_id})
 
-    # --- última venta => membresía actual ---
     venta = ventas_col.find_one({"cliente_id": cliente_id}, sort=[("fecha", -1)])
     membresia = (venta or {}).get("membresia") if venta else None
+    
+    
+    cumple_hoy = es_cumple_hoy(cliente.get("fecha_nacimiento") if cliente else None)
+    cumple_img = url_for("static", filename="images/cumpleanos_core.png")
+
 
     from zoneinfo import ZoneInfo
     TZ_EC = ZoneInfo("America/Guayaquil")
 
     estado_membresia = "Sin membresía"
     dias_restantes = None
-    alertas_membresia = []  # ✅ SIEMPRE inicializado
+    alertas_membresia = [] 
 
     ahora_utc = datetime.now(timezone.utc)
     hoy_ec = ahora_utc.astimezone(TZ_EC).date()
@@ -2677,22 +3179,19 @@ def cliente_dashboard():
     if membresia and membresia.get("fecha_hasta"):
         fh = membresia.get("fecha_hasta")
 
-        # ✅ normalizar fh (Mongo a veces devuelve naive)
         if isinstance(fh, datetime) and fh.tzinfo is None:
             fh = fh.replace(tzinfo=timezone.utc)
 
         fh_ec_date = fh.astimezone(TZ_EC).date()
 
-        # ✅ cálculo POR FECHA (no por horas)
         dias_restantes = (fh_ec_date - hoy_ec).days
 
         if dias_restantes >= 0:
             estado_membresia = "Activa"
         else:
             estado_membresia = "Vencida"
-            dias_restantes = None  # ✅ no mostrar días si ya venció
+            dias_restantes = None  
 
-            # ✅ Cerrar notificaciones activas de membresía para que NO sigan saliendo
             noti_col.update_many(
                 {
                     "cliente_id": cliente_id,
@@ -2702,7 +3201,6 @@ def cliente_dashboard():
                 {"$set": {"estado": "cerrada", "cerrada": ahora_utc}}
             )
 
-            # ✅ Mostrar una alerta útil (renovar)
             alertas_membresia = ["Tu membresía está vencida. Renueva para mantener el acceso."]
 
     def _push_noti(tipo: str, mensaje: str, fh_dt: datetime):
@@ -2723,9 +3221,7 @@ def cliente_dashboard():
             })
         alertas_membresia.append(mensaje)
 
-    # ✅ ALERTA "dinámica" (SIEMPRE que falten pocos días)
     if estado_membresia == "Activa" and dias_restantes is not None and fh is not None:
-        # 1) Mensaje visible aunque NO haya notificación guardada
         if 0 <= dias_restantes <= 5:
             if dias_restantes == 0:
                 alertas_membresia.append("⚠️ Tu membresía vence HOY. Renueva para no perder el acceso.")
@@ -2736,7 +3232,6 @@ def cliente_dashboard():
             else:
                 alertas_membresia.append(f"Tu membresía vence en {dias_restantes} días. Recuerda renovarla para no perder el acceso.")
 
-        # 2) Notificación "persistente" (solo se guarda 1 vez en BD)
         if dias_restantes == 5:
             _push_noti(
                 "membresia_5_dias",
@@ -2750,7 +3245,6 @@ def cliente_dashboard():
                 fh
             )
 
-    # ✅ Si no hay alerta dinámica, recién ahí carga notis activas guardadas
     if estado_membresia == "Activa" and not alertas_membresia:
         docs_noti = list(
             noti_col.find(
@@ -2765,21 +3259,19 @@ def cliente_dashboard():
         alertas_membresia = [n.get("mensaje") for n in docs_noti if n.get("mensaje")]
 
 
-    # --- reservas del cliente ---
     reservas = list(
         reservas_col.find(
             {"cliente_id": cliente_id, "estado": "confirmada"},
             {
                 "slot_id": 1,
-                "entrenador_id": 1,  # ✅ NUEVO
-                "entrenador": 1,     # ✅ compatibilidad (si tienes reservas viejas)
-                "entrenador_username": 1,  # ✅ si lo guardaste opcionalmente
+                "entrenador_id": 1,  
+                "entrenador": 1,     
+                "entrenador_username": 1,  
                 "creado": 1
             }
         ).sort("slot_id", 1).limit(30)
     )
 
-    # ✅ Mapa entrenador_id => username (para pintar el nombre)
     entrenador_ids = []
     for r in reservas:
         eid = r.get("entrenador_id")
@@ -2812,7 +3304,6 @@ def cliente_dashboard():
         except ValueError:
             dt_slot = None
 
-        # ✅ entrenador visible
         entrenador_nombre = "-"
         if r.get("entrenador_username"):
             entrenador_nombre = r.get("entrenador_username")
@@ -2823,7 +3314,6 @@ def cliente_dashboard():
             elif isinstance(eid, str):
                 entrenador_nombre = entrenador_map.get(eid, "-")
             else:
-                # compatibilidad con reservas viejas que guardaban "entrenador": "username"
                 entrenador_nombre = r.get("entrenador") or "-"
 
         clases.append({
@@ -2832,7 +3322,7 @@ def cliente_dashboard():
             "fecha_txt": fecha_txt,
             "hora": hhmm,
             "dt": dt_slot,
-            "entrenador": entrenador_nombre,  # ✅ ya listo para el template
+            "entrenador": entrenador_nombre,  
             "es_proxima": (dt_slot is not None and dt_slot >= ahora),
         })
 
@@ -2842,20 +3332,48 @@ def cliente_dashboard():
     manana = datetime.now(TZ_EC).date() + timedelta(days=1)
     manana_key = manana.isoformat()
 
-    # busca reserva confirmada de mañana del cliente
     reserva_manana = reservas_col.find_one(
         {
             "cliente_id": cliente_id,
             "estado": "confirmada",
-            # si tu fecha es string "YYYY-MM-DD"
             "fecha": manana_key,
-            # si tu fecha fuera ISODate, dímelo y te lo ajusto
         },
         {"_id": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1, "no_asistire": 1}
     )
 
-    # bandera para mostrar botón
     puede_no_asistir = bool(reserva_manana) and not bool((reserva_manana or {}).get("no_asistire"))
+
+
+    noti_col = db["notificaciones"]
+    cliente_oid = ObjectId(session["user_id"])
+
+    docs = list(
+        noti_col.find(
+            {
+                "para_rol": "cliente",
+                "para_user_id": cliente_oid,
+                "tipo": "mensaje_entrenador",
+                "visto": False
+            },
+            {"mensaje": 1, "de_user_id": 1, "creado_at": 1}
+        ).sort([("creado_at", -1)]).limit(5)
+    )
+
+    mensajes_toast = []
+    for d in docs:
+        creado = d.get("creado_at")
+        if isinstance(creado, datetime):
+            creado_txt = creado.astimezone(TZ_EC).strftime("%d/%m/%Y %H:%M")
+        else:
+            creado_txt = ""
+
+        mensajes_toast.append({
+            "id": str(d["_id"]),                      # ✅ string
+            "mensaje": (d.get("mensaje") or "").strip(),
+            "de_user_id": str(d.get("de_user_id")) if d.get("de_user_id") else None,  # ✅ string
+            "creado_at": creado_txt,                  # ✅ string
+        })
+
     
 
     return render_template(
@@ -2870,9 +3388,15 @@ def cliente_dashboard():
         reserva_manana=reserva_manana,
         puede_no_asistir=puede_no_asistir,
         manana_key=manana_key,
+        
+        cumple_hoy=cumple_hoy,
+        cumple_img=cumple_img,
 
         clases_pasadas=clases_pas,
         plan_actual=plan_actual,
+        
+        mensajes_toast=mensajes_toast
+
     )
 
 @web_bp.post("/cliente/no_podre_asistir_manana")
@@ -2896,34 +3420,33 @@ def cliente_no_podre_asistir_manana():
     from datetime import datetime, timedelta
     TZ_EC = ZoneInfo("America/Guayaquil")
 
-    manana = datetime.now(TZ_EC).date() + timedelta(days=1)
+    now_ec = datetime.now(TZ_EC)
+    manana = now_ec.date() + timedelta(days=1)
     manana_key = manana.isoformat()
 
-    # 1) busco la reserva de mañana
-    reserva = reservas_col.find_one(
+    reservas = list(reservas_col.find(
         {"cliente_id": cliente_id, "estado": "confirmada", "fecha": manana_key},
-        {"_id": 1, "no_asistire": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1}
-    )
+        {"_id": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1}
+    ))
 
-    if not reserva:
+    if not reservas:
         flash("No tienes una reserva confirmada para mañana.", "warning")
-        return redirect(url_for("web.cliente_dashboard"))
+        return redirect(url_for("web.horarios_publico", view="week", fecha=manana_key))
 
-    if reserva.get("no_asistire") is True:
-        flash("Ya marcaste que no podrás asistir mañana.", "info")
-        return redirect(url_for("web.cliente_dashboard"))
+    ids = [r["_id"] for r in reservas]
 
-    # 2) marco la reserva
-    now_ec = datetime.now(TZ_EC)
-    reservas_col.update_one(
-        {"_id": reserva["_id"]},
+    reservas_col.update_many(
+        {"_id": {"$in": ids}, "estado": "confirmada"},
         {"$set": {
+            "estado": "cancelada",
+            "cancelada": True,
+            "cancelada_at": now_ec,
+            "cancelada_por": "cliente_no_asistire_manana",
             "no_asistire": True,
-            "no_asistire_at": now_ec
+            "no_asistire_at": now_ec,
         }}
     )
 
-    # 3) creo notificación para admin
     cli = clientes_col.find_one({"_id": cliente_id}, {"nombre": 1, "apellido": 1, "identificacion": 1})
     nombre = ((cli or {}).get("nombre") or "")
     apellido = ((cli or {}).get("apellido") or "")
@@ -2932,17 +3455,20 @@ def cliente_no_podre_asistir_manana():
 
     noti_col.insert_one({
         "tipo": "no_asistire",
-        "rol_destino": "admin",                # para que admin lo vea
+        "rol_destino": "admin",
         "cliente_id": cliente_id,
-        "reserva_id": reserva["_id"],
         "fecha": manana_key,
-        "mensaje": f"{nombre_full} ({ident}) no podrá asistir mañana a su clase.",
+        "mensaje": f"{nombre_full} ({ident}) canceló su(s) reserva(s) de mañana. Total: {len(ids)}",
         "leido": False,
         "created_at": now_ec,
+        "meta": {
+            "reserva_ids": ids,
+        }
     })
 
-    flash("Listo. Se notificó al administrador que no podrás asistir mañana.", "success")
-    return redirect(url_for("web.cliente_dashboard"))
+    flash("Listo. Se canceló tu(s) reserva(s) de mañana y se notificó al administrador.", "success")
+    return redirect(url_for("web.horarios_publico", view="week", fecha=manana_key))
+
 
 @web_bp.get("/cliente/config")
 @login_required(role="cliente")
@@ -2997,30 +3523,32 @@ def cliente_config_post():
 
     cliente_id = ObjectId(session["user_id"])
 
-    # Confirmar que existe
     cliente = clientes_col.find_one({"_id": cliente_id})
     if not cliente:
         flash("No se encontró tu perfil.", "danger")
         return redirect(url_for("web.cliente_dashboard"))
 
-    # ---- leer campos permitidos ----
     identificacion = (request.form.get("identificacion") or "").strip()
     nombre = (request.form.get("nombre") or "").strip()
     apellido = (request.form.get("apellido") or "").strip()
     email = (request.form.get("email") or "").strip()
     telefono = (request.form.get("telefono") or "").strip()
-    fecha_nacimiento_raw = (request.form.get("fecha_nacimiento") or "").strip()  # "YYYY-MM-DD" o ""
+
+    nickname = (request.form.get("nickname") or "").strip()
+    sexo = (request.form.get("sexo") or "").strip()  
+
+    contacto_emergencia_nombre = (request.form.get("contacto_emergencia_nombre") or "").strip()
+    contacto_emergencia_numero = (request.form.get("contacto_emergencia_numero") or "").strip()
+
+    fecha_nacimiento_raw = (request.form.get("fecha_nacimiento") or "").strip()  
     fecha_nacimiento_dt = None
     if fecha_nacimiento_raw:
         try:
-            # guardamos como ISODate (datetime) en UTC
             fecha_nacimiento_dt = datetime.strptime(fecha_nacimiento_raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
         except ValueError:
             flash("Fecha de nacimiento inválida.", "danger")
             return redirect(url_for("web.cliente_config"))
 
-
-    # ---- validaciones mínimas ----
     if not identificacion:
         flash("La identificación es obligatoria.", "danger")
         return redirect(url_for("web.cliente_config"))
@@ -3029,12 +3557,20 @@ def cliente_config_post():
         flash("El nombre es obligatorio.", "danger")
         return redirect(url_for("web.cliente_config"))
 
-    # Email opcional, pero si viene, validar formato
     if email and not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
         flash("Email inválido.", "danger")
         return redirect(url_for("web.cliente_config"))
 
-    # Evitar duplicar identificación con otro cliente
+    if sexo and sexo not in ("M", "F", "O"):
+        flash("Sexo inválido.", "danger")
+        return redirect(url_for("web.cliente_config"))
+
+    if contacto_emergencia_numero:
+        solo_digitos = "".join(ch for ch in contacto_emergencia_numero if ch.isdigit())
+        if len(solo_digitos) < 7:
+            flash("Número de contacto de emergencia inválido.", "danger")
+            return redirect(url_for("web.cliente_config"))
+
     existe_otro = clientes_col.find_one(
         {"identificacion": identificacion, "_id": {"$ne": cliente_id}},
         {"_id": 1}
@@ -3043,18 +3579,23 @@ def cliente_config_post():
         flash("Ya existe otro cliente con esa identificación.", "danger")
         return redirect(url_for("web.cliente_config"))
 
-    # ---- update cliente ----
     update_cliente = {
         "identificacion": identificacion,
         "nombre": nombre,
         "apellido": apellido or None,
         "email": email or None,
         "telefono": telefono or None,
-        "fecha_nacimiento": fecha_nacimiento_dt, 
+        "fecha_nacimiento": fecha_nacimiento_dt,
+
+        "nickname": nickname or None,
+        "sexo": sexo or None,
+        "contacto_emergencia": {
+            "nombre": contacto_emergencia_nombre or None,
+            "telefono": contacto_emergencia_numero or None,
+        },
     }
 
     clientes_col.update_one({"_id": cliente_id}, {"$set": update_cliente})
-
 
     users_col.update_one(
         {"cliente_id": cliente_id},
@@ -3064,6 +3605,7 @@ def cliente_config_post():
 
     flash("Datos actualizados correctamente.", "success")
     return redirect(url_for("web.cliente_dashboard"))
+
 
 
 @web_bp.get("/cliente/progreso")
@@ -3274,15 +3816,78 @@ def cliente_progreso_eliminar_foto(foto_id):
         if os.path.exists(abs_path):
             safe_delete_or_quarantine(abs_path)
 
-    # borrar doc en mongo
     fotos_col.delete_one({"_id": fid})
 
     flash("Foto eliminada.", "success")
     return redirect(url_for("web.cliente_progreso"))
 
 
+def regenerar_semana_actual(semanas_col, cfg, intervalo_minutos, cupo_maximo):
+    today_ec = datetime.now(TZ_EC).date()
+    start = today_ec - timedelta(days=today_ec.weekday())  
+    week_id = start.isoformat()
+    week_dates = [start + timedelta(days=i) for i in range(7)]
+
+    weekday_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+
+    days_arr = []
+    for wd in week_dates:
+        fecha_key = wd.isoformat()
+        day_key = weekday_map[wd.weekday()]
+        day_cfg = (cfg.get("dias") or {}).get(day_key, {"activo": False, "plantilla_id": None})
+
+        bloques = resolver_bloques_del_dia(day_cfg)
+        cupo_dia = int(day_cfg.get("cupo_maximo", cupo_maximo))
+
+        slots = construir_slots_para_fecha(wd, bloques, intervalo_minutos, cupo_dia)
+
+        for s in slots:
+            if "key" not in s:
+                s["key"] = s["inicio"].strftime("%H:%M")
+            if "cupo_maximo" not in s:
+                s["cupo_maximo"] = int(cupo_dia)
+            if "cupo_restante" not in s:
+                s["cupo_restante"] = int(s["cupo_maximo"])
+
+        days_arr.append({"date": fecha_key, "dow": day_key, "slots": slots})
+
+    semanas_col.update_one(
+        {"_id": week_id},
+        {"$set": {"week_start": week_id, "days": days_arr}},
+        upsert=True
+    )
+    
+@web_bp.post("/cliente/notificaciones/<noti_id>/visto")
+@login_required(role="cliente")
+def cliente_noti_visto(noti_id):
+    db = extensions.mongo_db
+    noti_col = db["notificaciones"]
+
+    try:
+        oid = ObjectId(noti_id)
+        cliente_oid = ObjectId(session["user_id"])
+    except Exception:
+        return jsonify(ok=False, error="ID inválido"), 400
+
+    res = noti_col.update_one(
+        {
+            "_id": oid,
+            "para_rol": "cliente",
+            "para_user_id": cliente_oid,
+        },
+        {"$set": {"visto": True, "visto_at": datetime.now(timezone.utc)}}
+    )
+
+    if res.matched_count == 0:
+        return jsonify(ok=False, error="No encontrada"), 404
+
+    return jsonify(ok=True)
+
+    
+
 
 # Horarios Semanales
+
 @web_bp.get("/horarios")
 @login_required()
 def horarios_publico():
@@ -3297,20 +3902,31 @@ def horarios_publico():
 
     view = request.args.get("view", "week")
     fecha_raw = request.args.get("fecha")
+    
+    today_ec = datetime.now(TZ_EC).date()
+    
+    manana_key = (datetime.now(TZ_EC).date() + timedelta(days=1)).isoformat()
+
+    tiene_reserva_manana = False
+    if session.get("user_role") == "cliente" and session.get("user_id"):
+        tiene_reserva_manana = reservas_col.count_documents({
+            "cliente_id": ObjectId(session["user_id"]),
+            "estado": "confirmada",
+            "fecha": manana_key
+        }) > 0
 
     try:
-        d = datetime.strptime(fecha_raw, "%Y-%m-%d").date() if fecha_raw else date.today()
+        d = datetime.strptime(fecha_raw, "%Y-%m-%d").date() if fecha_raw else today_ec
     except ValueError:
-        d = date.today()
+        d = today_ec
 
-    # ✅ helper: inicio de semana (lunes)
     def week_start(dt_date: date) -> date:
         return dt_date - timedelta(days=dt_date.weekday())
 
     if view != "week":
         view = "week"
 
-    start = week_start(d)  # lunes
+    start = week_start(d)  
     week_dates = [start + timedelta(days=i) for i in range(7)]
     prev_date = start - timedelta(days=7)
     next_date = start + timedelta(days=7)
@@ -3321,12 +3937,14 @@ def horarios_publico():
 
     weekday_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
 
-    # ✅ entrenadores para el modal (solo aplica para cliente/admin)
     entrenadores = list(
-        users_col.find({"role": "entrenador", "activo": True}, {"username": 1}).sort("username", 1)
-    )
+            users_col.find(
+                {"role": "entrenador", "activo": True},
+                {"username": 1, "nombre": 1, "apellido": 1}
+            ).sort("username", 1)
+        )
 
-    # ✅ turno del cliente para permitir bloques (manana/tarde/full)
+
     now_ec = datetime.now(TZ_EC)
     turno_cliente = "full"
     if session.get("user_role") == "cliente" and session.get("user_id"):
@@ -3343,13 +3961,11 @@ def horarios_publico():
     if session.get("user_role") == "cliente" and session.get("user_id"):
         cid = ObjectId(session["user_id"])
 
-        # slots reservados (para pintar "Reservado por ti")
         for r in reservas_col.find({"cliente_id": cid, "estado": "confirmada"}, {"slot_id": 1}):
             sid = r.get("slot_id")
             if sid:
                 mis_slot_ids.add(str(sid))
 
-        # reserva por fecha (para cambio de horario / etc)
         fechas_semana = [wd.isoformat() for wd in week_dates]
         cursor = reservas_col.find(
             {"cliente_id": cid, "estado": "confirmada", "fecha": {"$in": fechas_semana}},
@@ -3364,7 +3980,6 @@ def horarios_publico():
     week_id = start.isoformat()
     doc_week = semanas_col.find_one({"_id": week_id})
 
-    # ✅ si no existe el documento semanal, lo creas UNA VEZ
     if not doc_week:
         days_arr = []
         for wd in week_dates:
@@ -3398,9 +4013,6 @@ def horarios_publico():
         }
         semanas_col.insert_one(doc_week)
 
-    # =========================
-    # ✅ si soy ENTRENADOR, saco mis reservas de la semana
-    # =========================
     solo_mis_reservas = (session.get("user_role") == "entrenador" and session.get("user_id"))
     slot_ids_entrenador = set()
     slot_count_entrenador = {}
@@ -3429,7 +4041,6 @@ def horarios_publico():
 
             entrenadores = []
 
-    # ✅ construir slot_map que usa el HTML
     slot_map = {wd.isoformat(): {} for wd in week_dates}
     all_slots = []
     slot_ids_semana = []
@@ -3439,13 +4050,11 @@ def horarios_publico():
         if not fecha_key or fecha_key not in slot_map:
             continue
 
-        # fecha como date()
         try:
             slot_date_obj = datetime.strptime(fecha_key, "%Y-%m-%d").date()
         except Exception:
             continue
 
-        # bloques del día para clasificar slots y ventana
         b1, b2 = _get_blocks_for_date(cfg, slot_date_obj, weekday_map)
 
         for s in (day.get("slots") or []):
@@ -3460,7 +4069,6 @@ def horarios_publico():
             cupo_max = int(s.get("cupo_maximo", cupo_maximo))
             cupo_usado = slot_count_entrenador.get(slot_id, 0) if solo_mis_reservas else 0
 
-            # ✅ calcular bloque (1/2) y reservable por ventana+turno
             block_num = _slot_block_num(s["inicio"], b1, b2)
 
             reservable = True
@@ -3476,7 +4084,6 @@ def horarios_publico():
                     if slot_start.tzinfo is None:
                         slot_start = slot_start.replace(tzinfo=TZ_EC)
 
-                    # ventana abierta y el slot aún no inicia
                     if (ot is None) or (now_ec < ot) or (now_ec >= slot_start):
                         reservable = False
 
@@ -3486,19 +4093,14 @@ def horarios_publico():
                 "fin": s["fin"],
                 "cupo_maximo": cupo_max,
                 "cupo_usado": cupo_usado,
-                
-
-                # ✅ nuevos campos para el template
-                "bloque": block_num,          # 1/2/None
-                "reservable": reservable,     # True/False (solo cliente)
-                "turno_cliente": turno_cliente,  # útil si quieres mostrarlo
+                "bloque": block_num,         
+                "reservable": reservable,     
+                "turno_cliente": turno_cliente,  
             }
 
             all_slots.append({"inicio": s["inicio"], "fin": s["fin"]})
 
-    # =========================
-    # ✅ CONTEO REAL (si NO es entrenador)
-    # =========================
+
     if slot_ids_semana and not solo_mis_reservas:
         slot_ids_semana = list(set(slot_ids_semana))
 
@@ -3517,7 +4119,6 @@ def horarios_publico():
                 sid = slot.get("_id")
                 slot["cupo_usado"] = counts.get(sid, 0)
 
-    # time_labels
     def to_minute(dt):
         return dt.hour * 60 + dt.minute
 
@@ -3556,8 +4157,10 @@ def horarios_publico():
         reserva_por_fecha=reserva_por_fecha,
         entrenadores=entrenadores,
         mis_slot_ids=mis_slot_ids,
+        manana_key=manana_key,
+        tiene_reserva_manana=tiene_reserva_manana,
         solo_mis_reservas=solo_mis_reservas,
-        turno_cliente=turno_cliente,
+        turno_cliente=turno_cliente, 
         now_ec=now_ec,
     )
 
@@ -3611,7 +4214,6 @@ def admin_horarios_asignar():
 
     dias_dict = cfg.get("dias") or {k: {"activo": False, "plantilla_id": None} for k in DIAS}
 
-    # validar intervalo (global)
     try:
         intervalo_i = int(intervalo_raw) if intervalo_raw else intervalo_default
         if intervalo_i not in (30, 60):
@@ -3620,7 +4222,6 @@ def admin_horarios_asignar():
         flash("Intervalo inválido (solo 30 o 60).", "danger")
         return redirect(url_for("web.admin_horarios"))
 
-    # validar cupo (pero OJO: será por día seleccionado, NO global)
     cupo_i = None
     if cupo_raw:
         try:
@@ -3631,16 +4232,19 @@ def admin_horarios_asignar():
             flash("Cupo máximo inválido.", "danger")
             return redirect(url_for("web.admin_horarios"))
 
-    # ✅ asignar plantilla + (opcional) cupo por día
     for dkey in dias:
         dias_dict.setdefault(dkey, {"activo": False, "plantilla_id": None})
         dias_dict[dkey]["activo"] = True
-        dias_dict[dkey]["plantilla_id"] = plantilla_id  # o ObjectId si tú guardas oid
+        dias_dict[dkey]["plantilla_id"] = plantilla_id 
 
         if cupo_i is not None:
-            dias_dict[dkey]["cupo_maximo"] = cupo_i  # override SOLO este día
+            dias_dict[dkey]["cupo_maximo"] = cupo_i 
 
     guardar_config_semanal(intervalo_i, cupo_default, dias_dict)
+    
+    db = extensions.mongo_db
+    semanas_col = db["horarios_dias"]
+    cfg_actualizada = get_config_semanal() or {}
 
     flash("Horarios asignados correctamente.", "success")
     return redirect(url_for("web.admin_horarios"))
@@ -3713,7 +4317,6 @@ def _oid(x):
         return None
 
 
-
 # RESERVAS
 @web_bp.post("/cliente/reservar")
 @login_required(role="cliente")
@@ -3729,6 +4332,8 @@ def cliente_reservar():
     slot_id = (request.form.get("slot_id") or "").strip()  # "YYYY-MM-DD|HH:MM"
     entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()
     fecha_ref = (request.form.get("fecha_ref") or "").strip()
+
+    app.logger.info(f"[cliente_reservar] slot_id={slot_id} entrenador={entrenador_id_raw} fecha_ref={fecha_ref}")
 
     if not slot_id or "|" not in slot_id:
         flash("Horario inválido.", "danger")
@@ -3748,28 +4353,24 @@ def cliente_reservar():
 
     entrenador_doc = users_col.find_one(
         {"_id": entrenador_id, "role": "entrenador", "activo": True},
-        {"_id": 1, "username": 1}
+        {"_id": 1, "username": 1, "nombre": 1, "apellido": 1}
     )
     if not entrenador_doc:
         flash("Entrenador no encontrado o inactivo.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
-    
-    
 
     try:
         cliente_id = ObjectId(session["user_id"])
     except Exception:
         flash("Sesión inválida.", "danger")
         return redirect(url_for("web.logout"))
-    
+
     primera_vez = (reservas_col.count_documents({"cliente_id": cliente_id, "estado": "confirmada"}) == 0)
 
-
-
     ucli = users_col.find_one({"_id": cliente_id}, {"turno": 1})
-    turno_cliente = (ucli or {}).get("turno") or "full"  
+    turno_cliente = (ucli or {}).get("turno") or "full"
 
-
+    # 1 por día
     ya_hoy = reservas_col.find_one({
         "cliente_id": cliente_id,
         "estado": "confirmada",
@@ -3779,27 +4380,23 @@ def cliente_reservar():
         flash("Solo puedes reservar 1 clase por día. Cancela tu reserva para agendar otra.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ evita duplicado exacto (confirmada)
+    # evita duplicado exacto
     if reservas_col.find_one({"cliente_id": cliente_id, "slot_id": slot_id, "estado": "confirmada"}):
         flash("Ya tienes una reserva en ese horario.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
-    
-    if not primera_vez:
-    # ✅ aquí va tu validación de ventana (mañana/tarde)
-    # si no cumple -> flash y redirect
-        pass
+
+    # if not primera_vez:
+    #     # aquí iría tu validación extra (mañana/tarde), si aplica
+    #     pass
 
 
-    # week_id (lunes de esa semana)
     try:
         week_id = _week_id_from_date_str(fecha_key)
     except Exception:
         flash("Fecha inválida.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
 
-    # ==========================================================
-    # ✅ validar que el slot exista + leer datos del slot
-    # ==========================================================
+
     doc_week = semanas_col.find_one({"_id": week_id}, {"days": 1})
     if not doc_week:
         flash("Semana no encontrada. Intenta recargar.", "danger")
@@ -3814,18 +4411,27 @@ def cliente_reservar():
         flash("Día no encontrado en el horario.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
+    # ✅ FIX: no revienta si inicio es string
     slot_doc = None
     for ss in (day_doc.get("slots") or []):
-        k = ss.get("key") or (ss.get("inicio").strftime("%H:%M") if ss.get("inicio") else None)
+        ini = ss.get("inicio")
+        k = ss.get("key")
+        if not k:
+            if hasattr(ini, "strftime"):
+                k = ini.strftime("%H:%M")
+            else:
+                k = str(ini) if ini else None
+
         if k == slot_key:
             slot_doc = ss
             break
+
     if not slot_doc:
         flash("Ese horario no existe.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     # ==========================================================
-    # ✅ NUEVO: validar ventana de apertura y turno (seguro backend)
+    # validar ventana de apertura y turno (backend)
     # ==========================================================
     cfg = get_config_semanal() or {}
 
@@ -3834,21 +4440,32 @@ def cliente_reservar():
     except Exception:
         flash("Fecha inválida.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
-    
+
     weekday_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
 
-
     b1, b2 = _get_blocks_for_date(cfg, slot_date_obj, weekday_map)
-
 
     slot_start = slot_doc.get("inicio")
     if not slot_start:
         flash("Horario inválido (sin inicio).", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # normaliza tz
-    if slot_start.tzinfo is None:
-        slot_start = slot_start.replace(tzinfo=TZ_EC)
+    # ✅ FIX: slot_start puede ser datetime o "HH:MM"
+    if hasattr(slot_start, "tzinfo"):
+        # es datetime
+        if slot_start.tzinfo is None:
+            slot_start = slot_start.replace(tzinfo=TZ_EC)
+        else:
+            slot_start = slot_start.astimezone(TZ_EC)
+    else:
+        # string "HH:MM"
+        try:
+            hh, mm = str(slot_start).split(":")
+            slot_start = datetime(slot_date_obj.year, slot_date_obj.month, slot_date_obj.day,
+                                 int(hh), int(mm), tzinfo=TZ_EC)
+        except Exception:
+            flash("Horario inválido (inicio mal formado).", "danger")
+            return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     block_num = _slot_block_num(slot_start, b1, b2)
     if block_num is None:
@@ -3862,15 +4479,27 @@ def cliente_reservar():
     now_ec = datetime.now(TZ_EC)
     open_dt = _open_time_for_block(cfg, slot_date_obj, block_num, weekday_map)
 
+    if open_dt is None:
+        flash("Aún no se habilitan reservas para este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    if getattr(open_dt, "tzinfo", None) is None:
+        open_dt = open_dt.replace(tzinfo=TZ_EC)
+    else:
+        open_dt = open_dt.astimezone(TZ_EC)
+
+    app.logger.info(
+        f"[cliente_reservar] now_ec={now_ec.isoformat()} open_dt={open_dt.isoformat()} "
+        f"slot_start={slot_start.isoformat()} block={block_num} turno={turno_cliente}"
+    )
+
     if now_ec < open_dt:
-        # mensaje amigable
         flash("Aún no se habilitan reservas para este bloque.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     if now_ec >= slot_start:
         flash("Este horario ya inició. No puedes reservarlo.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
-
 
     cupo_max = int(slot_doc.get("cupo_maximo") or 0)
     if cupo_max <= 0:
@@ -3895,6 +4524,7 @@ def cliente_reservar():
             "creado": datetime.now(timezone.utc),
         })
     except Exception:
+        app.logger.exception("[cliente_reservar] insert_one error")
         flash("No se pudo confirmar la reserva. Intenta nuevamente.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
@@ -3973,7 +4603,6 @@ def cliente_cancelar_reserva(reserva_id):
         {"$set": {"estado": "cancelada", "cancelada_en": datetime.now(timezone.utc)}}
     )
 
-    # clamp defensivo: no pasar de cupo_maximo
     _clamp_slot_restante(db, week_id, fecha_key, slot_key)
 
     flash("Reserva cancelada. Ya puedes agendar otra clase para ese día.", "success")
@@ -4043,7 +4672,6 @@ def cliente_cambiar_reserva(reserva_id):
         flash(f"Solo puedes cambiar hasta 2 horas antes. Faltan {mins} minuto(s).", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # entrenador (si lo quieres obligatorio también al cambiar)
     if not entrenador_id_raw:
         flash("Selecciona un entrenador.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
@@ -4176,9 +4804,6 @@ def cliente_membresia():
             estado = "Vencida"
             dias_restantes = 0
 
-        # ✅ notificar faltan 5 y 3 días (sin repetir)
-        # Guardamos notificación en DB para no spamear cada refresh
-        # Clave: cliente_id + tipo + fecha_hasta
         def push_noti(tipo, mensaje):
             existe = noti_col.find_one({
                 "cliente_id": cliente_id,
@@ -4304,8 +4929,6 @@ def cliente_membresia_page():
     
 # SUBIR PDF
 
-# ✅ asegúrate que este import existe en tu archivo
-# from app.utils.pdf_tools import optimizar_pdf
 
 
 def _allowed_pdf(filename: str) -> bool:
@@ -4385,10 +5008,6 @@ def subir_planificacion(cliente_id):
         flash("ID inválido.", "danger")
         return redirect(url_for("web.horarios_publico"))
 
-    if not entrenador_tiene_alumno(db, entrenador_oid, cliente_oid):
-        flash("Ese alumno no pertenece a tu agenda.", "warning")
-        return redirect(url_for("web.horarios_publico"))
-
     f_pdf = request.files.get("pdf")
     imgs = request.files.getlist("imagenes")  # ✅ nuevo
 
@@ -4413,14 +5032,15 @@ def subir_planificacion(cliente_id):
             flash("Solo se permiten imágenes JPG, PNG, WEBP o GIF.", "danger")
             return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
-    base_dir = os.path.join(os.getcwd(), "uploads", "planificaciones", str(entrenador_oid), str(cliente_oid))
+    base_dir = os.path.join(os.getcwd(), "uploads", "planificaciones", str(cliente_oid))
+
     os.makedirs(base_dir, exist_ok=True)
 
     img_dir = os.path.join(base_dir, "imagenes")
     os.makedirs(img_dir, exist_ok=True)
 
     old = plan_col.find_one(
-        {"entrenador_id": entrenador_oid, "cliente_id": cliente_oid},
+        {"cliente_id": cliente_oid},
         projection={"rel_path": 1, "images": 1}
     ) or {}
 
@@ -4523,15 +5143,19 @@ def subir_planificacion(cliente_id):
 
         update_set["images"] = new_images_meta
 
-    # upsert doc
     plan_col.update_one(
-        {"entrenador_id": entrenador_oid, "cliente_id": cliente_oid},
-        {"$set": update_set, "$setOnInsert": update_on_insert},
+    {"cliente_id": cliente_oid},
+        {
+            "$set": {**update_set, "actualizado_por": entrenador_oid},
+            "$setOnInsert": {**update_on_insert, "creado_por": entrenador_oid},
+        },
         upsert=True
     )
 
     flash("Planificación guardada.", "success")
-    return redirect(url_for("web.entrenador_mis_alumnos", cliente_id=str(cliente_oid)))
+    
+    return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
 
 
 
@@ -4555,8 +5179,8 @@ def descargar_planificacion(plan_id):
 
     # permisos
     if role == "entrenador":
-        if doc.get("entrenador_id") != uid:
-            abort(403)
+        pass
+            
     elif role == "cliente":
         if doc.get("cliente_id") != uid:
             abort(403)
@@ -4612,8 +5236,7 @@ def ver_plan_imagen(plan_id, idx):
 
     # permisos
     if role == "entrenador":
-        if doc.get("entrenador_id") != uid:
-            abort(403)
+        pass
     elif role == "cliente":
         if doc.get("cliente_id") != uid:
             abort(403)
@@ -4651,8 +5274,6 @@ def eliminar_plan_pdf(plan_id):
 
     # permisos
     if role == "entrenador":
-        if doc.get("entrenador_id") != uid:
-            abort(403)
         redirect_to = url_for("web.entrenador_alumno_detalle", cliente_id=str(doc.get("cliente_id")))
     elif role == "cliente":
         if doc.get("cliente_id") != uid:
@@ -4698,13 +5319,11 @@ def eliminar_plan_imagen(plan_id, idx):
     role = session.get("user_role")
 
     if role == "entrenador":
-        if doc.get("entrenador_id") != uid:
-            abort(403)
         redirect_to = url_for("web.entrenador_alumno_detalle", cliente_id=str(doc.get("cliente_id")))
     elif role == "cliente":
         if doc.get("cliente_id") != uid:
             abort(403)
-        redirect_to = url_for("web.cliente_membresia_page")  # ajusta a tu pantalla cliente
+        redirect_to = url_for("web.cliente_membresia_page")  
     else:
         abort(403)
 

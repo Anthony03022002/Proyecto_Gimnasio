@@ -1,146 +1,579 @@
-{% extends "base_admin.html" %}
-{% block title %}Mis alumnos{% endblock %}
-{% set active = "entrenador_alumnos" %}
+{% extends "base_admin.html" %} {% block title %}Alumnos{% endblock %} {% set
+active = "entrenador_alumnos" %} {% block header %} {% set entrenador_nombre =
+(entrenador.nombre or entrenador.username) if entrenador is defined else
+(session.get("username") or "Entrenador") %}
+<header
+  class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5"
+>
+  <div class="flex items-center gap-3 min-w-0">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
 
-{% block header %}
-  {% set entrenador_nombre = (entrenador.nombre or entrenador.username) if entrenador is defined else (session.get("username") or "Entrenador") %}
-  <header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
-    <div class="flex items-center gap-3 min-w-0">
-      <button
-        type="button"
-        class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
-        onclick="openDrawer()"
-        aria-label="Abrir menú"
-      >
-        <span class="material-symbols-outlined">menu</span>
-      </button>
-
-      <div class="min-w-0">
-        <h2 class="text-xl md:text-2xl font-bold text-white truncate">
-          Mis alumnos
-        </h2>
-        <p class="text-xs text-secondary mt-0.5">Alumnos que han reservado contigo</p>
-      </div>
+    <div class="min-w-0">
+      <h2 class="text-xl md:text-2xl font-bold text-white truncate">
+        Alumnos
+        <span class="text-white/60 font-semibold">
+          - {{ entrenador_nombre }}</span
+        >
+      </h2>
+      <p class="text-xs text-secondary mt-0.5">
+        {% if scope == "all" %} Todos los alumnos (clientes) del sistema {% else
+        %} Alumnos que han reservado contigo {% endif %}
+      </p>
     </div>
-  </header>
-{% endblock %}
+  </div>
+</header>
+{% endblock %} {% block content %}
 
-{% block content %}
+<style>
+  /* Modal simple (sin depender de Bootstrap) */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.72);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    z-index: 80;
+  }
+  .modal-overlay.show {
+    display: flex;
+  }
+  .modal-card {
+    width: 100%;
+    max-width: 560px;
+    background: rgba(15, 15, 15, 0.92);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 18px;
+    overflow: hidden;
+    box-shadow: 0 22px 70px rgba(0, 0, 0, 0.6);
+  }
+  .modal-head {
+    padding: 14px 16px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .modal-body {
+    padding: 16px;
+  }
+  .modal-title {
+    color: white;
+    font-weight: 800;
+    font-size: 16px;
+  }
+  .modal-sub {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  .modal-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.9);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .modal-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .field {
+    width: 100%;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.03);
+    color: white;
+    padding: 10px 12px;
+    outline: none;
+  }
+  .field:focus {
+    border-color: rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.06);
+  }
+  .btn {
+    border-radius: 14px;
+    padding: 10px 12px;
+    font-weight: 800;
+    font-size: 12px;
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    transition: 0.15s;
+  }
+  .btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .btn-accent {
+    background: rgba(255, 255, 255, 0.1);
+  }
+  .btn-accent:hover {
+    background: rgba(255, 255, 255, 0.14);
+  }
+  .btn-primary {
+    border-color: rgba(90, 232, 210, 0.3);
+    background: rgba(90, 232, 210, 0.12);
+  }
+  .btn-primary:hover {
+    background: rgba(90, 232, 210, 0.18);
+  }
+  .hint {
+    color: rgba(255, 255, 255, 0.55);
+    font-size: 11px;
+  }
+  .ok-msg {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(90, 232, 210, 0.25);
+    background: rgba(90, 232, 210, 0.1);
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 700;
+    font-size: 12px;
+  }
+  .err-msg {
+    display: none;
+    margin-top: 10px;
+    padding: 10px 12px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 90, 90, 0.25);
+    background: rgba(255, 90, 90, 0.08);
+    color: rgba(255, 255, 255, 0.9);
+    font-weight: 700;
+    font-size: 12px;
+  }
+</style>
 
 <div class="max-w-7xl mx-auto px-6 md:px-8 py-6">
   <div class="flex justify-center">
     <div class="w-full max-w-6xl space-y-6">
+      <div
+        class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden"
+      >
+        {# ===== TOP BAR: Tabs + buscador ===== #}
+        <div class="p-6 border-b border-white/5 flex flex-col gap-4">
+          <div
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+          >
+            <div>
+              <h3 class="text-lg font-bold text-white flex items-center gap-2">
+                <span class="material-symbols-outlined text-accent"
+                  >groups</span
+                >
+                Alumnos
+              </h3>
+              <p class="text-xs text-secondary mt-1">
+                Filtra por alcance y busca por nombre / cédula / teléfono
+              </p>
+            </div>
 
-      <div class="bg-surface-dark rounded-2xl shadow-sm border border-white/5 overflow-hidden">
-        <div class="p-6 border-b border-white/5 flex items-center justify-between gap-3">
-          <div>
-            <h3 class="text-lg font-bold text-white flex items-center gap-2">
-              <span class="material-symbols-outlined text-accent">groups</span>
-              Alumnos
-            </h3>
-            <p class="text-xs text-secondary mt-1">Listado de alumnos con reservas</p>
+            {% set current_scope = scope or "mine" %}
+            <div
+              class="inline-flex p-1 rounded-xl bg-white/5 border border-white/10"
+            >
+              <a
+                href="{{ url_for('web.entrenador_alumnos', scope='mine', q=(q or ''), page=1) }}"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition {% if current_scope != 'all' %} bg-white/10 text-white {% else %} text-white/60 hover:text-white hover:bg-white/5 {% endif %}"
+              >
+                Mis alumnos
+              </a>
+
+              <a
+                href="{{ url_for('web.entrenador_alumnos', scope='all', q=(q or ''), page=1) }}"
+                class="px-4 py-2 rounded-lg text-sm font-semibold transition {% if current_scope == 'all' %} bg-white/10 text-white {% else %} text-white/60 hover:text-white hover:bg-white/5 {% endif %}"
+              >
+                Todos
+              </a>
+            </div>
           </div>
+
+          <form
+            method="get"
+            action="{{ url_for('web.entrenador_alumnos') }}"
+            class="flex flex-col md:flex-row gap-3"
+          >
+            <input type="hidden" name="scope" value="{{ current_scope }}" />
+
+            <div class="flex-1">
+              <label class="text-xs font-semibold text-white/60">Buscar</label>
+              <div class="mt-1 relative">
+                <span
+                  class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-white/40"
+                  >search</span
+                >
+                <input
+                  name="q"
+                  value="{{ q or '' }}"
+                  placeholder="Nombre, apellido, cédula o teléfono..."
+                  class="w-full pl-10 pr-4 py-2.5 rounded-xl bg-white/[0.03] border border-white/10 text-white placeholder:text-white/40 outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+                />
+              </div>
+            </div>
+
+            <div class="flex items-end gap-2">
+              <button
+                type="submit"
+                class="px-4 py-2.5 rounded-xl bg-accent hover:bg-accent/90 text-sm font-bold text-white transition"
+              >
+                Buscar
+              </button>
+
+              <a
+                href="{{ url_for('web.entrenador_alumnos', scope=current_scope) }}"
+                class="px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white/80 transition"
+              >
+                Limpiar
+              </a>
+            </div>
+          </form>
         </div>
 
+        {# ===== TABLA ===== #}
         <div class="overflow-x-auto">
           <table class="w-full text-left">
             <thead class="bg-white/5">
               <tr>
-                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider">Alumno</th>
-                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider">Teléfono</th>
-                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider text-center w-[120px]">Reservas</th>
-                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider w-[220px]">Planificación</th>
-                <th class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider text-right w-[240px]">Acción</th>
+                <th
+                  class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+                >
+                  Alumno
+                </th>
+                <th
+                  class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+                >
+                  Teléfono
+                </th>
+                <th
+                  class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider text-center w-[120px]"
+                >
+                  Reservas
+                </th>
+                <th
+                  class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider w-[220px]"
+                >
+                  Planificación
+                </th>
+                <th
+                  class="px-8 py-4 text-xs font-bold text-accent uppercase tracking-wider text-right w-[340px]"
+                >
+                  Acción
+                </th>
               </tr>
             </thead>
 
             <tbody class="divide-y divide-white/5">
-              {% if alumnos %}
-                {% for a in alumnos %}
-                  {% set nombre = (a.nombre ~ ' ' ~ a.apellido)|trim %}
-                  <tr class="hover:bg-white/[0.03] transition-colors">
-                    <td class="px-8 py-4">
-                      <div class="text-sm text-white font-semibold">
-                        {{ nombre if nombre else a._id }}
-                      </div>
-                    </td>
+              {% if alumnos %} {% for a in alumnos %} {% set nombre = (a.nombre
+              ~ ' ' ~ a.apellido)|trim %} {% set total_r = a.total_reservas or 0
+              %}
 
-                    <td class="px-8 py-4 text-sm text-secondary">
-                      {{ a.telefono or '-' }}
-                    </td>
+              <tr class="hover:bg-white/[0.03] transition-colors">
+                <td class="px-8 py-4">
+                  <div class="text-sm text-white font-semibold">
+                    {{ nombre if nombre else a._id }}
+                  </div>
+                </td>
 
-                    <td class="px-8 py-4 text-center">
-                      <span class="inline-flex items-center justify-center min-w-[34px] px-3 py-1 rounded-full text-[11px] font-bold text-white bg-white/10 border border-white/10">
-                        {{ a.total_reservas or 0 }}
-                      </span>
-                    </td>
+                <td class="px-8 py-4 text-sm text-secondary">
+                  {{ a.telefono or '-' }}
+                </td>
 
-                    <td class="px-8 py-4">
-                      {% if a.plan_filename %}
-                        <div class="flex items-center gap-2">
-                          <span class="inline-flex items-center gap-2 text-[11px] font-bold text-green-200 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20">
-                            Subida
-                          </span>
-                          <span class="text-xs text-secondary truncate max-w-[240px]">
-                            {{ a.plan_filename }}
-                          </span>
-                        </div>
-                      {% else %}
-                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-secondary bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                          Sin plan
-                        </span>
-                      {% endif %}
-                    </td>
+                <td class="px-8 py-4 text-center">
+                  <span
+                    class="inline-flex items-center justify-center min-w-[34px] px-3 py-1 rounded-full text-[11px] font-bold text-white bg-white/10 border border-white/10"
+                  >
+                    {{ total_r }}
+                  </span>
+                </td>
 
-                    <td class="px-8 py-4 text-right">
-                      <div class="inline-flex flex-wrap justify-end gap-2">
-                        <a
-                          class="inline-flex items-center gap-2 px-3 py-2 rounded-lg
-                                 bg-white/5 hover:bg-white/10 border border-white/10
-                                 text-xs font-semibold text-white transition-colors"
-                          href="{{ url_for('web.entrenador_alumno_detalle', cliente_id=a._id) }}"
-                        >
-                          <span class="material-symbols-outlined text-[18px]">manage_accounts</span>
-                          Gestionar
-                        </a>
+                <td class="px-8 py-4">
+                  {% if a.plan_filename %}
+                  <div class="flex items-center gap-2">
+                    <span
+                      class="inline-flex items-center gap-2 text-[11px] font-bold text-green-200 bg-green-500/10 px-3 py-1 rounded-full border border-green-500/20"
+                    >
+                      Subida
+                    </span>
+                    <span class="text-xs text-secondary truncate max-w-[240px]">
+                      {{ a.plan_filename }}
+                    </span>
+                  </div>
+                  {% else %}
+                  <span
+                    class="inline-flex items-center gap-2 text-[11px] font-bold text-secondary bg-white/5 px-3 py-1 rounded-full border border-white/10"
+                  >
+                    Sin plan
+                  </span>
+                  {% endif %}
+                </td>
 
-                        {% if a.plan_id %}
-                          <a
-                            class="inline-flex items-center gap-2 px-3 py-2 rounded-lg
-                                   bg-white/5 hover:bg-white/10 border border-white/10
-                                   text-xs font-semibold text-white/90 transition-colors"
-                            href="{{ url_for('web.descargar_planificacion', plan_id=a.plan_id) }}"
-                          >
-                            <span class="material-symbols-outlined text-[18px]">download</span>
-                            Descargar
-                          </a>
-                        {% endif %}
-                      </div>
-                    </td>
-                  </tr>
-                {% endfor %}
-              {% else %}
-                <tr>
-                  <td class="px-8 py-24 text-center" colspan="5">
-                    <div class="flex flex-col items-center justify-center text-secondary/40">
-                      <span class="material-symbols-outlined text-5xl mb-3">person_off</span>
-                      <p class="text-sm font-medium">Aún no tienes alumnos con reservas.</p>
-                    </div>
-                  </td>
-                </tr>
+                <td class="px-8 py-4 text-right">
+                  <div class="inline-flex flex-wrap justify-end gap-2">
+                    <a
+                      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-colors"
+                      href="{{ url_for('web.entrenador_alumno_detalle', cliente_id=a._id) }}"
+                    >
+                      <span class="material-symbols-outlined text-[18px]"
+                        >manage_accounts</span
+                      >
+                      Gestionar
+                    </a>
+
+                    {% if a.plan_id %}
+                    <a
+                      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white/90 transition-colors"
+                      href="{{ url_for('web.descargar_planificacion', plan_id=a.plan_id) }}"
+                    >
+                      <span class="material-symbols-outlined text-[18px]"
+                        >download</span
+                      >
+                      Descargar
+                    </a>
+                    {% endif %} {# ✅ NUEVO BOTÓN MENSAJE #}
+                    <button
+                      type="button"
+                      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-xs font-semibold text-white transition-colors"
+                      onclick="openMsgModal('{{ a._id }}', '{{ (nombre if nombre else a._id)|e }}')"
+                    >
+                      <span class="material-symbols-outlined text-[18px]"
+                        >chat</span
+                      >
+                      Mensaje
+                    </button>
+                  </div>
+                </td>
+              </tr>
+              {% endfor %} {% else %}
+              <tr>
+                <td class="px-8 py-24 text-center" colspan="5">
+                  <div
+                    class="flex flex-col items-center justify-center text-secondary/40"
+                  >
+                    <span class="material-symbols-outlined text-5xl mb-3"
+                      >person_off</span
+                    >
+                    <p class="text-sm font-medium">
+                      {% if not has_filters %} Ingresa un filtro y presiona
+                      <b>Buscar</b> para ver alumnos. {% else %} No hay alumnos
+                      que coincidan con tu búsqueda. {% endif %}
+                    </p>
+                  </div>
+                </td>
+              </tr>
               {% endif %}
             </tbody>
           </table>
+          {% if has_filters and total_pages and total_pages > 1 %}
+          <div
+            class="px-6 py-4 border-t border-white/5 flex items-center justify-between gap-3"
+          >
+            <div class="text-xs text-secondary">
+              {% set start = ((page - 1) * limit) + 1 %} {% set end = ((page -
+              1) * limit) + (alumnos|length) %} Mostrando {{ start }}–{{ end }}
+              de {{ total }} · Página {{ page }} de {{ total_pages }}
+            </div>
+
+            <div class="flex items-center gap-2">
+              {% if page > 1 %}
+              <a
+                class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white/90 transition"
+                href="{{ url_for('web.entrenador_alumnos', scope=current_scope, q=q, page=page-1) }}"
+              >
+                ‹ Anterior
+              </a>
+              {% else %}
+              <span
+                class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm font-bold text-white/30"
+              >
+                ‹ Anterior
+              </span>
+              {% endif %} {% if page < total_pages %}
+              <a
+                class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white/90 transition"
+                href="{{ url_for('web.entrenador_alumnos', scope=current_scope, q=q, page=page+1) }}"
+              >
+                Siguiente ›
+              </a>
+              {% else %}
+              <span
+                class="px-4 py-2 rounded-xl bg-white/5 border border-white/10 text-sm font-bold text-white/30"
+              >
+                Siguiente ›
+              </span>
+              {% endif %}
+            </div>
+          </div>
+          {% endif %}
         </div>
 
-        <div class="px-6 py-4 text-[11px] text-secondary border-t border-white/5">
-          Consejo: usa “Gestionar” para ver el detalle del alumno y subir/actualizar planificación.
+        <div
+          class="px-6 py-4 text-[11px] text-secondary border-t border-white/5"
+        >
+          Consejo: usa “Gestionar” para ver el detalle del alumno y
+          subir/actualizar planificación, medidas y fotos.
         </div>
-
       </div>
-
     </div>
   </div>
 </div>
+
+{# ============================ ✅ MODAL MENSAJE (NUEVO)
+============================ #}
+<div
+  id="msgOverlay"
+  class="modal-overlay"
+  role="dialog"
+  aria-modal="true"
+  aria-hidden="true"
+>
+  <div class="modal-card">
+    <div class="modal-head">
+      <div class="min-w-0">
+        <div class="modal-title">Enviar mensaje al alumno</div>
+        <div id="msgAlumnoName" class="modal-sub truncate">—</div>
+      </div>
+      <button
+        type="button"
+        class="modal-close"
+        onclick="closeMsgModal()"
+        aria-label="Cerrar"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-body">
+      <input type="hidden" id="msgClienteId" value="" />
+
+      <label class="text-xs font-semibold text-white/60">Mensaje</label>
+      <textarea
+        id="msgText"
+        class="field mt-1"
+        rows="4"
+        maxlength="220"
+        placeholder="Ej: ¡Felicidades! Bajaste de peso 💪🔥"
+      ></textarea>
+      <div class="mt-2 flex items-center justify-between">
+        <div class="hint">
+          Se mostrará como una notificación pequeña en el dashboard del cliente.
+        </div>
+        <div class="hint"><span id="msgCount">0</span>/220</div>
+      </div>
+
+      <div id="msgOk" class="ok-msg">✅ Mensaje enviado.</div>
+      <div id="msgErr" class="err-msg">❌ No se pudo enviar.</div>
+
+      <div class="mt-4 flex flex-wrap justify-end gap-2">
+        <button type="button" class="btn" onclick="closeMsgModal()">
+          <span class="material-symbols-outlined" style="font-size: 18px"
+            >close</span
+          >
+          Cerrar
+        </button>
+
+        <button type="button" class="btn btn-primary" onclick="sendMsg()">
+          <span class="material-symbols-outlined" style="font-size: 18px"
+            >send</span
+          >
+          Enviar
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  const overlay = document.getElementById("msgOverlay");
+  const msgText = document.getElementById("msgText");
+  const msgCount = document.getElementById("msgCount");
+  const msgOk = document.getElementById("msgOk");
+  const msgErr = document.getElementById("msgErr");
+
+  function openMsgModal(clienteId, alumnoName) {
+    document.getElementById("msgClienteId").value = clienteId;
+    document.getElementById("msgAlumnoName").textContent =
+      alumnoName || "Alumno";
+    msgText.value = "";
+    msgCount.textContent = "0";
+    msgOk.style.display = "none";
+    msgErr.style.display = "none";
+
+    overlay.classList.add("show");
+    overlay.setAttribute("aria-hidden", "false");
+    setTimeout(() => msgText.focus(), 30);
+  }
+
+  function closeMsgModal() {
+    overlay.classList.remove("show");
+    overlay.setAttribute("aria-hidden", "true");
+  }
+
+  overlay.addEventListener("click", (e) => {
+    if (e.target === overlay) closeMsgModal();
+  });
+
+  msgText.addEventListener("input", () => {
+    msgCount.textContent = String(msgText.value.length || 0);
+  });
+
+  async function sendMsg() {
+    const clienteId = document.getElementById("msgClienteId").value;
+    const mensaje = (msgText.value || "").trim();
+
+    msgOk.style.display = "none";
+    msgErr.style.display = "none";
+
+    if (!clienteId || !mensaje) {
+      msgErr.textContent = "❌ Escribe un mensaje antes de enviar.";
+      msgErr.style.display = "block";
+      return;
+    }
+
+    try {
+      const resp = await fetch(`/entrenador/alumno/${clienteId}/mensaje`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ mensaje }),
+      });
+
+      const data = await resp.json().catch(() => ({}));
+
+      if (!resp.ok || !data.ok) {
+        const err = data.error || "No se pudo enviar.";
+        msgErr.textContent = "❌ " + err;
+        msgErr.style.display = "block";
+        return;
+      }
+
+      msgOk.style.display = "block";
+
+      // cierra solo (opcional)
+      setTimeout(() => closeMsgModal(), 850);
+    } catch (e) {
+      msgErr.textContent = "❌ Error de red.";
+      msgErr.style.display = "block";
+    }
+  }
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") closeMsgModal();
+  });
+</script>
 
 {% endblock %}

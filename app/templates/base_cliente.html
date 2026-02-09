@@ -86,7 +86,7 @@
     <div class="flex h-screen overflow-hidden">
 
       <!-- ===================== SIDEBAR DESKTOP ===================== -->
-      <aside class="hidden md:flex w-72 bg-panel border-r border-line flex-col">
+      <aside class="hidden w-72 bg-panel border-r border-line flex-col">
 
         <!-- BRAND (cambia aqui) -->
         {% set BRAND_NAME = "CORE" %}  <!-- <<< CAMBIA NOMBRE -->
@@ -177,7 +177,7 @@
 
             <!-- Boton menu movil -->
             <button type="button"
-              class="md:hidden elite-btn px-3 py-2 rounded-xl text-white/80 hover:text-white transition"
+              class="elite-btn px-3 py-2 rounded-xl text-white/80 hover:text-white transition"
               onclick="openDrawer()" aria-label="Abrir menú">
               <span class="material-symbols-outlined">menu</span>
             </button>
@@ -206,11 +206,11 @@
       </main>
 
       <!-- ===================== DRAWER MOVIL ===================== -->
-      <div id="mobileDrawerOverlay" class="fixed inset-0 bg-black/60 z-40 hidden md:hidden"></div>
+      <div id="mobileDrawerOverlay" class="fixed inset-0 bg-black/60 z-40 hidden"></div>
 
       <aside id="mobileDrawer"
         class="fixed inset-y-0 left-0 w-80 max-w-[88vw] bg-panel border-r border-line z-50
-               -translate-x-full transition-transform duration-200 md:hidden flex flex-col"
+              -translate-x-full transition-transform duration-200 flex flex-col"
         aria-hidden="true">
 
         <div class="p-4 border-b border-line flex items-center justify-between">
@@ -234,28 +234,28 @@
         <div class="flex-1 overflow-y-auto p-4">
           <!-- Repite el nav (mismo que desktop) -->
           <nav class="space-y-2 text-sm">
-            <a href="{{ url_for('web.cliente_dashboard') }}"
+            <a href="{{ url_for('web.cliente_dashboard') }}" onclick="closeDrawer()"
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
                       {{ 'sidebar-active' if (active == 'cliente_dashboard') else '' }}">
               <span class="material-symbols-outlined text-[20px] opacity-80">dashboard</span>
               <span class="font-semibold">Mi panel</span>
             </a>
 
-            <a href="{{ url_for('web.horarios_publico', view='week') }}"
+            <a href="{{ url_for('web.horarios_publico', view='week') }}" onclick="closeDrawer()" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
                       {{ 'sidebar-active' if (active == 'cliente_horario') else '' }}">
               <span class="material-symbols-outlined text-[20px] opacity-70">calendar_month</span>
               <span class="text-white/80 font-semibold">Horario</span>
             </a>
 
-            <a href="{{ url_for('web.cliente_membresia') }}"
+            <a href="{{ url_for('web.cliente_membresia') }}" onclick="closeDrawer()" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
                       {{ 'sidebar-active' if (active == 'cliente_membresia') else '' }}">
               <span class="material-symbols-outlined text-[20px] opacity-70">workspace_premium</span>
               <span class="text-white/80 font-semibold">Mi membresía</span>
             </a>
 
-            <a href="{{ url_for('web.cliente_progreso') }}"
+            <a href="{{ url_for('web.cliente_progreso') }}" onclick="closeDrawer()" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
                       {{ 'sidebar-active' if (active == 'cliente_progreso') else '' }}">
               <span class="material-symbols-outlined text-[20px] opacity-70">monitoring</span>
@@ -266,14 +266,14 @@
               Cuenta
             </div>
 
-            <a href="{{ url_for('web.cliente_config') }}"
+            <a href="{{ url_for('web.cliente_config') }}" onclick="closeDrawer()" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
                       {{ 'sidebar-active' if (active == 'cliente_config') else '' }}">
               <span class="material-symbols-outlined text-[20px] opacity-70">settings</span>
               <span class="text-white/80 font-semibold">Configuración</span>
             </a>
 
-            <a href="{{ url_for('web.logout') }}"
+            <a href="{{ url_for('web.logout') }}" onclick="closeDrawer()" 
                class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition text-red-300 hover:text-red-200">
               <span class="material-symbols-outlined text-[20px] opacity-80">logout</span>
               <span class="font-semibold">Cerrar sesión</span>
@@ -291,6 +291,7 @@
         overlay.classList.remove("hidden");
         drawer.classList.remove("-translate-x-full");
         drawer.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
       }
 
       function closeDrawer() {
@@ -299,6 +300,7 @@
         overlay.classList.add("hidden");
         drawer.classList.add("-translate-x-full");
         drawer.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
       }
 
       (function () {

@@ -13,18 +13,16 @@ def _to_local_dt(d: date, t: time) -> datetime:
     return datetime(d.year, d.month, d.day, t.hour, t.minute, tzinfo=TZ_EC)
 
 def _get_blocks_for_date(cfg: dict, wd_date: date, weekday_map: dict):
-    # day_key: "mon","tue",...
     day_key = weekday_map[wd_date.weekday()]
     day_cfg = (cfg.get("dias") or {}).get(day_key, {})
     if not day_cfg.get("activo"):
         return None, None
 
-    bloques = resolver_bloques_del_dia(day_cfg) or []  # debe devolverte 1 o 2 bloques
+    bloques = resolver_bloques_del_dia(day_cfg) or []  
     if not bloques:
         return None, None
 
     def pick(b):
-        # soporta {"ini":"05:00","fin":"12:00"} o {"inicio":"05:00","fin":"12:00"}
         ini = b.get("ini") or b.get("inicio")
         fin = b.get("fin")
         if not ini or not fin:
@@ -36,7 +34,6 @@ def _get_blocks_for_date(cfg: dict, wd_date: date, weekday_map: dict):
     return b1, b2
 
 def _slot_block_num(slot_start: datetime, b1, b2):
-    # slot_start viene con tz o naive; lo pasamos a tz local
     if slot_start.tzinfo is None:
         slot_start = slot_start.replace(tzinfo=TZ_EC)
 
@@ -48,24 +45,15 @@ def _slot_block_num(slot_start: datetime, b1, b2):
     return None
 
 def _open_time_for_block(cfg, slot_date: date, block_num: int, weekday_map: dict):
-    """
-    - bloque 1 (mañana): abre cuando termina bloque1 del día anterior
-    - bloque 2 (tarde):  abre cuando termina bloque1 del mismo día
-    """
-    if block_num == 1:
-        prev = slot_date - timedelta(days=1)
-        b1_prev, _ = _get_blocks_for_date(cfg, prev, weekday_map)
-        if not b1_prev:
-            # si no hay bloque1 ayer, abre desde medianoche
-            return _to_local_dt(prev, time(0, 0))
-        return _to_local_dt(prev, b1_prev[1])  # fin bloque1 de ayer
+    base_day = slot_date - timedelta(days=1)
 
+    if slot_date.weekday() == 0:  
+        base_day = slot_date - timedelta(days=2)  
+
+    if block_num == 1:
+        return _to_local_dt(base_day, time(12, 0))
     if block_num == 2:
-        b1_today, _ = _get_blocks_for_date(cfg, slot_date, weekday_map)
-        if not b1_today:
-            # si no existe bloque1 hoy, abre desde medianoche
-            return _to_local_dt(slot_date, time(0, 0))
-        return _to_local_dt(slot_date, b1_today[1])  # fin bloque1 de hoy
+        return _to_local_dt(base_day, time(20, 0))
 
     return None
 

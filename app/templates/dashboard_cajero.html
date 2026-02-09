@@ -1,109 +1,141 @@
-{% extends "base_admin.html" %}
-{% block title %}Panel Cajero{% endblock %}
-{% set active = "cajero_dashboard" %}
+{% extends "base_admin.html" %} {% block title %}Panel Cajero{% endblock %} {%
+set active = "cajero_dashboard" %} {% block header %} {% set username =
+session.get("username") or "Usuario" %} {% set noti_count =
+(notificaciones|length) if notificaciones is defined and notificaciones else 0
+%}
 
-{% block header %}
-  {% set username = session.get("username") or "Usuario" %}
-  {% set noti_count = (clientes_por_vencer|length) if clientes_por_vencer is defined and clientes_por_vencer else 0 %}
+<header
+  class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5"
+>
+  <div class="flex items-center gap-3">
+    <button
+      type="button"
+      class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+      onclick="openDrawer()"
+      aria-label="Abrir menú"
+    >
+      <span class="material-symbols-outlined">menu</span>
+    </button>
 
-  <header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+    <div>
+      <h2 class="text-xl md:text-2xl font-bold text-white">Cajero</h2>
+    </div>
+  </div>
+
+  <div class="flex items-center gap-4 md:gap-6">
+    <button
+      type="button"
+      class="relative p-2 text-secondary hover:text-white hover:bg-white/5 rounded-full transition-colors"
+      onclick="openNotiModal()"
+      aria-label="Notificaciones"
+      title="Notificaciones"
+    >
+      <span class="material-symbols-outlined">notifications</span>
+
+      {% if noti_count > 0 %}
+      <span
+        id="notiBadge"
+        class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-surface-dark"
+      >
+        {{ noti_count }}
+      </span>
+      {% endif %}
+    </button>
+
+    <div class="hidden md:block h-8 w-[1px] bg-white/10"></div>
+
     <div class="flex items-center gap-3">
-      <button
-        type="button"
-        class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
-        onclick="openDrawer()"
-        aria-label="Abrir menú"
+      <div class="text-right hidden sm:block">
+        <p class="text-sm font-semibold text-white leading-tight">
+          {{ username }}
+        </p>
+        <p class="text-xs text-secondary">Cajero</p>
+      </div>
+      <div
+        class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-medium border border-white/10"
       >
-        <span class="material-symbols-outlined">menu</span>
-      </button>
-
-      <div>
-        <h2 class="text-xl md:text-2xl font-bold text-white">Cajero</h2>
+        {{ (username[:1] or "U")|upper }}{{ (username[1:2] or "")|upper }}
       </div>
     </div>
-
-    <div class="flex items-center gap-4 md:gap-6">
-      <button
-        type="button"
-        class="relative p-2 text-secondary hover:text-white hover:bg-white/5 rounded-full transition-colors"
-        onclick="openNotiModal()"
-        aria-label="Notificaciones"
-        title="Notificaciones de renovaciones"
-      >
-        <span class="material-symbols-outlined">notifications</span>
-
-        {% if noti_count > 0 %}
-          <span class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-surface-dark">
-            {{ noti_count }}
-          </span>
-        {% endif %}
-      </button>
-
-      <div class="hidden md:block h-8 w-[1px] bg-white/10"></div>
-
-      <div class="flex items-center gap-3">
-        <div class="text-right hidden sm:block">
-          <p class="text-sm font-semibold text-white leading-tight">{{ username }}</p>
-          <p class="text-xs text-secondary">Administrador</p>
-        </div>
-        <div class="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-medium border border-white/10">
-          {{ (username[:1] or "U")|upper }}{{ (username[1:2] or "")|upper }}
-        </div>
-      </div>
-    </div>
-  </header>
-{% endblock %}
-
-{% block content %}
-
-{# ✅ Contenedor centrado, sin grid 12-cols para evitar hueco a la derecha #}
+  </div>
+</header>
+{% endblock %} {% block content %} {# ✅ Contenedor centrado #}
 <div class="max-w-6xl mx-auto px-6 md:px-8 py-6 space-y-6">
-
   {# KPI cards #}
   <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-    <div class="bg-[rgba(35,37,39,0.92)] p-6 rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] transition-transform hover:-translate-y-1">
+    <div
+      class="bg-[rgba(35,37,39,0.92)] p-6 rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] transition-transform hover:-translate-y-1"
+    >
       <div class="flex justify-between items-start mb-4">
         <div class="p-3 bg-white/5 rounded-xl">
-          <span class="material-symbols-outlined text-accent">receipt_long</span>
+          <span class="material-symbols-outlined text-accent"
+            >receipt_long</span
+          >
         </div>
-        <span class="text-[10px] font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded-full uppercase tracking-wider">HOY</span>
+        <span
+          class="text-[10px] font-bold text-green-400 bg-green-400/10 px-2 py-1 rounded-full uppercase tracking-wider"
+          >HOY</span
+        >
       </div>
-      <h3 class="text-[rgba(255,255,255,0.6)] text-sm font-medium">Ventas de hoy</h3>
-      <p class="text-3xl font-bold text-[rgba(255,255,255,0.92)] mt-1">{{ resumen_hoy.conteo or 0 }}</p>
-      <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-2 font-medium">Total de comprobantes</p>
+      <h3 class="text-[rgba(255,255,255,0.6)] text-sm font-medium">
+        Ventas de hoy
+      </h3>
+      <p class="text-3xl font-bold text-[rgba(255,255,255,0.92)] mt-1">
+        {{ resumen_hoy.conteo or 0 }}
+      </p>
+      <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-2 font-medium">
+        Total de comprobantes
+      </p>
     </div>
 
-    <div class="bg-[rgba(35,37,39,0.92)] p-6 rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] transition-transform hover:-translate-y-1">
+    <div
+      class="bg-[rgba(35,37,39,0.92)] p-6 rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] transition-transform hover:-translate-y-1"
+    >
       <div class="flex justify-between items-start mb-4">
         <div class="p-3 bg-white/5 rounded-xl">
           <span class="material-symbols-outlined text-accent">person</span>
         </div>
-        <span class="text-[10px] font-bold text-[rgba(255,255,255,0.6)] bg-white/5 px-2 py-1 rounded-full uppercase tracking-wider">ÚLTIMA</span>
+        <span
+          class="text-[10px] font-bold text-[rgba(255,255,255,0.6)] bg-white/5 px-2 py-1 rounded-full uppercase tracking-wider"
+          >ÚLTIMA</span
+        >
       </div>
-      <h3 class="text-[rgba(255,255,255,0.6)] text-sm font-medium">Última venta</h3>
+      <h3 class="text-[rgba(255,255,255,0.6)] text-sm font-medium">
+        Última venta
+      </h3>
 
       {% if ultima_venta %}
-        <p class="text-[rgba(255,255,255,0.92)] font-semibold mt-1">{{ ultima_venta.cliente_nombre }}</p>
-        <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-1 font-medium">
-          {{ ultima_venta.fecha.strftime('%d/%m/%Y') }}
-        </p>
+      <p class="text-[rgba(255,255,255,0.92)] font-semibold mt-1">
+        {{ ultima_venta.cliente_nombre }}
+      </p>
+      <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-1 font-medium">
+        {{ ultima_venta.fecha.strftime('%d/%m/%Y') }}
+      </p>
       {% else %}
-        <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-2 font-medium">Sin registros todavía</p>
+      <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-2 font-medium">
+        Sin registros todavía
+      </p>
       {% endif %}
     </div>
 
-    <div class="bg-[rgba(35,37,39,0.92)] p-6 rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] transition-transform hover:-translate-y-1">
+    <div
+      class="bg-[rgba(35,37,39,0.92)] p-6 rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] transition-transform hover:-translate-y-1"
+    >
       <div class="flex justify-between items-start mb-4">
         <div class="p-3 bg-white/5 rounded-xl">
           <span class="material-symbols-outlined text-accent">add_circle</span>
         </div>
-        <span class="text-[10px] font-bold text-[rgba(255,255,255,0.6)] bg-white/5 px-2 py-1 rounded-full uppercase tracking-wider">ACCION</span>
+        <span
+          class="text-[10px] font-bold text-[rgba(255,255,255,0.6)] bg-white/5 px-2 py-1 rounded-full uppercase tracking-wider"
+          >ACCION</span
+        >
       </div>
-      <h3 class="text-[rgba(255,255,255,0.6)] text-sm font-medium">Nueva venta</h3>
+      <h3 class="text-[rgba(255,255,255,0.6)] text-sm font-medium">
+        Nueva venta
+      </h3>
       <a
         href="{{ url_for('web.facturacion_nueva') }}"
-        class="mt-3 inline-flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg
-               bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+        class="mt-3 inline-flex items-center justify-center gap-2 w-full px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
       >
         <span class="material-symbols-outlined text-sm">add</span>
         Crear venta
@@ -112,31 +144,28 @@
   </div>
 
   {# Card tabla ventas #}
-  <div class="bg-[rgba(35,37,39,0.92)] rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] overflow-hidden">
-    <div class="p-6 border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between gap-3">
+  <div
+    class="bg-[rgba(35,37,39,0.92)] rounded-2xl shadow-sm border border-[rgba(255,255,255,0.06)] overflow-hidden"
+  >
+    <div
+      class="p-6 border-b border-[rgba(255,255,255,0.07)] flex items-center justify-between gap-3"
+    >
       <h3 class="text-lg font-bold text-[rgba(255,255,255,0.92)]">Ventas</h3>
-
-      <a
-        href="{{ url_for('web.facturacion_nueva') }}"
-        class="inline-flex items-center gap-2 px-4 py-2 rounded-lg
-               bg-white/5 hover:bg-white/10 border border-white/10
-               text-sm font-semibold text-white transition-colors"
-      >
-        <span class="material-symbols-outlined text-sm">add</span>
-        Nueva venta
-      </a>
     </div>
 
     {# FILTROS #}
     <div class="p-6 border-b border-[rgba(255,255,255,0.07)]">
-      <form class="grid grid-cols-1 md:grid-cols-12 gap-3" method="get" action="{{ url_for('web.cajero_dashboard') }}">
+      <form
+        class="grid grid-cols-1 md:grid-cols-12 gap-3"
+        method="get"
+        action="{{ url_for('web.cajero_dashboard') }}"
+      >
         <div class="md:col-span-6">
-          <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Buscar</label>
+          <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]"
+            >Buscar</label
+          >
           <input
-            class="mt-1 w-full px-4 py-2.5 rounded-xl
-                   bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                   text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)]
-                   outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+            class="mt-1 w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.92)] placeholder:text-[rgba(255,255,255,0.45)] outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
             name="q"
             placeholder="Nombre, apellido o identificación"
             value="{{ q or '' }}"
@@ -144,26 +173,24 @@
         </div>
 
         <div class="md:col-span-3">
-          <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Desde</label>
+          <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]"
+            >Desde</label
+          >
           <input
             type="date"
-            class="mt-1 w-full px-4 py-2.5 rounded-xl
-                   bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                   text-[rgba(255,255,255,0.92)]
-                   outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+            class="mt-1 w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.92)] outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
             name="desde"
             value="{{ desde or '' }}"
           />
         </div>
 
         <div class="md:col-span-3">
-          <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]">Hasta</label>
+          <label class="text-xs font-semibold text-[rgba(255,255,255,0.6)]"
+            >Hasta</label
+          >
           <input
             type="date"
-            class="mt-1 w-full px-4 py-2.5 rounded-xl
-                   bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)]
-                   text-[rgba(255,255,255,0.92)]
-                   outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
+            class="mt-1 w-full px-4 py-2.5 rounded-xl bg-[rgba(255,255,255,0.02)] border border-[rgba(255,255,255,0.06)] text-[rgba(255,255,255,0.92)] outline-none focus:ring-2 focus:ring-accent/40 focus:border-accent/60 transition"
             name="hasta"
             value="{{ hasta or '' }}"
           />
@@ -171,18 +198,14 @@
 
         <div class="md:col-span-12 flex flex-wrap justify-end gap-2 pt-1">
           <a
-            class="px-4 py-2 rounded-lg
-                   bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.04)]
-                   border border-[rgba(255,255,255,0.06)]
-                   text-sm font-semibold text-[rgba(255,255,255,0.6)] transition-colors"
+            class="px-4 py-2 rounded-lg bg-[rgba(255,255,255,0.02)] hover:bg-[rgba(255,255,255,0.04)] border border-[rgba(255,255,255,0.06)] text-sm font-semibold text-[rgba(255,255,255,0.6)] transition-colors"
             href="{{ url_for('web.cajero_dashboard') }}"
           >
             Limpiar
           </a>
 
           <button
-            class="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90
-                   text-sm font-semibold text-white transition-colors"
+            class="px-4 py-2 rounded-lg bg-accent hover:bg-accent/90 text-sm font-semibold text-white transition-colors"
             type="submit"
           >
             Filtrar
@@ -196,182 +219,425 @@
       <table class="w-full text-left">
         <thead class="bg-[rgba(255,255,255,0.05)]">
           <tr>
-            <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Cliente</th>
-            <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Desde</th>
-            <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Hasta</th>
-            <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Meses</th>
+            <th
+              class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+            >
+              Cliente
+            </th>
+            <th
+              class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+            >
+              Desde
+            </th>
+            <th
+              class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+            >
+              Hasta
+            </th>
+            <th
+              class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider"
+            >
+              Meses
+            </th>
           </tr>
         </thead>
 
         <tbody class="divide-y divide-[rgba(255,255,255,0.07)]">
-          {% if ventas %}
-            {% for v in ventas %}
-              <tr class="transition-colors hover:bg-[rgba(255,255,255,0.04)] odd:bg-[rgba(255,255,255,0.02)]">
-                <td class="px-6 py-4">
-                  <div class="text-sm text-[rgba(255,255,255,0.92)] font-semibold">
-                    {{ v.cliente_nombre }}
-                    {% if v.cliente_apellido %} {{ v.cliente_apellido }}{% endif %}
-                  </div>
-                  {% if v.cliente_identificacion %}
-                    <div class="text-xs text-[rgba(255,255,255,0.45)] mt-1">
-                      {{ v.cliente_identificacion }}
-                    </div>
-                  {% endif %}
-                </td>
+          {% if ventas %} {% for v in ventas %}
+          <tr
+            class="transition-colors hover:bg-[rgba(255,255,255,0.04)] odd:bg-[rgba(255,255,255,0.02)]"
+          >
+            <td class="px-6 py-4">
+              <div class="text-sm text-[rgba(255,255,255,0.92)] font-semibold">
+                {{ v.cliente_nombre }} {% if v.cliente_apellido %} {{
+                v.cliente_apellido }}{% endif %}
+              </div>
+              {% if v.cliente_identificacion %}
+              <div class="text-xs text-[rgba(255,255,255,0.45)] mt-1">
+                {{ v.cliente_identificacion }}
+              </div>
+              {% endif %}
+            </td>
 
-                <td class="px-6 py-4 text-sm text-[rgba(255,255,255,0.92)]">
-                  {% if v.membresia and v.membresia.fecha_desde %}
-                    {{ v.membresia.fecha_desde.strftime('%d/%m/%Y') }}
-                  {% else %}-{% endif %}
-                </td>
+            <td class="px-6 py-4 text-sm text-[rgba(255,255,255,0.92)]">
+              {% if v.membresia and v.membresia.fecha_desde %} {{
+              v.membresia.fecha_desde.strftime('%d/%m/%Y') }} {% else %}-{%
+              endif %}
+            </td>
 
-                <td class="px-6 py-4 text-sm text-[rgba(255,255,255,0.92)]">
-                  {% if v.membresia and v.membresia.fecha_hasta %}
-                    {{ v.membresia.fecha_hasta.strftime('%d/%m/%Y') }}
-                  {% else %}-{% endif %}
-                </td>
+            <td class="px-6 py-4 text-sm text-[rgba(255,255,255,0.92)]">
+              {% if v.membresia and v.membresia.fecha_hasta %} {{
+              v.membresia.fecha_hasta.strftime('%d/%m/%Y') }} {% else %}-{%
+              endif %}
+            </td>
 
-                <td class="px-6 py-4 text-sm text-[rgba(255,255,255,0.92)]">
-                  {% if v.membresia and v.membresia.meses %}
-                    {{ v.membresia.meses }}
-                  {% else %}-{% endif %}
-                </td>
-              </tr>
-            {% endfor %}
-          {% else %}
-            <tr>
-              <td class="px-6 py-20 text-center" colspan="4">
-                <div class="flex flex-col items-center justify-center text-[rgba(255,255,255,0.45)]">
-                  <span class="material-symbols-outlined text-5xl mb-3">inventory_2</span>
-                  <p class="text-sm font-medium">No hay ventas con esos filtros.</p>
-                </div>
-              </td>
-            </tr>
+            <td class="px-6 py-4 text-sm text-[rgba(255,255,255,0.92)]">
+              {% if v.membresia and v.membresia.meses %} {{ v.membresia.meses }}
+              {% else %}-{% endif %}
+            </td>
+          </tr>
+          {% endfor %} {% else %}
+          <tr>
+            <td class="px-6 py-20 text-center" colspan="4">
+              <div
+                class="flex flex-col items-center justify-center text-[rgba(255,255,255,0.45)]"
+              >
+                <span class="material-symbols-outlined text-5xl mb-3"
+                  >inventory_2</span
+                >
+
+                {% if has_filters %}
+                <p class="text-sm font-medium">
+                  No hay ventas con esos filtros.
+                </p>
+                {% else %}
+                <p class="text-sm font-medium">
+                  Ingresa un filtro y presiona <b>Filtrar</b> para ver ventas.
+                </p>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
           {% endif %}
         </tbody>
       </table>
     </div>
 
-    <div class="px-6 py-4 text-[11px] text-[rgba(255,255,255,0.6)] border-t border-[rgba(255,255,255,0.07)]">
+    <div
+      class="px-6 py-4 text-[11px] text-[rgba(255,255,255,0.6)] border-t border-[rgba(255,255,255,0.07)]"
+    >
       Mostrando máximo 20 registros (más recientes primero).
     </div>
-  </div>
 
-</div>
-
-{# MODAL Notificaciones (Tailwind) #}
-{% set noti_count = (clientes_por_vencer|length) if clientes_por_vencer is defined and clientes_por_vencer else 0 %}
-
-<div id="notiModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
-  <div class="absolute inset-0 bg-black/60" onclick="closeNotiModal()"></div>
-
-  <div class="relative mx-auto mt-10 w-[95vw] max-w-5xl bg-surface-dark border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-    <div class="p-5 md:p-6 border-b border-white/10 flex items-start justify-between gap-4">
-      <div>
-        <h4 class="text-lg font-bold text-white">Clientes por renovar / no renovaron</h4>
+    {% if has_filters and total_pages and total_pages > 1 %}
+    <div class="px-6 pb-6 flex items-center justify-between gap-3">
+      <div class="text-xs text-[rgba(255,255,255,0.45)]">
+        {% set start = ((page - 1) * limit) + 1 %} {% set end = ((page - 1) *
+        limit) + (ventas|length) %} Mostrando {{ start }}–{{ end }} de {{ total
+        }}
       </div>
 
-      <button
-        type="button"
-        class="p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
-        onclick="closeNotiModal()"
-        aria-label="Cerrar"
-      >
-        <span class="material-symbols-outlined">close</span>
-      </button>
+      <div class="flex items-center gap-2">
+        {% if page > 1 %}
+        <a
+          class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition"
+          href="{{ url_for('web.cajero_dashboard', page=page-1, q=q, desde=desde, hasta=hasta) }}"
+        >
+          ‹ Anterior
+        </a>
+        {% else %}
+        <span
+          class="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm font-semibold text-white/30"
+        >
+          ‹ Anterior
+        </span>
+        {% endif %} {% if page < total_pages %}
+        <a
+          class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition"
+          href="{{ url_for('web.cajero_dashboard', page=page+1, q=q, desde=desde, hasta=hasta) }}"
+        >
+          Siguiente ›
+        </a>
+        {% else %}
+        <span
+          class="px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-sm font-semibold text-white/30"
+        >
+          Siguiente ›
+        </span>
+        {% endif %}
+      </div>
     </div>
+    {% endif %}
+  </div>
+</div>
 
-    <div class="p-5 md:p-6">
-      {% if clientes_por_vencer and clientes_por_vencer|length > 0 %}
-        <div class="overflow-x-auto rounded-xl border border-white/10">
-          <table class="w-full text-left">
-            <thead class="bg-white/5">
-              <tr>
-                <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Cliente</th>
-                <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Cédula</th>
-                <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Teléfono</th>
-                <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider">Email</th>
-                <th class="px-5 py-3 text-xs font-bold text-accent uppercase tracking-wider text-right">Estado</th>
-              </tr>
-            </thead>
+{# ========================================================= MODAL
+Notificaciones (CUMPLEAÑOS + RENOVACIÓN) Se alimenta desde: notificaciones
+(para_rol="cajero", visto=False)
+========================================================= #}
 
-            <tbody class="divide-y divide-white/10">
-              {% for c in clientes_por_vencer %}
-                <tr class="hover:bg-white/[0.03] transition-colors">
-                  <td class="px-5 py-4 text-sm text-white font-semibold">{{ c.nombre or '-' }}</td>
-                  <td class="px-5 py-4 text-sm text-secondary">{{ c.identificacion or '-' }}</td>
-                  <td class="px-5 py-4 text-sm text-secondary">{{ c.telefono or '-' }}</td>
-                  <td class="px-5 py-4 text-sm text-secondary">{{ c.email or '-' }}</td>
+<div id="notiModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+  <div
+    class="absolute inset-0 bg-black/70 backdrop-blur-sm"
+    onclick="closeNotiModal()"
+  ></div>
+
+  <div class="relative mx-auto mt-6 md:mt-10 w-[94vw] max-w-5xl">
+    <div
+      class="rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.65)] bg-gradient-to-b from-white/[0.06] to-white/[0.03]"
+    >
+      <div
+        class="px-5 md:px-7 py-5 border-b border-white/10 flex items-start justify-between gap-4"
+      >
+        <div class="flex items-start gap-3">
+          <div
+            class="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center"
+          >
+            <span class="material-symbols-outlined text-white/80"
+              >notifications_active</span
+            >
+          </div>
+
+          <div>
+            <h4
+              class="text-white font-extrabold text-lg md:text-xl leading-tight"
+            >
+              Notificaciones
+            </h4>
+            <p class="text-xs md:text-sm text-white/50 mt-1">
+              Toca una fila para
+              <span class="text-white/80 font-semibold">marcar como leído</span
+              >.
+            </p>
+
+            {% if noti_count > 0 %}
+            <div
+              class="mt-3 inline-flex items-center gap-2 text-[11px] font-bold px-3 py-1 rounded-full bg-red-500/10 text-red-200 border border-red-500/20"
+            >
+              <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+              {{ noti_count }} aviso(s) sin leer
+            </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="p-2 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition"
+          onclick="closeNotiModal()"
+          aria-label="Cerrar"
+          title="Cerrar"
+        >
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="px-4 md:px-7 py-5">
+        {% if notificaciones and notificaciones|length > 0 %}
+
+        <div
+          class="rounded-2xl border border-white/10 overflow-hidden bg-black/20"
+        >
+          <div class="max-h-[62vh] overflow-auto">
+            <table class="w-full text-left">
+              <thead
+                class="sticky top-0 z-10 bg-surface-dark/90 backdrop-blur-md border-b border-white/10"
+              >
+                <tr>
+                  <th
+                    class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70"
+                  >
+                    Cliente
+                  </th>
+                  <th
+                    class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70"
+                  >
+                    Cédula
+                  </th>
+                  <th
+                    class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 hidden md:table-cell"
+                  >
+                    Teléfono
+                  </th>
+                  <th
+                    class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 hidden lg:table-cell"
+                  >
+                    Email
+                  </th>
+                  <th
+                    class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 text-right"
+                  >
+                    Estado
+                  </th>
+                </tr>
+              </thead>
+
+              <tbody class="divide-y divide-white/10" id="notiBody">
+                {% for n in notificaciones %} {% set tipo = n.tipo or
+                'renovacion' %} {% set p = n.payload or {} %}
+
+                <tr
+                  class="group cursor-pointer transition-colors hover:bg-white/[0.04]"
+                  data-noti-id="{{ n._id }}"
+                  data-noti-tipo="{{ tipo }}"
+                  title="Clic para marcar como leído"
+                >
+                  <td class="px-5 py-4">
+                    <div class="flex items-start gap-3">
+                      <div
+                        class="mt-0.5 w-9 h-9 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center"
+                      >
+                        {% if tipo == 'cumpleanos' %}
+                        <span
+                          class="material-symbols-outlined text-white/70"
+                          style="font-size: 18px"
+                          >cake</span
+                        >
+                        {% else %}
+                        <span
+                          class="material-symbols-outlined text-white/70"
+                          style="font-size: 18px"
+                          >person</span
+                        >
+                        {% endif %}
+                      </div>
+
+                      <div class="min-w-0">
+                        <div class="text-white font-bold truncate">
+                          {{ p.nombre or '-' }}
+                        </div>
+                        <div class="text-[11px] text-white/45 mt-0.5">
+                          {% if tipo == 'cumpleanos' %} Cumpleaños de hoy 🎉
+                          (clic para marcar leído) {% else %} Renovación
+                          pendiente (clic para marcar leído) {% endif %}
+                          <span
+                            class="inline-block ml-1 text-white/35 group-hover:text-white/60 transition"
+                            >→</span
+                          >
+                        </div>
+                      </div>
+                    </div>
+                  </td>
+
+                  <td class="px-5 py-4 text-sm text-white/70 font-medium">
+                    {{ p.identificacion or '-' }}
+                  </td>
+
+                  <td
+                    class="px-5 py-4 text-sm text-white/55 hidden md:table-cell"
+                  >
+                    {{ p.telefono or '-' }}
+                  </td>
+
+                  <td
+                    class="px-5 py-4 text-sm text-white/55 hidden lg:table-cell"
+                  >
+                    {{ p.email or '-' }}
+                  </td>
 
                   <td class="px-5 py-4 text-right">
-                    {% if c.no_renovo %}
-                      <span class="inline-flex items-center gap-2 text-[11px] font-bold text-red-300 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-                        NO RENOVÓ (hace {{ (c.dias_restantes * -1) }} día(s))
-                      </span>
+                    {% if tipo == 'cumpleanos' %}
+                    <span
+                      class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1 rounded-full border border-green-500/25 bg-green-500/10 text-green-200"
+                    >
+                      <span
+                        class="w-1.5 h-1.5 rounded-full bg-green-300"
+                      ></span>
+                      Cumple hoy
+                    </span>
+                    {% else %} {% set dr = p.dias_restantes %} {% set no_renovo
+                    = p.no_renovo %} {% if no_renovo %}
+                    <span
+                      class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1 rounded-full border border-red-500/25 bg-red-500/10 text-red-200"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                      No renovó ({{ (dr * -1) }} día(s))
+                    </span>
+                    {% else %} {% if dr == 0 %}
+                    <span
+                      class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1 rounded-full border border-red-500/25 bg-red-500/10 text-red-200"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                      Vence hoy
+                    </span>
+                    {% elif dr in [1,2] %}
+                    <span
+                      class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1 rounded-full border border-yellow-500/25 bg-yellow-500/10 text-yellow-200"
+                    >
+                      <span
+                        class="w-1.5 h-1.5 rounded-full bg-yellow-300"
+                      ></span>
+                      Vence en {{ dr }} día(s)
+                    </span>
                     {% else %}
-                      {% if c.dias_restantes == 0 %}
-                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-red-300 bg-red-500/10 px-3 py-1 rounded-full border border-red-500/20">
-                          VENCE HOY
-                        </span>
-                      {% elif c.dias_restantes == 1 %}
-                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-yellow-200 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-                          VENCE EN 1 DÍA
-                        </span>
-                      {% elif c.dias_restantes == 2 %}
-                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-yellow-200 bg-yellow-500/10 px-3 py-1 rounded-full border border-yellow-500/20">
-                          VENCE EN 2 DÍAS
-                        </span>
-                      {% else %}
-                        <span class="inline-flex items-center gap-2 text-[11px] font-bold text-secondary bg-white/5 px-3 py-1 rounded-full border border-white/10">
-                          {{ c.dias_restantes }} día(s)
-                        </span>
-                      {% endif %}
-                    {% endif %}
-
-                    {% if c.fecha_hasta %}
-                      <div class="text-xs text-secondary mt-1">Hasta: {{ c.fecha_hasta }}</div>
-                    {% endif %}
+                    <span
+                      class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1 rounded-full border border-white/10 bg-white/5 text-white/70"
+                    >
+                      <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>
+                      {{ dr }} día(s)
+                    </span>
+                    {% endif %} {% endif %} {% if p.fecha_hasta %}
+                    <div class="text-[11px] text-white/40 mt-2">
+                      Hasta:
+                      <span class="text-white/60 font-semibold"
+                        >{{ p.fecha_hasta }}</span
+                      >
+                    </div>
+                    {% endif %} {% endif %}
                   </td>
                 </tr>
-              {% endfor %}
-            </tbody>
-          </table>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
         </div>
-      {% else %}
-        <div class="text-sm text-secondary">
-          No hay clientes por renovar (ni vencidos sin renovación) en este momento.
-        </div>
-      {% endif %}
-    </div>
 
-    <div class="p-5 md:p-6 border-t border-white/10 flex justify-end">
-      <button
-        type="button"
-        class="px-4 py-2 rounded-lg bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
-        onclick="closeNotiModal()"
+        <div class="mt-4 text-[11px] text-white/40 flex items-center gap-2">
+          <span class="material-symbols-outlined" style="font-size: 16px"
+            >info</span
+          >
+          Tip: presiona
+          <span
+            class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/70 font-bold"
+            >ESC</span
+          >
+          para cerrar.
+        </div>
+
+        {% else %}
+        <div
+          class="rounded-2xl border border-white/10 bg-black/20 p-10 text-center"
+        >
+          <div
+            class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center"
+          >
+            <span
+              class="material-symbols-outlined text-white/45"
+              style="font-size: 28px"
+              >done_all</span
+            >
+          </div>
+          <div class="mt-4 text-white font-extrabold text-lg">Todo al día</div>
+          <div class="mt-1 text-sm text-white/50">
+            No hay notificaciones pendientes.
+          </div>
+        </div>
+        {% endif %}
+      </div>
+
+      <div
+        class="px-5 md:px-7 py-4 border-t border-white/10 flex items-center justify-between gap-3"
       >
-        Cerrar
-      </button>
+        <div class="text-xs text-white/40">
+          Se ocultan automáticamente cuando los marcas como leídos.
+        </div>
+
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white transition"
+          onclick="closeNotiModal()"
+        >
+          Cerrar
+        </button>
+      </div>
     </div>
   </div>
 </div>
 
-{% endblock %}
-
-{% block scripts %}
+{% endblock %} {% block scripts %}
 <script>
   function openNotiModal() {
     const m = document.getElementById("notiModal");
     if (!m) return;
     m.classList.remove("hidden");
-    m.setAttribute("aria-hidden","false");
+    m.setAttribute("aria-hidden", "false");
   }
 
   function closeNotiModal() {
     const m = document.getElementById("notiModal");
     if (!m) return;
     m.classList.add("hidden");
-    m.setAttribute("aria-hidden","true");
+    m.setAttribute("aria-hidden", "true");
   }
 
   (function () {
@@ -379,5 +645,66 @@
       if (e.key === "Escape") closeNotiModal();
     });
   })();
+
+  function updateNotiBadge(delta) {
+    const badge = document.getElementById("notiBadge");
+    if (!badge) return;
+
+    const n = parseInt(badge.textContent || "0", 10) || 0;
+    const next = Math.max(0, n + delta);
+    badge.textContent = String(next);
+
+    if (next === 0) badge.remove();
+  }
+
+  function renderEmptyNotis() {
+    const body = document.getElementById("notiBody");
+    if (!body) return;
+
+    body.innerHTML = `
+      <tr>
+        <td class="px-6 py-10 text-center text-secondary" colspan="5">
+          No hay notificaciones pendientes.
+        </td>
+      </tr>
+    `;
+  }
+
+  async function markNotiVisto(tipo, notiId, tr) {
+    const resp = await fetch(
+      `/cajero/notificaciones/${encodeURIComponent(tipo)}/${encodeURIComponent(notiId)}/visto`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      },
+    );
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) {
+      alert(data && data.error ? data.error : "No se pudo marcar como leído");
+      return;
+    }
+
+    tr.remove();
+    updateNotiBadge(-1);
+
+    const body = document.getElementById("notiBody");
+    if (body && body.querySelectorAll("tr[data-noti-id]").length === 0) {
+      renderEmptyNotis();
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-noti-id]");
+    if (!tr) return;
+
+    const notiId = tr.getAttribute("data-noti-id");
+    const tipo = tr.getAttribute("data-noti-tipo") || "renovacion";
+    if (!notiId) return;
+
+    if (!confirm("¿Marcar esta notificación como leída?")) return;
+    markNotiVisto(tipo, notiId, tr);
+  });
 </script>
 {% endblock %}

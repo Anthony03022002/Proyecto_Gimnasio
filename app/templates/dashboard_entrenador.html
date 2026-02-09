@@ -5,6 +5,8 @@
 {% block header %}
   {% set username = session.get("username") or "Usuario" %}
   {% set entrenador_nombre = (entrenador.nombre or entrenador.username) %}
+  {% set noti_count = noti_count if noti_count is defined else ((notificaciones|length) if notificaciones is defined and notificaciones else 0) %}
+
   <header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
     <div class="flex items-center gap-3 min-w-0">
       <button
@@ -24,6 +26,25 @@
     </div>
 
     <div class="flex items-center gap-3">
+
+      {# 🔔 CAMPANITA #}
+      <button
+        type="button"
+        class="relative p-2 text-secondary hover:text-white hover:bg-white/5 rounded-full transition-colors"
+        onclick="openNotiModal()"
+        aria-label="Notificaciones"
+        title="Notificaciones"
+      >
+        <span class="material-symbols-outlined">notifications</span>
+
+        {% if noti_count > 0 %}
+          <span id="notiBadge"
+                class="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 bg-red-500 rounded-full text-[10px] font-bold flex items-center justify-center border-2 border-surface-dark">
+            {{ noti_count }}
+          </span>
+        {% endif %}
+      </button>
+
       <a
         href="{{ url_for('web.horarios_publico') }}"
         class="inline-flex items-center gap-2 px-4 py-2 rounded-lg
@@ -55,7 +76,6 @@
           </div>
         </div>
 
-        {# ✅ Tabla más ancha: usa el contenedor max-w-6xl y padding un poco mayor #}
         <div class="overflow-x-auto">
           <table class="w-full text-left">
             <thead class="bg-white/5">
@@ -125,4 +145,239 @@
   </div>
 </div>
 
+{# ✅ MODAL Notificaciones (Entrenador) #}
+<div id="notiModal" class="fixed inset-0 z-50 hidden" aria-hidden="true">
+
+  <div class="absolute inset-0 bg-black/70 backdrop-blur-sm" onclick="closeNotiModal()"></div>
+
+  <div class="relative mx-auto mt-6 md:mt-10 w-[94vw] max-w-4xl">
+    <div class="rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.65)] bg-gradient-to-b from-white/[0.06] to-white/[0.03]">
+
+      <div class="px-5 md:px-7 py-5 border-b border-white/10 flex items-start justify-between gap-4">
+        <div class="flex items-start gap-3">
+          <div class="w-11 h-11 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center">
+            <span class="material-symbols-outlined text-white/80">notifications_active</span>
+          </div>
+
+          <div>
+            <h4 class="text-white font-extrabold text-lg md:text-xl leading-tight">
+              Notificaciones
+            </h4>
+            <p class="text-xs md:text-sm text-white/50 mt-1">
+              Clic en una fila para <span class="text-white/80 font-semibold">marcar como leído</span>.
+            </p>
+
+            {% if noti_count > 0 %}
+              <div class="mt-3 inline-flex items-center gap-2 text-[11px] font-bold px-3 py-1 rounded-full
+                          bg-red-500/10 text-red-200 border border-red-500/20">
+                <span class="w-1.5 h-1.5 rounded-full bg-red-300"></span>
+                {{ noti_count }} aviso(s) sin leer
+              </div>
+            {% endif %}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          class="p-2 rounded-xl hover:bg-white/5 text-white/60 hover:text-white transition"
+          onclick="closeNotiModal()"
+          aria-label="Cerrar"
+          title="Cerrar"
+        >
+          <span class="material-symbols-outlined">close</span>
+        </button>
+      </div>
+
+      <div class="px-4 md:px-7 py-5">
+        {% if notificaciones and notificaciones|length > 0 %}
+
+          <div class="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+            <div class="max-h-[62vh] overflow-auto">
+
+              <table class="w-full text-left">
+                <thead class="sticky top-0 z-10 bg-surface-dark/90 backdrop-blur-md border-b border-white/10">
+                  <tr>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70">Tipo</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70">Cliente</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 hidden md:table-cell">Detalle</th>
+                    <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70 text-right">Estado</th>
+                  </tr>
+                </thead>
+
+                <tbody class="divide-y divide-white/10" id="notiBody">
+                  {% for n in notificaciones %}
+                    {% set tipo = n.tipo or 'renovacion' %}
+                    {% set p = n.payload or {} %}
+
+                    <tr
+                      class="group cursor-pointer transition-colors hover:bg-white/[0.04]"
+                      data-noti-id="{{ n._id }}"
+                      data-noti-tipo="{{ tipo }}"
+                      title="Clic para marcar como leído"
+                    >
+                      <td class="px-5 py-4">
+                        <div class="flex items-center gap-2 text-white/80 font-semibold">
+                          {% if tipo == 'cumpleanos' %}
+                            <span class="material-symbols-outlined text-white/70" style="font-size:18px;">cake</span>
+                            Cumpleaños
+                          {% else %}
+                            <span class="material-symbols-outlined text-white/70" style="font-size:18px;">info</span>
+                            {{ tipo }}
+                          {% endif %}
+                        </div>
+                      </td>
+
+                      <td class="px-5 py-4 text-white font-bold">
+                        {{ p.nombre or '-' }}
+                      </td>
+
+                      <td class="px-5 py-4 text-sm text-white/55 hidden md:table-cell">
+                        {% if tipo == 'cumpleanos' %}
+                          Hoy cumple años 🎉
+                        {% else %}
+                          {{ p.mensaje or '—' }}
+                        {% endif %}
+                      </td>
+
+                      <td class="px-5 py-4 text-right">
+                        {% if tipo == 'cumpleanos' %}
+                          <span class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1
+                                      rounded-full border border-green-500/25 bg-green-500/10 text-green-200">
+                            <span class="w-1.5 h-1.5 rounded-full bg-green-300"></span>
+                            Hoy
+                          </span>
+                        {% else %}
+                          <span class="inline-flex items-center gap-2 text-[11px] font-extrabold px-3 py-1
+                                      rounded-full border border-white/10 bg-white/5 text-white/70">
+                            <span class="w-1.5 h-1.5 rounded-full bg-white/40"></span>
+                            Pendiente
+                          </span>
+                        {% endif %}
+                      </td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+
+              </table>
+            </div>
+          </div>
+
+          <div class="mt-4 text-[11px] text-white/40 flex items-center gap-2">
+            <span class="material-symbols-outlined" style="font-size:16px;">info</span>
+            Tip: presiona <span class="px-2 py-0.5 rounded bg-white/5 border border-white/10 text-white/70 font-bold">ESC</span> para cerrar.
+          </div>
+
+        {% else %}
+          <div class="rounded-2xl border border-white/10 bg-black/20 p-10 text-center">
+            <div class="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 mx-auto flex items-center justify-center">
+              <span class="material-symbols-outlined text-white/45" style="font-size:28px;">done_all</span>
+            </div>
+            <div class="mt-4 text-white font-extrabold text-lg">Todo al día</div>
+            <div class="mt-1 text-sm text-white/50">
+              No tienes notificaciones pendientes.
+            </div>
+          </div>
+        {% endif %}
+      </div>
+
+      <div class="px-5 md:px-7 py-4 border-t border-white/10 flex items-center justify-between gap-3">
+        <div class="text-xs text-white/40">
+          Se ocultan automáticamente cuando las marcas como leídas.
+        </div>
+
+        <button
+          type="button"
+          class="px-4 py-2 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-bold text-white transition"
+          onclick="closeNotiModal()"
+        >
+          Cerrar
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+  function openNotiModal() {
+    const m = document.getElementById("notiModal");
+    if (!m) return;
+    m.classList.remove("hidden");
+    m.setAttribute("aria-hidden","false");
+  }
+
+  function closeNotiModal() {
+    const m = document.getElementById("notiModal");
+    if (!m) return;
+    m.classList.add("hidden");
+    m.setAttribute("aria-hidden","true");
+  }
+
+  (function () {
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") closeNotiModal();
+    });
+  })();
+
+  function updateNotiBadge(delta){
+    const badge = document.getElementById("notiBadge");
+    if (!badge) return;
+
+    const n = parseInt(badge.textContent || "0", 10) || 0;
+    const next = Math.max(0, n + delta);
+    badge.textContent = String(next);
+
+    if (next === 0) badge.remove();
+  }
+
+  function renderEmptyNotis(){
+    const body = document.getElementById("notiBody");
+    if (!body) return;
+
+    body.innerHTML = `
+      <tr>
+        <td class="px-6 py-10 text-center text-white/60" colspan="4">
+          No tienes notificaciones pendientes.
+        </td>
+      </tr>
+    `;
+  }
+
+  async function markNotiVisto(tipo, notiId, tr){
+    const resp = await fetch(`/entrenador/notificaciones/${encodeURIComponent(tipo)}/${encodeURIComponent(notiId)}/visto`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: "{}"
+    });
+
+    const data = await resp.json().catch(() => ({}));
+    if (!resp.ok || !data.ok) {
+      alert((data && data.error) ? data.error : "No se pudo marcar como leído");
+      return;
+    }
+
+    tr.remove();
+    updateNotiBadge(-1);
+
+    const body = document.getElementById("notiBody");
+    if (body && body.querySelectorAll("tr[data-noti-id]").length === 0){
+      renderEmptyNotis();
+    }
+  }
+
+  document.addEventListener("click", (e) => {
+    const tr = e.target.closest("tr[data-noti-id]");
+    if (!tr) return;
+
+    const notiId = tr.getAttribute("data-noti-id");
+    const tipo = tr.getAttribute("data-noti-tipo") || "renovacion";
+    if (!notiId) return;
+
+    if (!confirm("¿Marcar esta notificación como leída?")) return;
+    markNotiVisto(tipo, notiId, tr);
+  });
+</script>
 {% endblock %}
