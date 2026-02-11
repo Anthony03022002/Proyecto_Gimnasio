@@ -1,53 +1,40 @@
-{% extends "base_cliente.html" %}
-{% block title %}Panel Cliente{% endblock %}
-{% set active = "cliente_dashboard" %}
-
-{# --- LÓGICA DE DATOS --- #}
-{% set nombre_cliente = ((cliente.nombre or '') ~ ' ' ~ (cliente.apellido or ''))|trim if cliente else (session.get('username') or 'Cliente') %}
-{% set estado = estado_membresia or "Sin membresía" %}
-{% set dias = dias_restantes if dias_restantes is not none else None %}
-{% set WHATSAPP_NUM = "593962150368" %}
-{% set ident = cliente.identificacion or '' if cliente else '' %}
-{% set user = session.get('username') or '' %}
-
-{% if membresia and membresia.fecha_hasta %}
-  {% set vence_txt = membresia.fecha_hasta.strftime('%d/%m/%Y') %}
-{% else %}
-  {% set vence_txt = '-' %}
-{% endif %}
-
-{% set dias_txt = (dias_restantes|string) if dias_restantes is not none else '-' %}
-{% set wa_text = "Hola, quiero renovar mi membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ident %}
-
-{% block header_title %}{{ nombre_cliente }}{% endblock %}
-
-{% block content %}
+{% extends "base_cliente.html" %} {% block title %}Panel Cliente{% endblock %}
+{% set active = "cliente_dashboard" %} {# --- LÓGICA DE DATOS --- #} {% set
+nombre_cliente = ((cliente.nombre or '') ~ ' ' ~ (cliente.apellido or ''))|trim
+if cliente else (session.get('username') or 'Cliente') %} {% set estado =
+estado_membresia or "Sin membresía" %} {% set dias = dias_restantes if
+dias_restantes is not none else None %} {% set WHATSAPP_NUM = "593962150368" %}
+{% set ident = cliente.identificacion or '' if cliente else '' %} {% set user =
+session.get('username') or '' %} {% if membresia and membresia.fecha_hasta %} {%
+set vence_txt = membresia.fecha_hasta.strftime('%d/%m/%Y') %} {% else %} {% set
+vence_txt = '-' %} {% endif %} {% set dias_txt = (dias_restantes|string) if
+dias_restantes is not none else '-' %} {% set wa_text = "Hola, quiero renovar mi
+membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ident
+%} {% block header_title %}{{ nombre_cliente }}{% endblock %} {% block content
+%}
 <style>
   :root {
     --primary: #6366f1;
     --primary-light: #818cf8;
     --secondary: #f472b6;
     --success: #10b981;
-    --warning: #f59e0b;
     --danger: #ef4444;
 
-    --bg-base: #0a0e1a;
     --bg-card: #151922;
     --bg-elevated: #1a1f2e;
     --border: rgba(255, 255, 255, 0.06);
     --border-strong: rgba(255, 255, 255, 0.12);
-    
-    --text-primary: #ffffff;
+
+    --text-primary: #fff;
     --text-secondary: #94a3b8;
     --text-muted: #64748b;
-
-    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.1);
-    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
-    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
 
     --radius: 16px;
     --radius-lg: 24px;
     --spacing: 24px;
+
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.2);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.3);
   }
 
   * {
@@ -57,8 +44,14 @@
   }
 
   @keyframes fadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+      opacity: 0;
+      transform: translateY(12px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
   }
 
   .dashboard {
@@ -81,7 +74,6 @@
     align-items: center;
     gap: 24px;
   }
-
   .hero-image {
     width: 80px;
     height: 80px;
@@ -90,12 +82,10 @@
     border: 1px solid var(--border-strong);
     flex-shrink: 0;
   }
-
   .hero-content {
     flex: 1;
     min-width: 0;
   }
-
   .hero-title {
     font-size: 1.75rem;
     font-weight: 700;
@@ -103,7 +93,6 @@
     margin-bottom: 8px;
     letter-spacing: -0.02em;
   }
-
   .hero-subtitle {
     font-size: 1rem;
     color: var(--text-secondary);
@@ -121,14 +110,12 @@
     gap: 40px;
     align-items: center;
   }
-
   .progress-ring-container {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 12px;
   }
-
   .progress-label {
     font-size: 0.75rem;
     font-weight: 700;
@@ -136,23 +123,19 @@
     text-transform: uppercase;
     color: var(--text-muted);
   }
-
   .progress-ring {
     position: relative;
     width: 180px;
     height: 180px;
   }
-
   .progress-circle {
     transform: rotate(-90deg);
   }
-
   .progress-circle-bg {
     fill: none;
     stroke: var(--bg-elevated);
     stroke-width: 12;
   }
-
   .progress-circle-fill {
     fill: none;
     stroke: url(#progressGradient);
@@ -160,7 +143,6 @@
     stroke-linecap: round;
     transition: stroke-dashoffset 1s ease;
   }
-
   .progress-center {
     position: absolute;
     top: 50%;
@@ -168,7 +150,6 @@
     transform: translate(-50%, -50%);
     text-align: center;
   }
-
   .progress-weight {
     display: flex;
     align-items: baseline;
@@ -176,26 +157,22 @@
     gap: 4px;
     margin-bottom: 4px;
   }
-
   .progress-weight-value {
     font-size: 2.5rem;
     font-weight: 700;
     color: var(--text-primary);
     line-height: 1;
   }
-
   .progress-weight-unit {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-secondary);
   }
-
   .progress-initial {
     font-size: 0.75rem;
     color: var(--text-muted);
     margin-bottom: 8px;
   }
-
   .progress-percentage {
     font-size: 1.25rem;
     font-weight: 700;
@@ -207,7 +184,6 @@
     flex-direction: column;
     gap: 16px;
   }
-
   .stat-row {
     display: flex;
     justify-content: space-between;
@@ -217,7 +193,6 @@
     border-radius: var(--radius);
     border: 1px solid var(--border);
   }
-
   .stat-label {
     font-size: 0.875rem;
     font-weight: 600;
@@ -225,24 +200,25 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-
   .stat-value {
     font-size: 1.25rem;
     font-weight: 700;
     color: var(--text-primary);
   }
-
   .progress-note {
     margin-top: 8px;
     padding: 16px;
-    background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(244, 114, 182, 0.1));
+    background: linear-gradient(
+      135deg,
+      rgba(99, 102, 241, 0.1),
+      rgba(244, 114, 182, 0.1)
+    );
     border: 1px solid rgba(99, 102, 241, 0.2);
     border-radius: var(--radius);
     font-size: 0.9rem;
     color: var(--text-secondary);
     line-height: 1.5;
   }
-
   .progress-note strong {
     color: var(--primary-light);
     font-weight: 700;
@@ -259,25 +235,21 @@
     gap: 20px;
     flex-wrap: wrap;
   }
-
   .next-class-header {
     display: flex;
     align-items: center;
     gap: 12px;
     flex: 0 0 auto;
   }
-
   .next-class-icon {
     color: var(--primary);
     font-size: 24px;
   }
-
   .next-class-title {
     font-size: 1rem;
     font-weight: 600;
     color: var(--text-primary);
   }
-
   .next-class-info {
     flex: 1;
     min-width: 200px;
@@ -289,7 +261,6 @@
     align-items: center;
     gap: 12px;
   }
-
   .status-dot {
     width: 8px;
     height: 8px;
@@ -298,19 +269,16 @@
     box-shadow: 0 0 0 4px rgba(16, 185, 129, 0.2);
     flex-shrink: 0;
   }
-
   .class-details h4 {
     font-size: 0.875rem;
     font-weight: 700;
     color: var(--text-primary);
     margin-bottom: 4px;
   }
-
   .class-details p {
     font-size: 0.8rem;
     color: var(--text-secondary);
   }
-
   .next-class-actions {
     display: flex;
     gap: 12px;
@@ -332,30 +300,25 @@
     border: none;
     white-space: nowrap;
   }
-
   .btn-primary {
     background: var(--primary);
-    color: white;
+    color: #fff;
   }
-
   .btn-primary:hover {
     background: var(--primary-light);
     transform: translateY(-1px);
     box-shadow: var(--shadow-md);
   }
-
   .btn-danger {
     background: rgba(239, 68, 68, 0.1);
     color: #fca5a5;
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
-
   .btn-danger:hover {
     background: rgba(239, 68, 68, 0.2);
     border-color: var(--danger);
-    color: white;
+    color: #fff;
   }
-
   .btn-icon {
     font-size: 18px;
   }
@@ -366,7 +329,6 @@
     grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
     gap: var(--spacing);
   }
-
   .action-card {
     position: relative;
     aspect-ratio: 1;
@@ -377,23 +339,23 @@
     text-decoration: none;
     display: block;
   }
-
   .action-card::before {
-    content: '';
+    content: "";
     position: absolute;
     inset: 0;
-    background: linear-gradient(180deg, transparent 0%, rgba(0, 0, 0, 0.7) 100%);
+    background: linear-gradient(
+      180deg,
+      transparent 0%,
+      rgba(0, 0, 0, 0.7) 100%
+    );
     z-index: 1;
-    transition: opacity 0.3s ease;
   }
-
   .action-card img {
     width: 100%;
     height: 100%;
     object-fit: cover;
     transition: transform 0.3s ease;
   }
-
   .action-card-label {
     position: absolute;
     bottom: 0;
@@ -401,36 +363,30 @@
     right: 0;
     padding: 24px;
     z-index: 2;
-    color: white;
+    color: #fff;
     font-size: 1.125rem;
     font-weight: 700;
     text-align: center;
   }
-
   .action-card:hover {
     transform: translateY(-4px);
     box-shadow: var(--shadow-lg);
     border-color: var(--border-strong);
   }
-
   .action-card:hover img {
     transform: scale(1.05);
   }
-
   .action-card.disabled {
     opacity: 0.5;
     cursor: not-allowed;
   }
-
   .action-card.disabled:hover {
     transform: none;
     box-shadow: none;
   }
-
   .action-card.disabled img {
     filter: grayscale(1);
   }
-
   .action-card.disabled:hover img {
     transform: none;
   }
@@ -447,14 +403,12 @@
     gap: 20px;
     flex-wrap: wrap;
   }
-
   .membership-info {
     display: flex;
     gap: 24px;
     flex-wrap: wrap;
     align-items: center;
   }
-
   .info-item {
     display: flex;
     align-items: center;
@@ -462,11 +416,9 @@
     font-size: 0.875rem;
     color: var(--text-secondary);
   }
-
   .info-label {
     color: var(--text-muted);
   }
-
   .status-badge {
     padding: 4px 12px;
     border-radius: 8px;
@@ -475,25 +427,21 @@
     text-transform: uppercase;
     letter-spacing: 0.05em;
   }
-
   .status-active {
     background: rgba(16, 185, 129, 0.15);
     color: #6ee7b7;
     border: 1px solid rgba(16, 185, 129, 0.3);
   }
-
   .status-inactive {
     background: rgba(239, 68, 68, 0.15);
     color: #fca5a5;
     border: 1px solid rgba(239, 68, 68, 0.3);
   }
-
   .membership-actions {
     display: flex;
     gap: 16px;
     flex-wrap: wrap;
   }
-
   .link-btn {
     display: inline-flex;
     align-items: center;
@@ -504,100 +452,288 @@
     font-weight: 600;
     transition: color 0.2s ease;
   }
-
   .link-btn:hover {
     color: var(--primary);
   }
-
   .link-btn.whatsapp {
     color: var(--success);
   }
-
   .link-btn.whatsapp:hover {
     color: #059669;
   }
 
-  /* ==================== RESPONSIVE ==================== */
+  /* ==================== MODAL CUMPLE (LIMPIO + FUNCIONA CON JS) ==================== */
+  @keyframes fwsFade {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  @keyframes fwsPop {
+    from {
+      transform: translateY(10px) scale(0.985);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0) scale(1);
+      opacity: 1;
+    }
+  }
+
+  .modal-backdrop-fws {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    padding: 18px;
+    background: rgba(0, 0, 0, 0.72);
+    backdrop-filter: blur(10px);
+    -webkit-backdrop-filter: blur(10px);
+    display: none; /* ✅ cerrado por defecto */
+    align-items: center;
+    justify-content: center;
+    animation: fwsFade 0.18s ease-out;
+  }
+  .modal-backdrop-fws.is-open {
+    display: flex;
+  } /* ✅ abierto por clase */
+
+  .modal-fws {
+    width: min(720px, 100%);
+    border-radius: 20px;
+    overflow: hidden;
+    position: relative;
+    background:
+      radial-gradient(
+        circle at 15% 10%,
+        rgba(212, 175, 55, 0.18) 0%,
+        transparent 40%
+      ),
+      radial-gradient(
+        circle at 85% 15%,
+        rgba(255, 255, 255, 0.08) 0%,
+        transparent 45%
+      ),
+      linear-gradient(
+        180deg,
+        rgba(17, 19, 23, 0.94) 0%,
+        rgba(10, 12, 16, 0.96) 100%
+      );
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow:
+      0 28px 90px rgba(0, 0, 0, 0.68),
+      0 0 0 1px rgba(212, 175, 55, 0.14) inset;
+    animation: fwsPop 0.22s ease-out;
+  }
+
+  .modal-fws::before {
+    content: "";
+    position: absolute;
+    inset: -1px;
+    border-radius: 22px;
+    padding: 1px;
+    background: linear-gradient(
+      135deg,
+      rgba(212, 175, 55, 0.55),
+      rgba(255, 255, 255, 0.14),
+      rgba(212, 175, 55, 0.25)
+    );
+    -webkit-mask:
+      linear-gradient(#000 0 0) content-box,
+      linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor;
+    mask-composite: exclude;
+    pointer-events: none;
+    opacity: 0.8;
+  }
+  .modal-fws::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    opacity: 0.22;
+    background-image:
+      radial-gradient(circle, rgba(212, 175, 55, 0.9) 0 2px, transparent 3px),
+      radial-gradient(
+        circle,
+        rgba(255, 255, 255, 0.9) 0 1.5px,
+        transparent 3px
+      ),
+      radial-gradient(circle, rgba(255, 90, 90, 0.85) 0 1.8px, transparent 3px);
+    background-size:
+      28px 28px,
+      34px 34px,
+      30px 30px;
+    background-position:
+      0 0,
+      14px 8px,
+      8px 18px;
+    filter: blur(0.2px);
+  }
+
+  .modal-fws-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    background: rgba(255, 255, 255, 0.03);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    position: relative;
+    z-index: 1;
+  }
+  .modal-fws-title {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 950;
+    letter-spacing: 0.02em;
+    color: rgba(255, 255, 255, 0.95);
+    font-size: 16px;
+  }
+  .modal-fws-title::before {
+    content: "🎂";
+    width: 34px;
+    height: 34px;
+    border-radius: 12px;
+    display: grid;
+    place-items: center;
+    background: rgba(212, 175, 55, 0.14);
+    border: 1px solid rgba(212, 175, 55, 0.25);
+    box-shadow: 0 10px 30px rgba(212, 175, 55, 0.12);
+  }
+  .modal-fws-close {
+    width: 40px;
+    height: 40px;
+    border-radius: 14px;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    background: rgba(255, 255, 255, 0.06);
+    color: rgba(255, 255, 255, 0.92);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition:
+      transform 0.12s ease,
+      background 0.12s ease;
+    position: relative;
+    z-index: 2;
+  }
+  .modal-fws-close:hover {
+    background: rgba(255, 255, 255, 0.1);
+    transform: translateY(-1px);
+  }
+  .modal-fws-body {
+    padding: 0;
+    position: relative;
+    z-index: 1;
+  }
+  .modal-fws-media {
+    display: block;
+    width: 100%;
+    max-height: 68vh;
+    object-fit: cover;
+    background: #0b0f1a;
+  }
+  .modal-fws-body::after {
+    content: "Que tengas un día increíble ✨";
+    position: absolute;
+    left: 14px;
+    bottom: 14px;
+    padding: 8px 12px;
+    border-radius: 999px;
+    font-weight: 800;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.92);
+    background: rgba(0, 0, 0, 0.35);
+    border: 1px solid rgba(255, 255, 255, 0.14);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  }
+
   @media (max-width: 768px) {
     .dashboard {
       padding: 16px;
       gap: 16px;
     }
-
     .hero {
       padding: 24px;
       flex-direction: column;
       text-align: center;
     }
-
     .hero-title {
       font-size: 1.5rem;
     }
-
     .progress-card {
       grid-template-columns: 1fr;
       gap: 32px;
       padding: 24px;
     }
-
     .progress-ring {
       width: 160px;
       height: 160px;
     }
-
     .progress-weight-value {
       font-size: 2rem;
     }
-
     .next-class {
       flex-direction: column;
       align-items: stretch;
     }
-
     .next-class-info {
       min-width: 100%;
     }
-
     .action-grid {
       grid-template-columns: 1fr;
       gap: 16px;
     }
-
     .membership-footer {
       flex-direction: column;
       align-items: stretch;
     }
-
     .membership-info {
       flex-direction: column;
       align-items: flex-start;
       gap: 12px;
     }
-
     .membership-actions {
       flex-direction: column;
     }
   }
-
+  @media (max-width: 520px) {
+    .modal-fws-header {
+      padding: 12px;
+    }
+    .modal-fws-title {
+      font-size: 0.95rem;
+    }
+    .modal-fws-close {
+      width: 34px;
+      height: 34px;
+      border-radius: 10px;
+    }
+    .modal-fws-media {
+      max-height: 70vh;
+      object-fit: contain;
+    }
+  }
   @media (max-width: 480px) {
     .hero {
       padding: 20px;
     }
-
     .hero-image {
       width: 60px;
       height: 60px;
     }
-
     .progress-card {
       padding: 20px;
     }
-
     .progress-ring {
       width: 140px;
       height: 140px;
     }
-
     .next-class {
       padding: 20px;
     }
@@ -607,12 +743,16 @@
 <div class="dashboard">
   <!-- Hero Section -->
   <section class="hero">
-    <img class="hero-image"
-         src="{{ url_for('static', filename='images/clientes.jpeg') }}"
-         alt="Cliente">
+    <img
+      class="hero-image"
+      src="{{ url_for('static', filename='images/clientes.jpeg') }}"
+      alt="Cliente"
+    />
     <div class="hero-content">
       <h1 class="hero-title">Forja tu Interior</h1>
-      <p class="hero-subtitle">Seguimiento completo de tu progreso y entrenamiento</p>
+      <p class="hero-subtitle">
+        Seguimiento completo de tu progreso y entrenamiento
+      </p>
     </div>
   </section>
 
@@ -620,28 +760,46 @@
   <section class="progress-card">
     <div class="progress-ring-container">
       <span class="progress-label">Mi Progreso</span>
-      
+
       <div class="progress-ring">
         <svg class="progress-circle" viewBox="0 0 180 180">
           <defs>
-            <linearGradient id="progressGradient" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" style="stop-color:#6366f1;stop-opacity:1" />
-              <stop offset="100%" style="stop-color:#f472b6;stop-opacity:1" />
+            <linearGradient
+              id="progressGradient"
+              x1="0%"
+              y1="0%"
+              x2="100%"
+              y2="100%"
+            >
+              <stop offset="0%" style="stop-color: #6366f1; stop-opacity: 1" />
+              <stop
+                offset="100%"
+                style="stop-color: #f472b6; stop-opacity: 1"
+              />
             </linearGradient>
           </defs>
-          <circle class="progress-circle-bg" cx="90" cy="90" r="80"/>
-          <circle class="progress-circle-fill" 
-                  cx="90" cy="90" r="80"
-                  stroke-dasharray="{{ (2 * 3.14159 * 80) }}"
-                  stroke-dashoffset="{{ (2 * 3.14159 * 80 * (100 - (progreso_pct|default(0))) / 100) }}"/>
+
+          <circle class="progress-circle-bg" cx="90" cy="90" r="80" />
+          <circle
+            class="progress-circle-fill"
+            cx="90"
+            cy="90"
+            r="80"
+            stroke-dasharray="{{ (2 * 3.14159 * 80) }}"
+            stroke-dashoffset="{{ (2 * 3.14159 * 80 * (100 - (progreso_pct|default(0))) / 100) }}"
+          />
         </svg>
-        
+
         <div class="progress-center">
           <div class="progress-weight">
-            <span class="progress-weight-value">{{ peso_actual if peso_actual is not none else '-' }}</span>
+            <span class="progress-weight-value"
+              >{{ peso_actual if peso_actual is not none else '-' }}</span
+            >
             <span class="progress-weight-unit">kg</span>
           </div>
-          <div class="progress-initial">Inicial: {{ peso_inicial if peso_inicial is not none else '-' }} kg</div>
+          <div class="progress-initial">
+            Inicial: {{ peso_inicial if peso_inicial is not none else '-' }} kg
+          </div>
           <div class="progress-percentage">{{ progreso_pct|default(0) }}%</div>
         </div>
       </div>
@@ -650,96 +808,129 @@
     <div class="progress-stats">
       <div class="stat-row">
         <span class="stat-label">% Grasa</span>
-        <span class="stat-value">{{ (grasa_actual if grasa_actual is not none else '-') }}%</span>
+        <span class="stat-value"
+          >{{ (grasa_actual if grasa_actual is not none else '-') }}%</span
+        >
       </div>
-      
+
       <div class="stat-row">
         <span class="stat-label">Músculo</span>
-        <span class="stat-value">{{ (musculo_actual if musculo_actual is not none else '-') }}%</span>
+        <span class="stat-value"
+          >{{ (musculo_actual if musculo_actual is not none else '-') }}%</span
+        >
       </div>
 
       <div class="progress-note">
-        Has mejorado <strong>{{ fuerza_pct|default(0) }}%</strong> desde tu última medición. ¡Sigue así!
+        Has mejorado <strong>{{ fuerza_pct|default(0) }}%</strong> desde tu
+        última medición. ¡Sigue así!
       </div>
     </div>
   </section>
 
   <!-- Next Class -->
-  {% set prox = (clases_proximas[0] if clases_proximas and clases_proximas|length > 0 else None) %}
-  
+  {% set prox = (clases_proximas[0] if clases_proximas and
+  clases_proximas|length > 0 else None) %}
+
   <section class="next-class">
     <div class="next-class-header">
-      <span class="material-symbols-outlined next-class-icon">calendar_today</span>
+      <span class="material-symbols-outlined next-class-icon"
+        >calendar_today</span
+      >
       <h3 class="next-class-title">Próxima Clase</h3>
     </div>
 
     {% if prox %}
-      <div class="next-class-info">
-        <span class="status-dot"></span>
-        <div class="class-details">
-          <h4>{{ prox.nombre_clase or prox.clase or 'Clase' }}</h4>
-          <p>
-            {{ prox.dt.strftime('%d/%m/%Y') if prox.dt else prox.fecha_txt }} · {{ prox.hora }}
-            {% if prox.entrenador %} · {{ prox.entrenador }}{% endif %}
-          </p>
-        </div>
+    <div class="next-class-info">
+      <span class="status-dot"></span>
+      <div class="class-details">
+        <h4>{{ prox.nombre_clase or prox.clase or 'Clase' }}</h4>
+        <p>
+          {{ prox.dt.strftime('%d/%m/%Y') if prox.dt else prox.fecha_txt }} · {{
+          prox.hora }} {% if prox.entrenador %} · {{ prox.entrenador }}{% endif
+          %}
+        </p>
       </div>
+    </div>
     {% else %}
-      <div class="next-class-info">
-        <span class="material-symbols-outlined" style="color: var(--text-muted); font-size: 18px">event</span>
-        <div class="class-details">
-          <h4>Sin reservas</h4>
-          <p>Aún no tienes clases agendadas</p>
-        </div>
+    <div class="next-class-info">
+      <span
+        class="material-symbols-outlined"
+        style="color: var(--text-muted); font-size: 18px"
+        >event</span
+      >
+      <div class="class-details">
+        <h4>Sin reservas</h4>
+        <p>Aún no tienes clases agendadas</p>
       </div>
+    </div>
     {% endif %}
 
     <div class="next-class-actions">
       {% if prox_reserva and puede_cancelar_prox %}
-        <form method="post"
-              action="{{ url_for('web.cliente_cancelar_reserva', reserva_id=prox_reserva['_id']) }}"
-              onsubmit="return confirm('¿Seguro que deseas cancelar tu reserva?');">
-          <button type="submit" class="btn btn-danger">
-            <span class="material-symbols-outlined btn-icon">cancel</span>
-            Cancelar
-          </button>
-        </form>
-      {% endif %}
-
-      {% if puede_no_asistir %}
-        <form method="post"
-              action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
-              onsubmit="return confirm('¿Seguro que no podrás asistir mañana?');">
-          <button type="submit" class="btn btn-danger">
-            <span class="material-symbols-outlined btn-icon">event_busy</span>
-            No podré asistir
-          </button>
-        </form>
+      <form
+        method="post"
+        action="{{ url_for('web.cliente_cancelar_reserva', reserva_id=prox_reserva['_id']) }}"
+        onsubmit="return confirm('¿Seguro que deseas cancelar tu reserva?');"
+      >
+        <button type="submit" class="btn btn-danger">
+          <span class="material-symbols-outlined btn-icon">cancel</span>
+          Cancelar
+        </button>
+      </form>
+      {% endif %} {% if puede_no_asistir %}
+      <form
+        method="post"
+        action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
+        onsubmit="return confirm('¿Seguro que no podrás asistir mañana?');"
+      >
+        <button type="submit" class="btn btn-danger">
+          <span class="material-symbols-outlined btn-icon">event_busy</span>
+          No podré asistir
+        </button>
+      </form>
       {% endif %}
     </div>
   </section>
 
   <!-- Action Cards -->
   <section class="action-grid">
-    <a href="{{ url_for('web.horarios_publico', view='week') }}" class="action-card">
-      <img src="{{ url_for('static', filename='images/reservar.png') }}" alt="Reservar">
+    <a
+      href="{{ url_for('web.horarios_publico', view='week') }}"
+      class="action-card"
+    >
+      <img
+        src="{{ url_for('static', filename='images/reservar.png') }}"
+        alt="Reservar"
+      />
       <div class="action-card-label">Reservar Clase</div>
     </a>
 
     {% if plan_actual and (plan_actual.filename or plan_actual.rel_path) %}
-      <a href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}" class="action-card">
-        <img src="{{ url_for('static', filename='images/entrenamiento.png') }}" alt="Plan">
-        <div class="action-card-label">Mi Plan</div>
-      </a>
+    <a
+      href="{{ url_for('web.descargar_planificacion', plan_id=plan_actual._id) }}"
+      class="action-card"
+    >
+      <img
+        src="{{ url_for('static', filename='images/entrenamiento.png') }}"
+        alt="Plan"
+      />
+      <div class="action-card-label">Mi Plan</div>
+    </a>
     {% else %}
-      <div class="action-card disabled">
-        <img src="{{ url_for('static', filename='images/entrenamiento.png') }}" alt="Plan en preparación">
-        <div class="action-card-label">Plan en Preparación</div>
-      </div>
+    <div class="action-card disabled">
+      <img
+        src="{{ url_for('static', filename='images/entrenamiento.png') }}"
+        alt="Plan en preparación"
+      />
+      <div class="action-card-label">Plan en Preparación</div>
+    </div>
     {% endif %}
 
     <a href="{{ url_for('web.cliente_progreso') }}" class="action-card">
-      <img src="{{ url_for('static', filename='images/progreso.png') }}" alt="Progreso">
+      <img
+        src="{{ url_for('static', filename='images/progreso.png') }}"
+        alt="Progreso"
+      />
       <div class="action-card-label">Ver Progreso</div>
     </a>
   </section>
@@ -747,12 +938,14 @@
   <!-- Membership Footer -->
   <section class="membership-footer">
     <div class="membership-info">
-      {% set _estado = (estado|string)|default('Sin membresía', true) %}
-      {% set is_active = _estado != 'Sin membresía' %}
-      
+      {% set _estado = (estado|string)|default('Sin membresía', true) %} {% set
+      is_active = _estado != 'Sin membresía' %}
+
       <div class="info-item">
         <span class="info-label">Estado:</span>
-        <span class="status-badge {{ 'status-active' if is_active else 'status-inactive' }}">
+        <span
+          class="status-badge {{ 'status-active' if is_active else 'status-inactive' }}"
+        >
           {{ _estado }}
         </span>
       </div>
@@ -771,16 +964,128 @@
     <div class="membership-actions">
       <a href="{{ url_for('web.cliente_membresia') }}" class="link-btn">
         Ver detalles
-        <span class="material-symbols-outlined" style="font-size: 16px">arrow_forward</span>
+        <span class="material-symbols-outlined" style="font-size: 16px"
+          >arrow_forward</span
+        >
       </a>
-      
-      <a target="_blank"
-         href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
-         class="link-btn whatsapp">
+
+      <a
+        target="_blank"
+        href="https://wa.me/{{ WHATSAPP_NUM }}?text={{ wa_text|urlencode }}"
+        class="link-btn whatsapp"
+      >
         Renovar por WhatsApp
-        <span class="material-symbols-outlined" style="font-size: 16px">open_in_new</span>
+        <span class="material-symbols-outlined" style="font-size: 16px"
+          >open_in_new</span
+        >
       </a>
     </div>
   </section>
 </div>
+
+{# ================= MODAL CUMPLEAÑOS ================= #} {% if cumple_hoy %}
+<div id="modalCumple" class="modal-backdrop-fws" aria-hidden="true">
+  <div
+    class="modal-fws"
+    role="dialog"
+    aria-modal="true"
+    aria-label="Feliz cumpleaños"
+  >
+    <div class="modal-fws-header">
+      <div class="modal-fws-title">¡Feliz cumpleaños! 🎉</div>
+      <button
+        class="modal-fws-close"
+        type="button"
+        data-close="modalCumple"
+        aria-label="Cerrar"
+      >
+        <span class="material-symbols-outlined">close</span>
+      </button>
+    </div>
+
+    <div class="modal-fws-body">
+      <img class="modal-fws-media" src="{{ cumple_img }}" alt="Cumpleaños" />
+    </div>
+  </div>
+</div>
+{% endif %} {# ✅ Config seguro para JS (sin undefined) #}
+<div
+  id="dash-config"
+  data-cumple-hoy="{{ '1' if cumple_hoy else '0' }}"
+  data-show-publicidad="{{ '1' if show_publicidad else '0' }}"
+  data-publicidad-img-url="{{ (publicidad_img_url or '') | e }}"
+  data-delay-publicidad-ms="{{ '500' if cumple_hoy else '150' }}"
+></div>
+
+<script>
+  (function () {
+    const cfg = document.getElementById("dash-config");
+    if (!cfg) return;
+
+    const CUMPLE_HOY = cfg.dataset.cumpleHoy === "1";
+    const SHOW_PUBLICIDAD = cfg.dataset.showPublicidad === "1";
+    const PUBLICIDAD_IMG_URL = (cfg.dataset.publicidadImgUrl || "").trim();
+    const DELAY_PUBLICIDAD_MS = parseInt(
+      cfg.dataset.delayPublicidadMs || "150",
+      10,
+    );
+
+    function openModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.add("is-open");
+      el.setAttribute("aria-hidden", "false");
+    }
+    function closeModal(id) {
+      const el = document.getElementById(id);
+      if (!el) return;
+      el.classList.remove("is-open");
+      el.setAttribute("aria-hidden", "true");
+    }
+
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest("[data-close]");
+      if (btn) {
+        closeModal(btn.getAttribute("data-close"));
+        return;
+      }
+      const backdrop = e.target.classList.contains("modal-backdrop-fws")
+        ? e.target
+        : null;
+      if (backdrop) closeModal(backdrop.id);
+    });
+
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape") {
+        document
+          .querySelectorAll(".modal-backdrop-fws.is-open")
+          .forEach((m) => {
+            m.classList.remove("is-open");
+            m.setAttribute("aria-hidden", "true");
+          });
+      }
+    });
+
+    // ✅ Cumple (1 vez por sesión)
+    if (CUMPLE_HOY && !sessionStorage.getItem("seen_cumple_modal")) {
+      openModal("modalCumple");
+      sessionStorage.setItem("seen_cumple_modal", "1");
+    }
+
+    // ✅ Publicidad (1 vez por sesión) - SOLO si realmente existe modal + url
+    if (
+      SHOW_PUBLICIDAD &&
+      PUBLICIDAD_IMG_URL &&
+      !sessionStorage.getItem("seen_publicidad_modal")
+    ) {
+      setTimeout(() => {
+        const exists = document.getElementById("modalPublicidad");
+        if (exists) openModal("modalPublicidad");
+      }, DELAY_PUBLICIDAD_MS);
+
+      sessionStorage.setItem("seen_publicidad_modal", "1");
+    }
+  })();
+</script>
+
 {% endblock %}

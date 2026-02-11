@@ -5,16 +5,32 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>{% block title %}CORE Gym{% endblock %}</title>
 
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet"/>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap"
+      rel="stylesheet"
+    />
 
+    <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
 
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+    <!-- Bootstrap (solo 1 vez) -->
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css"
+      rel="stylesheet"
+    />
+    <link
+      href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
+      rel="stylesheet"
+    />
+    <link
+      rel="stylesheet"
+      href="{{ url_for('static', filename='css/styles.css') }}"
+    />
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
-
-
 
     <script>
       tailwind.config = {
@@ -45,22 +61,34 @@
         background-color: rgba(255, 255, 255, 0.05);
         border-left: 4px solid #FFFFFF;
       }
+
       .select-core option,
       .select-core optgroup {
-        background: #ffffff !important;
-        color: #111827 !important; /* gris casi negro */
+        background: #000000 !important;
+        color: #111827 !important;
       }
 
-      /* En algunos navegadores esto ayuda a que el control use colores correctos */
-      .select-core {
-        color-scheme: dark;
+      .select-core { color-scheme: dark; }
+    </style>
+
+    {# Estilos del modal publicidad #}
+    <style>
+      .modal-publicidad .modal-dialog { max-width: 980px; }
+      @media (max-width: 992px) {
+        .modal-publicidad .modal-dialog { max-width: 95vw; margin: 1rem auto; }
+      }
+      .modal-publicidad-media{
+        width: 100%;
+        max-height: 72vh;
+        object-fit: contain;
+        background: #111;
+        display: block;
       }
     </style>
   </head>
 
   <body class="bg-background-dark text-white transition-colors duration-200">
     <div class="flex h-screen overflow-hidden">
-
       {# Sidebar desktop #}
       <aside class="hidden md:flex w-64 bg-surface-dark border-r border-white/5 flex-col">
         {% include "partials/sidebar_admin.html" %}
@@ -85,9 +113,8 @@
       >
         <div class="p-4 border-b border-white/10 flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="w-9 h-9 bg-white flex items-center justify-center rounded-lg">
-                    <img src="../../static/images/logo_gym.jpeg" alt="" />
-
+            <div class="w-9 h-9 bg-white flex items-center justify-center rounded-lg overflow-hidden">
+              <img src="{{ url_for('static', filename='images/logo_gym.jpeg') }}" alt="Logo" class="w-full h-full object-cover" />
             </div>
             <div>
               <div class="font-bold text-white leading-tight">CORE</div>
@@ -109,13 +136,103 @@
           {% include "partials/sidebar_admin.html" %}
         </div>
       </aside>
-
     </div>
+    {# ✅ FIN del contenedor principal. Todo lo demás va fuera. #}
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+
+    {# =========================
+       ✅ MODAL PUBLICIDAD (SOLO DASHBOARDS)
+       ========================= #}
+    {% if session.get("username") and publicidad_activa and show_publicidad %}
+      {% set fn = (publicidad_activa.filename or "")|lower %}
+      {% set is_video =
+          (publicidad_activa.kind == "video")
+          or fn.endswith(".mp4")
+          or fn.endswith(".webm")
+          or fn.endswith(".mov")
+          or fn.endswith(".m4v")
+          or fn.endswith(".avi")
+      %}
+
+      <div class="modal fade modal-publicidad" id="modalPublicidad" tabindex="-1" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-xl">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h6 class="modal-title text-dark">
+                <i class="bi bi-megaphone me-1"></i>
+                {{ publicidad_activa.titulo or "Publicidad" }}
+              </h6>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+
+            <div class="modal-body p-0">
+              {% if is_video %}
+                <video
+                  class="modal-publicidad-media"
+                  src="{{ url_for('web.ver_publicidad_media', pub_id=publicidad_activa._id) }}"
+                  controls
+                  autoplay
+                  muted
+                  loop
+                  playsinline
+                  preload="metadata"
+                ></video>
+              {% else %}
+                <img
+                  src="{{ url_for('web.ver_publicidad_media', pub_id=publicidad_activa._id) }}"
+                  alt="publicidad"
+                  class="modal-publicidad-media"
+                />
+              {% endif %}
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn btn-outline-secondary" type="button" data-bs-dismiss="modal">
+                Cerrar
+              </button>
+              <button class="btn btn-primary" type="button" id="btnNoMostrarPub">
+                No mostrar de nuevo
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <script>
+        (function () {
+          const pubId = "{{ publicidad_activa._id }}";
+          const key = "pub_seen_" + pubId;
+
+          if (!pubId) return;
+          if (localStorage.getItem(key) === "1") return;
+
+          const el = document.getElementById("modalPublicidad");
+          if (!el || typeof bootstrap === "undefined") return;
+
+          const modal = new bootstrap.Modal(el);
+
+          window.addEventListener("load", () => {
+            modal.show();
+          });
+
+          const btn = document.getElementById("btnNoMostrarPub");
+          if (btn) {
+            btn.addEventListener("click", () => {
+              localStorage.setItem(key, "1");
+              modal.hide();
+            });
+          }
+        })();
+      </script>
+    {% endif %}
 
     <script>
       function openDrawer() {
         const overlay = document.getElementById("mobileDrawerOverlay");
         const drawer = document.getElementById("mobileDrawer");
+        if (!overlay || !drawer) return;
+
         overlay.classList.remove("hidden");
         drawer.classList.remove("-translate-x-full");
         drawer.setAttribute("aria-hidden", "false");
@@ -124,6 +241,8 @@
       function closeDrawer() {
         const overlay = document.getElementById("mobileDrawerOverlay");
         const drawer = document.getElementById("mobileDrawer");
+        if (!overlay || !drawer) return;
+
         overlay.classList.add("hidden");
         drawer.classList.add("-translate-x-full");
         drawer.setAttribute("aria-hidden", "true");
@@ -132,6 +251,7 @@
       (function () {
         const overlay = document.getElementById("mobileDrawerOverlay");
         if (overlay) overlay.addEventListener("click", closeDrawer);
+
         document.addEventListener("keydown", (e) => {
           if (e.key === "Escape") closeDrawer();
         });

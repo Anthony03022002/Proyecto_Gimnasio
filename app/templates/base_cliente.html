@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html class="dark" lang="es">
   <head>
     <meta charset="utf-8" />
@@ -6,8 +6,14 @@
     <title>{% block title %}CORE Gym{% endblock %}</title>
 
     <!-- Tipografía + Iconos -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
-    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@200..700&display=swap" rel="stylesheet"/>
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght@200..700&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Tailwind -->
     <script src="https://cdn.tailwindcss.com?plugins=forms,typography,container-queries"></script>
@@ -26,8 +32,8 @@
               soft: "rgba(255,255,255,0.06)",
               txt: "rgba(255,255,255,0.92)",
               muted: "rgba(255,255,255,0.55)",
-              brand: "#D4AF37",      /* dorado suave (si lo quieres) */
-              danger: "#ff5a5a"
+              brand: "#D4AF37" /* dorado suave (si lo quieres) */,
+              danger: "#ff5a5a",
             },
             fontFamily: { display: ["Inter", "sans-serif"] },
             borderRadius: { DEFAULT: "0.75rem" },
@@ -37,119 +43,189 @@
     </script>
 
     <style type="text/tailwindcss">
-      body { font-family: 'Inter', sans-serif; }
-      .material-symbols-outlined { font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24; }
+      body {
+        font-family: "Inter", sans-serif;
+      }
+      .material-symbols-outlined {
+        font-variation-settings:
+          "FILL" 0,
+          "wght" 400,
+          "GRAD" 0,
+          "opsz" 24;
+      }
 
       /* Contenedor base */
       .elite-shell {
         background:
-          radial-gradient(circle at 0% 0%, rgba(255,255,255,0.04) 0%, transparent 55%),
-          radial-gradient(circle at 100% 100%, rgba(255,255,255,0.03) 0%, transparent 55%),
-          linear-gradient(180deg, #0A0C10 0%, #0A0C10 100%);
+          radial-gradient(
+            circle at 0% 0%,
+            rgba(255, 255, 255, 0.04) 0%,
+            transparent 55%
+          ),
+          radial-gradient(
+            circle at 100% 100%,
+            rgba(255, 255, 255, 0.03) 0%,
+            transparent 55%
+          ),
+          linear-gradient(180deg, #0a0c10 0%, #0a0c10 100%);
       }
 
       /* Cards coherentes en todo el cliente */
       .elite-card {
-        background: rgba(255,255,255,0.04);
-        border: 1px solid rgba(255,255,255,0.08);
-        box-shadow: 0 18px 50px rgba(0,0,0,0.35);
+        background: rgba(255, 255, 255, 0.04);
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        box-shadow: 0 18px 50px rgba(0, 0, 0, 0.35);
       }
-      .elite-card:hover { border-color: rgba(255,255,255,0.12); }
+      .elite-card:hover {
+        border-color: rgba(255, 255, 255, 0.12);
+      }
 
       /* Botones */
       .elite-btn {
-        background: rgba(255,255,255,0.06);
-        border: 1px solid rgba(255,255,255,0.12);
+        background: rgba(255, 255, 255, 0.06);
+        border: 1px solid rgba(255, 255, 255, 0.12);
       }
-      .elite-btn:hover { background: rgba(255,255,255,0.10); }
+      .elite-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
       .elite-btn-danger {
-        background: rgba(255,90,90,0.08);
-        border: 1px solid rgba(255,90,90,0.35);
+        background: rgba(255, 90, 90, 0.08);
+        border: 1px solid rgba(255, 90, 90, 0.35);
       }
-      .elite-btn-danger:hover { background: rgba(255,90,90,0.12); }
+      .elite-btn-danger:hover {
+        background: rgba(255, 90, 90, 0.12);
+      }
 
       /* Sidebar */
       .sidebar-active {
-        background: rgba(255,255,255,0.06);
-        border-left: 4px solid rgba(255,255,255,0.8);
+        background: rgba(255, 255, 255, 0.06);
+        border-left: 4px solid rgba(255, 255, 255, 0.8);
       }
-      .sidebar-item:hover { background: rgba(255,255,255,0.05); }
+      .sidebar-item:hover {
+        background: rgba(255, 255, 255, 0.05);
+      }
 
       /* Scroll suave */
-      ::-webkit-scrollbar { width: 10px; height: 10px; }
-      ::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.10); border-radius: 999px; }
-      ::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
+      ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: rgba(255, 255, 255, 0.14);
+      }
     </style>
   </head>
 
   <body class="text-white transition-colors duration-200 elite-shell">
     <div class="flex h-screen overflow-hidden">
-
       <!-- ===================== SIDEBAR DESKTOP ===================== -->
       <aside class="hidden w-72 bg-panel border-r border-line flex-col">
-
         <!-- BRAND (cambia aqui) -->
-        {% set BRAND_NAME = "CORE" %}  <!-- <<< CAMBIA NOMBRE -->
-        {% set BRAND_SUB  = "CLIENTE" %}
-        {% set LOGO_PATH  = "../../static/images/logo_gym.jpeg" %} <!-- <<< CAMBIA LOGO -->
+        {% set BRAND_NAME = "CORE" %}
+        <!-- <<< CAMBIA NOMBRE -->
+        {% set BRAND_SUB = "CLIENTE" %} {% set LOGO_PATH =
+        "../../static/images/logo_gym.jpeg" %}
+        <!-- <<< CAMBIA LOGO -->
 
         <div class="p-6 border-b border-line">
           <div class="flex items-center gap-3">
-            <div class="w-11 h-11 rounded-xl overflow-hidden bg-white/10 border border-line flex items-center justify-center">
-              <img src="{{ LOGO_PATH }}" class="w-full h-full object-cover" alt="Logo">
+            <div
+              class="w-11 h-11 rounded-xl overflow-hidden bg-white/10 border border-line flex items-center justify-center"
+            >
+              <img
+                src="{{ LOGO_PATH }}"
+                class="w-full h-full object-cover"
+                alt="Logo"
+              />
             </div>
             <div class="leading-tight">
-              <div class="font-extrabold tracking-wide text-white">{{ BRAND_NAME }}</div>
-              <div class="text-[10px] uppercase tracking-widest text-muted font-semibold">{{ BRAND_SUB }}</div>
+              <div class="font-extrabold tracking-wide text-white">
+                {{ BRAND_NAME }}
+              </div>
+              <div
+                class="text-[10px] uppercase tracking-widest text-muted font-semibold"
+              >
+                {{ BRAND_SUB }}
+              </div>
             </div>
           </div>
         </div>
 
         <!-- MENU LINKS (cambia aqui tus rutas) -->
         <nav class="flex-1 p-4 space-y-2 text-sm">
-          <a href="{{ url_for('web.cliente_dashboard') }}"
-             class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                    {{ 'sidebar-active' if (active == 'cliente_dashboard') else '' }}">
-            <span class="material-symbols-outlined text-[20px] opacity-80">dashboard</span>
+          <a
+            href="{{ url_for('web.cliente_dashboard') }}"
+            class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                    {{ 'sidebar-active' if (active == 'cliente_dashboard') else '' }}"
+          >
+            <span class="material-symbols-outlined text-[20px] opacity-80"
+              >dashboard</span
+            >
             <span class="font-semibold">Mi panel</span>
           </a>
 
-          <a href="{{ url_for('web.horarios_publico', view='week') }}"
-             class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                    {{ 'sidebar-active' if (active == 'cliente_horario') else '' }}">
-            <span class="material-symbols-outlined text-[20px] opacity-70">calendar_month</span>
+          <a
+            href="{{ url_for('web.horarios_publico', view='week') }}"
+            class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                    {{ 'sidebar-active' if (active == 'cliente_horario') else '' }}"
+          >
+            <span class="material-symbols-outlined text-[20px] opacity-70"
+              >calendar_month</span
+            >
             <span class="text-white/80 font-semibold">Horario</span>
           </a>
 
           <!-- Si luego tienes pantallas separadas, cambia estas rutas -->
-          <a href="{{ url_for('web.cliente_membresia') }}"
-             class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                    {{ 'sidebar-active' if (active == 'cliente_membresia') else '' }}">
-            <span class="material-symbols-outlined text-[20px] opacity-70">workspace_premium</span>
+          <a
+            href="{{ url_for('web.cliente_membresia') }}"
+            class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                    {{ 'sidebar-active' if (active == 'cliente_membresia') else '' }}"
+          >
+            <span class="material-symbols-outlined text-[20px] opacity-70"
+              >workspace_premium</span
+            >
             <span class="text-white/80 font-semibold">Mi membresía</span>
           </a>
 
-          <a href="{{ url_for('web.cliente_progreso') }}"
-             class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                    {{ 'sidebar-active' if (active == 'cliente_progreso') else '' }}">
-            <span class="material-symbols-outlined text-[20px] opacity-70">monitoring</span>
+          <a
+            href="{{ url_for('web.cliente_progreso') }}"
+            class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                    {{ 'sidebar-active' if (active == 'cliente_progreso') else '' }}"
+          >
+            <span class="material-symbols-outlined text-[20px] opacity-70"
+              >monitoring</span
+            >
             <span class="text-white/80 font-semibold">Mi progreso</span>
           </a>
 
-          <div class="pt-6 pb-2 px-2 text-[10px] uppercase tracking-widest text-muted font-extrabold">
+          <div
+            class="pt-6 pb-2 px-2 text-[10px] uppercase tracking-widest text-muted font-extrabold"
+          >
             Cuenta
           </div>
 
-          <a href="{{ url_for('web.cliente_config') }}"
-             class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                    {{ 'sidebar-active' if (active == 'cliente_config') else '' }}">
-            <span class="material-symbols-outlined text-[20px] opacity-70">settings</span>
+          <a
+            href="{{ url_for('web.cliente_config') }}"
+            class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                    {{ 'sidebar-active' if (active == 'cliente_config') else '' }}"
+          >
+            <span class="material-symbols-outlined text-[20px] opacity-70"
+              >settings</span
+            >
             <span class="text-white/80 font-semibold">Configuración</span>
           </a>
 
-          <a href="{{ url_for('web.logout') }}"
-             class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition text-red-300 hover:text-red-200">
-            <span class="material-symbols-outlined text-[20px] opacity-80">logout</span>
+          <a
+            href="{{ url_for('web.logout') }}"
+            class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition text-red-300 hover:text-red-200"
+          >
+            <span class="material-symbols-outlined text-[20px] opacity-80"
+              >logout</span
+            >
             <span class="font-semibold">Cerrar sesión</span>
           </a>
         </nav>
@@ -157,11 +233,15 @@
         <!-- FOOTER USER -->
         <div class="p-4 border-t border-line">
           <div class="elite-card rounded-xl p-4 flex items-center gap-3">
-            <div class="w-10 h-10 rounded-full bg-white/10 border border-line flex items-center justify-center font-extrabold">
+            <div
+              class="w-10 h-10 rounded-full bg-white/10 border border-line flex items-center justify-center font-extrabold"
+            >
               {{ (session.get('username') or 'C')[:1]|upper }}
             </div>
             <div class="min-w-0">
-              <div class="text-sm font-semibold truncate">{{ session.get('username') or 'Cliente' }}</div>
+              <div class="text-sm font-semibold truncate">
+                {{ session.get('username') or 'Cliente' }}
+              </div>
               <div class="text-[11px] text-muted truncate">Cliente</div>
             </div>
           </div>
@@ -170,15 +250,20 @@
 
       <!-- ===================== MAIN ===================== -->
       <main class="flex-1 overflow-y-auto">
-
         <!-- HEADER (reutilizable para todas pantallas) -->
-        <header class="h-20 sticky top-0 z-10 bg-obsidian/80 backdrop-blur-xl border-b border-line">
-          <div class="h-full px-4 md:px-8 flex items-center justify-between gap-3">
-
+        <header
+          class="h-20 sticky top-0 z-10 bg-obsidian/80 backdrop-blur-xl border-b border-line"
+        >
+          <div
+            class="h-full px-4 md:px-8 flex items-center justify-between gap-3"
+          >
             <!-- Boton menu movil -->
-            <button type="button"
+            <button
+              type="button"
               class="elite-btn px-3 py-2 rounded-xl text-white/80 hover:text-white transition"
-              onclick="openDrawer()" aria-label="Abrir menú">
+              onclick="openDrawer()"
+              aria-label="Abrir menú"
+            >
               <span class="material-symbols-outlined">menu</span>
             </button>
 
@@ -194,39 +279,53 @@
             <div class="flex items-center gap-2">
               {% block header_actions %}{% endblock %}
             </div>
-
           </div>
         </header>
 
         <!-- CONTENT -->
-        <div class="p-3 md:p-8">
-          {% block content %}{% endblock %}
-        </div>
-
+        <div class="p-3 md:p-8">{% block content %}{% endblock %}</div>
       </main>
 
       <!-- ===================== DRAWER MOVIL ===================== -->
-      <div id="mobileDrawerOverlay" class="fixed inset-0 bg-black/60 z-40 hidden"></div>
+      <div
+        id="mobileDrawerOverlay"
+        class="fixed inset-0 bg-black/60 z-40 hidden"
+      ></div>
 
-      <aside id="mobileDrawer"
-        class="fixed inset-y-0 left-0 w-80 max-w-[88vw] bg-panel border-r border-line z-50
-              -translate-x-full transition-transform duration-200 flex flex-col"
-        aria-hidden="true">
-
+      <aside
+        id="mobileDrawer"
+        class="fixed inset-y-0 left-0 w-80 max-w-[88vw] bg-panel border-r border-line z-50 -translate-x-full transition-transform duration-200 flex flex-col"
+        aria-hidden="true"
+      >
         <div class="p-4 border-b border-line flex items-center justify-between">
           <div class="flex items-center gap-3">
-            <div class="w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-line flex items-center justify-center">
-              <img src="{{ LOGO_PATH }}" class="w-full h-full object-cover" alt="Logo">
+            <div
+              class="w-10 h-10 rounded-xl overflow-hidden bg-white/10 border border-line flex items-center justify-center"
+            >
+              <img
+                src="{{ LOGO_PATH }}"
+                class="w-full h-full object-cover"
+                alt="Logo"
+              />
             </div>
             <div>
-              <div class="font-extrabold text-white leading-tight">{{ BRAND_NAME }}</div>
-              <div class="text-[10px] uppercase tracking-widest text-muted font-semibold">{{ BRAND_SUB }}</div>
+              <div class="font-extrabold text-white leading-tight">
+                {{ BRAND_NAME }}
+              </div>
+              <div
+                class="text-[10px] uppercase tracking-widest text-muted font-semibold"
+              >
+                {{ BRAND_SUB }}
+              </div>
             </div>
           </div>
 
-          <button type="button"
+          <button
+            type="button"
             class="elite-btn px-3 py-2 rounded-xl text-white/80 hover:text-white transition"
-            onclick="closeDrawer()" aria-label="Cerrar menú">
+            onclick="closeDrawer()"
+            aria-label="Cerrar menú"
+          >
             <span class="material-symbols-outlined">close</span>
           </button>
         </div>
@@ -234,54 +333,85 @@
         <div class="flex-1 overflow-y-auto p-4">
           <!-- Repite el nav (mismo que desktop) -->
           <nav class="space-y-2 text-sm">
-            <a href="{{ url_for('web.cliente_dashboard') }}" onclick="closeDrawer()"
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                      {{ 'sidebar-active' if (active == 'cliente_dashboard') else '' }}">
-              <span class="material-symbols-outlined text-[20px] opacity-80">dashboard</span>
+            <a
+              href="{{ url_for('web.cliente_dashboard') }}"
+              onclick="closeDrawer()"
+              class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                      {{ 'sidebar-active' if (active == 'cliente_dashboard') else '' }}"
+            >
+              <span class="material-symbols-outlined text-[20px] opacity-80"
+                >dashboard</span
+              >
               <span class="font-semibold">Mi panel</span>
             </a>
 
-            <a href="{{ url_for('web.horarios_publico', view='week') }}" onclick="closeDrawer()" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                      {{ 'sidebar-active' if (active == 'cliente_horario') else '' }}">
-              <span class="material-symbols-outlined text-[20px] opacity-70">calendar_month</span>
+            <a
+              href="{{ url_for('web.horarios_publico', view='week') }}"
+              onclick="closeDrawer()"
+              class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                      {{ 'sidebar-active' if (active == 'cliente_horario') else '' }}"
+            >
+              <span class="material-symbols-outlined text-[20px] opacity-70"
+                >calendar_month</span
+              >
               <span class="text-white/80 font-semibold">Horario</span>
             </a>
 
-            <a href="{{ url_for('web.cliente_membresia') }}" onclick="closeDrawer()" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                      {{ 'sidebar-active' if (active == 'cliente_membresia') else '' }}">
-              <span class="material-symbols-outlined text-[20px] opacity-70">workspace_premium</span>
+            <a
+              href="{{ url_for('web.cliente_membresia') }}"
+              onclick="closeDrawer()"
+              class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                      {{ 'sidebar-active' if (active == 'cliente_membresia') else '' }}"
+            >
+              <span class="material-symbols-outlined text-[20px] opacity-70"
+                >workspace_premium</span
+              >
               <span class="text-white/80 font-semibold">Mi membresía</span>
             </a>
 
-            <a href="{{ url_for('web.cliente_progreso') }}" onclick="closeDrawer()" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                      {{ 'sidebar-active' if (active == 'cliente_progreso') else '' }}">
-              <span class="material-symbols-outlined text-[20px] opacity-70">monitoring</span>
+            <a
+              href="{{ url_for('web.cliente_progreso') }}"
+              onclick="closeDrawer()"
+              class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                      {{ 'sidebar-active' if (active == 'cliente_progreso') else '' }}"
+            >
+              <span class="material-symbols-outlined text-[20px] opacity-70"
+                >monitoring</span
+              >
               <span class="text-white/80 font-semibold">Mi progreso</span>
             </a>
 
-            <div class="pt-6 pb-2 px-2 text-[10px] uppercase tracking-widest text-muted font-extrabold">
+            <div
+              class="pt-6 pb-2 px-2 text-[10px] uppercase tracking-widest text-muted font-extrabold"
+            >
               Cuenta
             </div>
 
-            <a href="{{ url_for('web.cliente_config') }}" onclick="closeDrawer()" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
-                      {{ 'sidebar-active' if (active == 'cliente_config') else '' }}">
-              <span class="material-symbols-outlined text-[20px] opacity-70">settings</span>
+            <a
+              href="{{ url_for('web.cliente_config') }}"
+              onclick="closeDrawer()"
+              class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition
+                      {{ 'sidebar-active' if (active == 'cliente_config') else '' }}"
+            >
+              <span class="material-symbols-outlined text-[20px] opacity-70"
+                >settings</span
+              >
               <span class="text-white/80 font-semibold">Configuración</span>
             </a>
 
-            <a href="{{ url_for('web.logout') }}" onclick="closeDrawer()" 
-               class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition text-red-300 hover:text-red-200">
-              <span class="material-symbols-outlined text-[20px] opacity-80">logout</span>
+            <a
+              href="{{ url_for('web.logout') }}"
+              onclick="closeDrawer()"
+              class="sidebar-item flex items-center gap-3 px-4 py-3 rounded-xl transition text-red-300 hover:text-red-200"
+            >
+              <span class="material-symbols-outlined text-[20px] opacity-80"
+                >logout</span
+              >
               <span class="font-semibold">Cerrar sesión</span>
             </a>
           </nav>
         </div>
       </aside>
-
     </div>
 
     <script>
@@ -312,6 +442,267 @@
       })();
     </script>
 
-    {% block scripts %}{% endblock %}
+    {# ========================================================= ✅ MODAL
+    PUBLICIDAD GLOBAL (TAILWIND BASE) Variables esperadas en render_template: -
+    show_publicidad (bool) [opcional] - publicidad_activa (doc) [opcional] -> {
+    _id, titulo, filename, kind }
+    ========================================================= #} {% set
+    _show_pub = (show_publicidad if show_publicidad is defined else False) %} {%
+    set _pub = (publicidad_activa if publicidad_activa is defined else None) %}
+    {% if session.get("username") and _show_pub and _pub %} {% set fn =
+    (_pub.filename or "")|lower %} {% set is_video = (_pub.kind == "video") or
+    fn.endswith(".mp4") or fn.endswith(".webm") or fn.endswith(".mov") or
+    fn.endswith(".m4v") or fn.endswith(".avi") %}
+
+    <style>
+      .fws-modal-backdrop {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        backdrop-filter: blur(8px);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 99999;
+        padding: 18px;
+      }
+      .fws-modal-backdrop.is-open {
+        display: flex;
+      }
+
+      .fws-modal {
+        width: min(980px, 100%);
+        border-radius: 18px;
+        overflow: hidden;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(17, 19, 23, 0.92);
+        box-shadow: 0 18px 70px rgba(0, 0, 0, 0.65);
+        position: relative;
+        animation: fwsPop 0.18s ease-out;
+      }
+      @keyframes fwsPop {
+        from {
+          transform: translateY(10px) scale(0.98);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0) scale(1);
+          opacity: 1;
+        }
+      }
+
+      .fws-modal-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 14px 16px;
+        background: rgba(255, 255, 255, 0.03);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+      }
+      .fws-modal-title {
+        font-weight: 900;
+        color: rgba(255, 255, 255, 0.95);
+        letter-spacing: 0.02em;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+      .fws-modal-close {
+        width: 38px;
+        height: 38px;
+        border-radius: 12px;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: rgba(255, 255, 255, 0.06);
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+      }
+      .fws-modal-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+
+      .fws-modal-body {
+        padding: 0;
+      }
+
+      .fws-modal-media {
+        display: block;
+        width: 100%;
+        max-height: 72vh;
+        object-fit: contain;
+        background: #0b0f1a;
+      }
+
+      .fws-modal-footer {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+        padding: 14px 16px;
+        border-top: 1px solid rgba(255, 255, 255, 0.08);
+        background: rgba(255, 255, 255, 0.02);
+      }
+      .fws-btn {
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-weight: 800;
+        font-size: 13px;
+        border: 1px solid rgba(255, 255, 255, 0.12);
+        background: rgba(255, 255, 255, 0.06);
+        color: rgba(255, 255, 255, 0.92);
+        cursor: pointer;
+      }
+      .fws-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+      }
+      .fws-btn-primary {
+        border-color: rgba(212, 175, 55, 0.35);
+        background: rgba(212, 175, 55, 0.12);
+      }
+      .fws-btn-primary:hover {
+        background: rgba(212, 175, 55, 0.18);
+      }
+
+      @media (max-width: 520px) {
+        .fws-modal-media {
+          max-height: 70vh;
+        }
+        .fws-modal-footer {
+          flex-direction: column;
+        }
+        .fws-btn {
+          width: 100%;
+        }
+      }
+    </style>
+
+    <div id="modalPublicidad" class="fws-modal-backdrop" aria-hidden="true">
+      <div
+        class="fws-modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Publicidad"
+      >
+        <div class="fws-modal-header">
+          <div class="fws-modal-title">
+            <span class="material-symbols-outlined" style="opacity: 0.85"
+              >campaign</span
+            >
+            {{ _pub.titulo or "Promoción" }}
+          </div>
+          <button
+            class="fws-modal-close"
+            type="button"
+            data-close="modalPublicidad"
+            aria-label="Cerrar"
+          >
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <div class="fws-modal-body">
+          {% if is_video %}
+          <video
+            class="fws-modal-media"
+            src="{{ url_for('web.ver_publicidad_media', pub_id=_pub._id) }}"
+            controls
+            autoplay
+            muted
+            loop
+            playsinline
+            preload="metadata"
+          ></video>
+          {% else %}
+          <img
+            class="fws-modal-media"
+            src="{{ url_for('web.ver_publicidad_media', pub_id=_pub._id) }}"
+            alt="Publicidad"
+          />
+          {% endif %}
+        </div>
+
+        <div class="fws-modal-footer">
+          <button class="fws-btn" type="button" data-close="modalPublicidad">
+            Cerrar
+          </button>
+          <button
+            class="fws-btn fws-btn-primary"
+            type="button"
+            id="btnNoMostrarPub"
+          >
+            No mostrar de nuevo
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      (function () {
+        // ✅ convierte el _id a string seguro desde Jinja
+        const pubId = "{{ _pub._id }}"; // ObjectId -> "..." en string
+        if (!pubId) return;
+
+        const key = "pub_seen_" + pubId;
+
+        // ✅ si ya lo marcaste como visto, no lo muestres
+        if (localStorage.getItem(key) === "1") return;
+
+        function openModal() {
+          const el = document.getElementById("modalPublicidad");
+          if (!el) return;
+          el.classList.add("is-open");
+          el.setAttribute("aria-hidden", "false");
+        }
+
+        function closeModal() {
+          const el = document.getElementById("modalPublicidad");
+          if (!el) return;
+          el.classList.remove("is-open");
+          el.setAttribute("aria-hidden", "true");
+
+          const vid = el.querySelector("video");
+          if (vid) {
+            try {
+              vid.pause();
+            } catch (e) {}
+          }
+        }
+
+        // ✅ mostrar cuando el DOM esté listo (mejor que load)
+        document.addEventListener("DOMContentLoaded", () => {
+          setTimeout(openModal, 180);
+        });
+
+        // ✅ cerrar por click en botón cerrar o backdrop
+        document.addEventListener("click", (e) => {
+          const btn = e.target.closest("[data-close='modalPublicidad']");
+          if (btn) {
+            closeModal();
+            return;
+          }
+
+          const backdrop = document.getElementById("modalPublicidad");
+          if (backdrop && e.target === backdrop) closeModal();
+        });
+
+        // ✅ cerrar con ESC
+        document.addEventListener("keydown", (e) => {
+          if (e.key === "Escape") closeModal();
+        });
+
+        // ✅ "No mostrar de nuevo"
+        const btnNo = document.getElementById("btnNoMostrarPub");
+        if (btnNo) {
+          btnNo.addEventListener("click", () => {
+            localStorage.setItem(key, "1");
+            closeModal();
+          });
+        }
+      })();
+    </script>
+
+    {% endif %} {% block scripts %}{% endblock %}
   </body>
 </html>
