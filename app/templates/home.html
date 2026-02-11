@@ -396,25 +396,23 @@
     </footer>
 
     <script>
-      const WHATSAPP_NUMBER = "593000000000";
+      const WHATSAPP_NUMBER = "593962150368";
 
       const WA_MESSAGES = {
-        hero: "Hola CORE 👋 Quiero empezar el cambio. ¿Me dan información de cupos, horarios y costos?",
-        evaluacion: "Hola CORE 👋 Quiero agendar mi evaluación. ¿Qué horarios tienen disponibles?",
-        cupo: "Hola CORE 👋 ESCRIBO 'CUPO'. Quiero tiempos y costos. ¿Cómo reservo?",
-        premium: "Hola CORE 👋 Quiero más info del plan premium (limitado y funcional). ¿Qué incluye y precios?",
-        ubicacion: "Hola CORE 👋 ¿Me comparten la ubicación exacta y cómo llegar?",
-        horarios: "Hola CORE 👋 ¿Cuáles son los horarios disponibles y cupos por sesión?",
+        hero: "Hola CORE  Quiero empezar el cambio. ¿Me dan información de cupos, horarios y costos?",
+        evaluacion: "Hola CORE Quiero agendar mi evaluación. ¿Qué horarios tienen disponibles?",
+        cupo: "Hola CORE ESCRIBO 'CUPO'. Quiero tiempos y costos. ¿Cómo reservo?",
+        premium: "Hola CORE Quiero más info del plan premium (limitado y funcional). ¿Qué incluye y precios?",
+        ubicacion: "Hola CORE  ¿Me comparten la ubicación exacta y cómo llegar?",
+        horarios: "Hola CORE  ¿Cuáles son los horarios disponibles y cupos por sesión?",
       };
 
-      // Construye URL WA
       function openWhatsApp(key) {
-        const msg = WA_MESSAGES[key] || "Hola CORE 👋 Quiero información.";
+        const msg = WA_MESSAGES[key] || "Hola CORE Quiero información.";
         const url = `https://wa.me/${WHATSAPP_NUMBER}?text=${encodeURIComponent(msg)}`;
         window.open(url, "_blank");
       }
 
-      // Asigna clicks a todos los elementos con data-wa
       document.querySelectorAll("[data-wa]").forEach((el) => {
         el.addEventListener("click", (e) => {
           e.preventDefault();
@@ -422,7 +420,6 @@
         });
       });
 
-      // Header shadow on scroll
       window.addEventListener("scroll", () => {
         const header = document.querySelector("header");
         if (window.scrollY > 50) {
@@ -432,7 +429,6 @@
         }
       });
 
-      // Deja dark fijo como lo tenías
       document.documentElement.classList.add("dark");
     </script>
   </body>

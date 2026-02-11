@@ -3298,9 +3298,14 @@ def cliente_dashboard():
 
         fecha_txt, hhmm = slot_id.split("|", 1)
 
+        from zoneinfo import ZoneInfo
+        TZ_EC = ZoneInfo("America/Guayaquil")
+
         dt_slot = None
         try:
-            dt_slot = datetime.strptime(f"{fecha_txt} {hhmm}", "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
+            dt_local = datetime.strptime(f"{fecha_txt} {hhmm}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ_EC)
+
+            dt_slot = dt_local.astimezone(timezone.utc)
         except ValueError:
             dt_slot = None
 
@@ -3327,6 +3332,15 @@ def cliente_dashboard():
         })
 
     clases_prox = sorted([c for c in clases if c["es_proxima"]], key=lambda x: x["dt"] or ahora)
+    
+    prox_reserva = clases_prox[0] if clases_prox else None
+    
+    puede_cancelar_prox = False
+    if prox_reserva and prox_reserva.get("dt"):
+        # dt está en UTC (como tú lo armaste)
+        ahora_utc = datetime.now(timezone.utc)
+        puede_cancelar_prox = (prox_reserva["dt"] - ahora_utc) >= timedelta(hours=2)
+    
     clases_pas = sorted([c for c in clases if not c["es_proxima"]], key=lambda x: x["dt"] or ahora, reverse=True)
     
     manana = datetime.now(TZ_EC).date() + timedelta(days=1)
@@ -3373,6 +3387,49 @@ def cliente_dashboard():
             "de_user_id": str(d.get("de_user_id")) if d.get("de_user_id") else None,  # ✅ string
             "creado_at": creado_txt,                  # ✅ string
         })
+        
+    medidas_col = db["progreso_medidas"]
+    medidas = list(
+        medidas_col.find(
+            {"cliente_id": cliente_id},
+            projection={"fecha": 1, "peso_kg": 1, "grasa_pct": 1, "musculo_pct": 1}
+        ).sort("fecha", 1).limit(90)
+    )
+
+    kpi_latest = medidas[-1] if medidas else None
+    kpi_prev   = medidas[-2] if medidas and len(medidas) >= 2 else None
+    kpi_first  = medidas[0]  if medidas else None
+
+    def _num(x):
+        try:
+            return float(x)
+        except Exception:
+            return None
+
+    peso_actual   = _num((kpi_latest or {}).get("peso_kg"))
+    grasa_actual  = _num((kpi_latest or {}).get("grasa_pct"))
+    musc_actual   = _num((kpi_latest or {}).get("musculo_pct"))
+
+    peso_inicial  = _num((kpi_first or {}).get("peso_kg"))
+    grasa_inicial = _num((kpi_first or {}).get("grasa_pct"))
+
+    progreso_pct = 0
+    # ✅ Regla: si hay grasa, progreso = bajar grasa (mejor)
+    if grasa_inicial and grasa_actual and grasa_inicial > 0:
+        progreso_calc = ((grasa_inicial - grasa_actual) / grasa_inicial) * 100.0
+        progreso_calc = max(0.0, min(100.0, progreso_calc))
+        progreso_pct = int(progreso_calc)
+    # ✅ Si no hay grasa, usar cambio de peso en magnitud (solo para mostrar algo)
+    elif peso_inicial and peso_actual and peso_inicial > 0:
+        progreso_calc = abs(((peso_actual - peso_inicial) / peso_inicial) * 100.0)
+        progreso_calc = max(0.0, min(100.0, progreso_calc))
+        progreso_pct = int(progreso_calc)
+
+    fuerza_pct = 0
+    if kpi_prev:
+        prev_musc = _num(kpi_prev.get("musculo_pct"))
+        if prev_musc is not None and musc_actual is not None:
+            fuerza_pct = int(round(musc_actual - prev_musc))
 
     
 
@@ -3388,6 +3445,19 @@ def cliente_dashboard():
         reserva_manana=reserva_manana,
         puede_no_asistir=puede_no_asistir,
         manana_key=manana_key,
+        prox_reserva=prox_reserva,
+        puede_cancelar_prox=puede_cancelar_prox,
+        medidas=medidas,
+        kpi_latest=kpi_latest,
+        kpi_prev=kpi_prev,
+        progreso_pct=progreso_pct,
+        peso_inicial=peso_inicial,
+        peso_actual=peso_actual,
+        grasa_actual=grasa_actual,
+        musculo_actual=musc_actual,
+        fuerza_pct=fuerza_pct,
+
+
         
         cumple_hoy=cumple_hoy,
         cumple_img=cumple_img,
@@ -3438,9 +3508,7 @@ def cliente_no_podre_asistir_manana():
     reservas_col.update_many(
         {"_id": {"$in": ids}, "estado": "confirmada"},
         {"$set": {
-            "estado": "cancelada",
             "cancelada": True,
-            "cancelada_at": now_ec,
             "cancelada_por": "cliente_no_asistire_manana",
             "no_asistire": True,
             "no_asistire_at": now_ec,
