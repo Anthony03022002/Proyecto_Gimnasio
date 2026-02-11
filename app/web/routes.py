@@ -195,6 +195,8 @@ def admin_dashboard():
     total_clientes = clientes.count_documents({})
     total_entrenadores = users.count_documents({"role": "entrenador"})
     total_cajeros = users.count_documents({"role": "cajero"})
+    
+    clientes_activos = users.count_documents({"role": "cliente", "activo": True})
 
     clientes_por_vencer_raw = obtener_clientes_por_vencer(db, dias_objetivo=(2,1,0), limitar=300) or []
 
@@ -279,6 +281,7 @@ def admin_dashboard():
     return render_template(
         "dashboard_admin.html",
         total_clientes=total_clientes,
+        clientes_activos=clientes_activos, 
         show_publicidad=True,
         total_entrenadores=total_entrenadores,
         total_cajeros=total_cajeros,
@@ -297,7 +300,6 @@ def admin_noti_visto(tipo, noti_id):
     db = extensions.mongo_db
     noti_col = db["notificaciones"]
 
-    # ✅ soporta _id ObjectId o string
     try:
         _id = ObjectId(noti_id)
     except (InvalidId, TypeError):
