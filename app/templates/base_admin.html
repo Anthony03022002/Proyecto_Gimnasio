@@ -5,10 +5,11 @@
     <meta content="width=device-width, initial-scale=1.0" name="viewport" />
     <title>{% block title %}CORE Gym{% endblock %}</title>
 
-    <link rel="icon" type="image/jpeg" href="{{ url_for('static', filename='images/icono4.png') }}">
-    <link rel="shortcut icon" type="image/jpeg" href="{{ url_for('static', filename='images/icono4.png') }}">
-    <link rel="apple-touch-icon" href="{{ url_for('static', filename='images/icono4.png') }}">
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/icono4.png') }}">
+  <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='images/icono4.png') }}">
 
+  <link rel="manifest" href="{{ url_for('static', filename='manifest.webmanifest') }}">
+  <meta name="theme-color" content="#0b1220">
 
     <link
       href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap"
