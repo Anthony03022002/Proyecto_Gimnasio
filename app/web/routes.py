@@ -1642,9 +1642,10 @@ def admin_publicidad_subir():
     return redirect(url_for("web.admin_publicidad"))
 
 
-@web_bp.post("/admin/publicidad/<pub_id>/activar")
+
+@web_bp.post("/admin/publicidad/<pub_id>/toggle")
 @login_required(role="admin")
-def admin_publicidad_activar(pub_id):
+def admin_publicidad_toggle(pub_id):
     db = extensions.mongo_db
     pub_col = db["publicidades"]
 
@@ -1654,16 +1655,27 @@ def admin_publicidad_activar(pub_id):
         flash("ID inválido.", "danger")
         return redirect(url_for("web.admin_publicidad"))
 
-    pub_col.update_many({}, {"$set": {"activo": False}})
-    pub_col.update_one({"_id": pid}, {"$set": {"activo": True}})
+    pub = pub_col.find_one({"_id": pid})
+    if not pub:
+        flash("Publicidad no existe.", "warning")
+        return redirect(url_for("web.admin_publicidad"))
 
-    flash("Publicidad activada.", "success")
+    activo = bool(pub.get("activo"))
+
+    if activo:
+        pub_col.update_one({"_id": pid}, {"$set": {"activo": False}})
+        flash("Publicidad desactivada.", "success")
+    else:
+        pub_col.update_many({}, {"$set": {"activo": False}})
+        pub_col.update_one({"_id": pid}, {"$set": {"activo": True}})
+        flash("Publicidad activada.", "success")
+
     return redirect(url_for("web.admin_publicidad"))
 
 
-@web_bp.post("/admin/publicidad/<pub_id>/desactivar")
+@web_bp.post("/admin/publicidad/<pub_id>/eliminar")
 @login_required(role="admin")
-def admin_publicidad_desactivar(pub_id):
+def admin_publicidad_eliminar(pub_id):
     db = extensions.mongo_db
     pub_col = db["publicidades"]
 
@@ -1673,11 +1685,27 @@ def admin_publicidad_desactivar(pub_id):
         flash("ID inválido.", "danger")
         return redirect(url_for("web.admin_publicidad"))
 
-    pub_col.update_one({"_id": pid}, {"$set": {"activo": False}})
-    flash("Publicidad desactivada.", "success")
+    pub = pub_col.find_one({"_id": pid})
+    if not pub:
+        flash("La publicidad no existe.", "warning")
+        return redirect(url_for("web.admin_publicidad"))
+
+    rel_path = (pub.get("rel_path") or "").strip()
+    abs_path = os.path.join(os.getcwd(), rel_path) if rel_path else None
+
+    pub_col.delete_one({"_id": pid})
+
+    if pub.get("activo"):
+        pub_col.update_many({}, {"$set": {"activo": False}})
+
+    if abs_path and os.path.exists(abs_path):
+        try:
+            os.remove(abs_path)
+        except Exception:
+            pass
+
+    flash("Publicidad eliminada.", "success")
     return redirect(url_for("web.admin_publicidad"))
-
-
 
 
 # CAJERO

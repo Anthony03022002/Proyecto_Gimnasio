@@ -23,7 +23,6 @@
 {% endblock %}
 
 {% block content %}
-
 {% set active="admin_publicidad" %}
 
 <div class="p-6 md:p-8 max-w-6xl mx-auto space-y-8">
@@ -67,9 +66,36 @@
                        flex items-center justify-center gap-2 shadow-lg shadow-[#B8860B]/20"
                 type="submit"
               >
+                <span class="material-icons-round text-lg">upload</span>
                 Subir Publicidad
               </button>
             </div>
+
+            {# ✅ Info del archivo elegido #}
+            <div id="fileMetaBox" class="hidden rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(255,255,255,0.03)] p-4">
+              <div class="flex items-start gap-4">
+                <div id="filePreviewWrap" class="hidden w-20 h-16 rounded-lg overflow-hidden border border-[rgba(255,255,255,0.08)] bg-black/20"></div>
+
+                <div class="min-w-0 flex-1">
+                  <p class="text-sm font-semibold text-[rgba(255,255,255,0.92)] truncate" id="fileName">—</p>
+                  <p class="text-xs text-[rgba(255,255,255,0.55)] mt-1" id="fileInfo">—</p>
+                  <p class="text-xs text-[rgba(255,255,255,0.45)] mt-1" id="fileHint">Listo para subir.</p>
+                </div>
+
+                <button
+                  type="button"
+                  id="btnClearFile"
+                  class="shrink-0 p-2 rounded-lg transition-colors
+                         text-[rgba(255,255,255,0.6)]
+                         hover:text-red-300 hover:bg-red-500/10
+                         border border-[rgba(255,255,255,0.06)]"
+                  title="Quitar archivo"
+                >
+                  <span class="material-icons-round text-lg">Eliminar</span>
+                </button>
+              </div>
+            </div>
+
           </div>
 
           {# Columna derecha #}
@@ -92,7 +118,9 @@
                   </p>
                 </div>
 
+                {# ✅ le ponemos ID para leerlo en JS #}
                 <input
+                  id="archivoInput"
                   type="file"
                   name="archivo"
                   accept="image/*,video/*,application/pdf"
@@ -123,11 +151,7 @@
                    bg-[rgba(35,37,39,0.92)]
                    border border-[rgba(255,255,255,0.06)]
                    text-[rgba(255,255,255,0.6)]">
-        {% if pubs %}
-          {{ pubs|length }} Publicidades en total
-        {% else %}
-          0 Publicidades en total
-        {% endif %}
+        {% if pubs %}{{ pubs|length }} Publicidades en total{% else %}0 Publicidades en total{% endif %}
       </span>
     </div>
 
@@ -141,7 +165,6 @@
                        text-[rgba(255,255,255,0.6)]">
               <th class="px-6 py-4">Vista</th>
               <th class="px-6 py-4">Título / Archivo</th>
-              <th class="px-6 py-4">Estado</th>
               <th class="px-6 py-4 text-right">Acciones</th>
             </tr>
           </thead>
@@ -155,9 +178,7 @@
                 {% set filename = p.get('filename') %}
                 {% set bytes_ = p.get('bytes') %}
 
-                <tr class="transition-colors
-                           hover:bg-[rgba(255,255,255,0.04)]
-                           odd:bg-[rgba(255,255,255,0.02)]">
+                <tr class="transition-colors hover:bg-[rgba(255,255,255,0.04)] odd:bg-[rgba(255,255,255,0.02)]">
 
                   <td class="px-6 py-4">
                     <div class="w-16 h-12 rounded-lg overflow-hidden relative
@@ -172,7 +193,6 @@
                         <div class="absolute inset-0 bg-black/40 flex items-center justify-center">
                           <span class="material-icons-round text-white text-lg">play_circle</span>
                         </div>
-
                       {% elif kind == "pdf" %}
                         <a
                           href="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
@@ -182,7 +202,6 @@
                         >
                           <span class="material-icons-round text-red-400">picture_as_pdf</span>
                         </a>
-
                       {% else %}
                         <img
                           src="{{ url_for('web.ver_publicidad_media', pub_id=p._id) }}"
@@ -199,66 +218,59 @@
                     </p>
                     <p class="text-xs mt-0.5 text-[rgba(255,255,255,0.45)]">
                       {{ filename }}
-                      {% if bytes_ %}
-                        ({{ (bytes_ / 1024 / 1024) | round(2) }} MB)
-                      {% endif %}
-                      {% if kind %}
-                        · <span class="uppercase">{{ kind }}</span>
-                      {% endif %}
+                      {% if bytes_ %}({{ (bytes_ / 1024 / 1024) | round(2) }} MB){% endif %}
+                      {% if kind %} · <span class="uppercase">{{ kind }}</span>{% endif %}
                     </p>
                   </td>
 
-                  <td class="px-6 py-4">
-                    <div class="flex items-center gap-3">
-                      <div class="relative inline-flex items-center">
-                        {% if activo %}
-                          <div class="w-11 h-6 rounded-full bg-[#B8860B]"></div>
-                          <div class="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all translate-x-full"></div>
-                        {% else %}
-                          <div class="w-11 h-6 rounded-full bg-[rgba(255,255,255,0.07)]"></div>
-                          <div class="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all"></div>
-                        {% endif %}
-                      </div>
-
-                      {% if activo %}
-                        <span class="text-xs font-medium text-[#B8860B]">Activo</span>
-                      {% else %}
-                        <span class="text-xs font-medium text-[rgba(255,255,255,0.6)]">Inactivo</span>
-                      {% endif %}
-                    </div>
-                  </td>
-
                   <td class="px-6 py-4 text-right">
-                    <div class="flex items-center justify-end gap-2">
-                      {% if not activo %}
-                        <form method="post" action="{{ url_for('web.admin_publicidad_activar', pub_id=p._id) }}" class="inline">
-                          <button
-                            class="p-2 rounded-lg transition-colors
-                                   text-[rgba(255,255,255,0.6)]
-                                   hover:text-[rgba(255,255,255,0.92)]
-                                   hover:bg-[rgba(255,255,255,0.04)]
-                                   border border-[rgba(255,255,255,0.06)]"
-                            title="Activar"
-                            type="submit"
-                          >
-                            <span class="material-icons-round text-lg">check_circle</span>
-                          </button>
-                        </form>
-                      {% else %}
-                        <form method="post" action="{{ url_for('web.admin_publicidad_desactivar', pub_id=p._id) }}" class="inline">
-                          <button
-                            class="p-2 rounded-lg transition-colors
-                                   text-[rgba(255,255,255,0.6)]
-                                   hover:text-red-400
-                                   hover:bg-red-500/10
-                                   border border-[rgba(255,255,255,0.06)]"
-                            title="Desactivar"
-                            type="submit"
-                          >
-                            <span class="material-icons-round text-lg">cancel</span>
-                          </button>
-                        </form>
-                      {% endif %}
+                    <div class="flex items-center justify-end gap-3">
+
+                      {# ✅ Toggle (un solo endpoint) #}
+                      <form method="post" action="{{ url_for('web.admin_publicidad_toggle', pub_id=p._id) }}" class="inline">
+                        <button
+                          type="submit"
+                          class="group inline-flex items-center gap-2 px-3 py-2 rounded-xl transition-colors
+                                 border border-[rgba(255,255,255,0.08)]
+                                 hover:bg-[rgba(255,255,255,0.04)]
+                                 text-[rgba(255,255,255,0.75)]"
+                          title="{% if activo %}Desactivar{% else %}Activar{% endif %}"
+                        >
+                          <span class="relative inline-flex items-center">
+                            {% if activo %}
+                              <span class="w-11 h-6 rounded-full bg-[#B8860B]"></span>
+                              <span class="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all translate-x-full"></span>
+                            {% else %}
+                              <span class="w-11 h-6 rounded-full bg-[rgba(255,255,255,0.10)]"></span>
+                              <span class="absolute top-[2px] left-[2px] h-5 w-5 rounded-full bg-white transition-all"></span>
+                            {% endif %}
+                          </span>
+
+                          <span class="text-xs font-semibold">
+                            {% if activo %}Desactivar{% else %}Activar{% endif %}
+                          </span>
+                        </button>
+                      </form>
+
+                      {# ✅ Eliminar #}
+                      <form
+                        method="post"
+                        action="{{ url_for('web.admin_publicidad_eliminar', pub_id=p._id) }}"
+                        class="inline"
+                        onsubmit="return confirm('¿Eliminar esta publicidad? Esta acción no se puede deshacer.')"
+                      >
+                        <button
+                          type="submit"
+                          class="p-2 rounded-xl transition-colors
+                                 text-[rgba(255,255,255,0.70)]
+                                 hover:text-red-300 hover:bg-red-500/10
+                                 border border-[rgba(255,255,255,0.08)]"
+                          title="Eliminar"
+                        >
+                          <span class="material-icons-round text-lg">Eliminar</span>
+                        </button>
+                      </form>
+
                     </div>
                   </td>
 
@@ -288,5 +300,88 @@
   </section>
 
 </div>
+
+{# ✅ Script preview archivo #}
+<script>
+  (function () {
+    const input = document.getElementById("archivoInput");
+    const metaBox = document.getElementById("fileMetaBox");
+    const fileName = document.getElementById("fileName");
+    const fileInfo = document.getElementById("fileInfo");
+    const fileHint = document.getElementById("fileHint");
+    const previewWrap = document.getElementById("filePreviewWrap");
+    const btnClear = document.getElementById("btnClearFile");
+
+    if (!input || !metaBox) return;
+
+    function humanSize(bytes) {
+      const b = Number(bytes || 0);
+      if (!b) return "0 B";
+      const units = ["B","KB","MB","GB"];
+      let i = 0, v = b;
+      while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+      return v.toFixed(i === 0 ? 0 : 2) + " " + units[i];
+    }
+
+    function clearPreview() {
+      input.value = "";
+      metaBox.classList.add("hidden");
+      if (previewWrap) {
+        previewWrap.innerHTML = "";
+        previewWrap.classList.add("hidden");
+      }
+    }
+
+    function setPreview(file) {
+      metaBox.classList.remove("hidden");
+      fileName.textContent = file.name || "archivo";
+      fileInfo.textContent = `${file.type || "tipo desconocido"} · ${humanSize(file.size)}`;
+
+      // reset preview
+      if (previewWrap) {
+        previewWrap.innerHTML = "";
+        previewWrap.classList.add("hidden");
+      }
+
+      // preview image/video
+      const type = (file.type || "").toLowerCase();
+      if (previewWrap && (type.startsWith("image/") || type.startsWith("video/"))) {
+        const url = URL.createObjectURL(file);
+        previewWrap.classList.remove("hidden");
+
+        if (type.startsWith("image/")) {
+          const img = document.createElement("img");
+          img.src = url;
+          img.className = "w-full h-full object-cover";
+          img.onload = () => URL.revokeObjectURL(url);
+          previewWrap.appendChild(img);
+          fileHint.textContent = "Imagen cargada. Listo para subir.";
+        } else {
+          const vid = document.createElement("video");
+          vid.src = url;
+          vid.muted = true;
+          vid.playsInline = true;
+          vid.preload = "metadata";
+          vid.className = "w-full h-full object-cover";
+          vid.onloadedmetadata = () => URL.revokeObjectURL(url);
+          previewWrap.appendChild(vid);
+          fileHint.textContent = "Video cargado. Listo para subir.";
+        }
+      } else if ((file.type || "").toLowerCase().includes("pdf")) {
+        fileHint.textContent = "PDF cargado. Listo para subir.";
+      } else {
+        fileHint.textContent = "Archivo cargado. Listo para subir.";
+      }
+    }
+
+    input.addEventListener("change", () => {
+      const f = input.files && input.files[0];
+      if (!f) return clearPreview();
+      setPreview(f);
+    });
+
+    if (btnClear) btnClear.addEventListener("click", clearPreview);
+  })();
+</script>
 
 {% endblock %}
