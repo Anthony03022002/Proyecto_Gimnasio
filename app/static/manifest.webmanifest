@@ -3,8 +3,6 @@
   "short_name": "CORE",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#0b1220",
-  "theme_color": "#0b1220",
   "icons": [
     {
       "src": "/static/images/icono4.png",
