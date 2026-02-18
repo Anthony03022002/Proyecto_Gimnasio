@@ -283,13 +283,14 @@
 
                   <td class="text-end">
                     <form method="post"
-                          action="{{ url_for('web.admin_marcar_no_asistire_visto', reserva_id=r._id) }}"
-                          onsubmit="return confirm('¿Marcar como visto este aviso?');">
-                      <button type="submit" class="btn na-action">
-                        <span class="material-symbols-outlined" style="font-size:18px;">done_all</span>
-                        Marcar como visto
-                      </button>
-                    </form>
+                      action="{{ url_for('web.admin_marcar_no_asistire_reg_visto', reg_id=r._id) }}"
+                      onsubmit="return confirm('¿Marcar como visto este aviso?');">
+                  <button type="submit" class="btn na-action">
+                    <span class="material-symbols-outlined" style="font-size:18px;">done_all</span>
+                    Marcar como visto
+                  </button>
+                </form>
+
                   </td>
                 </tr>
               {% endfor %}

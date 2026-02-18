@@ -750,17 +750,6 @@ title %}Horarios{% endblock %} {% block header %}
           </div>
           <div class="dom">{{ d.strftime('%d/%m') }}</div>
 
-          {% if session.get("user_role") == "cliente"
-                and tiene_reserva_manana
-                and d.isoformat() == manana_key %}
-            <form method="post" action="{{ url_for('web.cliente_no_podre_asistir_manana') }}" class="mt-2">
-              <button type="submit"
-                      class="btn btn-sm btn-outline-danger w-100"
-                      onclick="return confirm('¿Seguro? Se cancelará tu reserva de mañana.');">
-                No podré asistir mañana
-              </button>
-            </form>
-          {% endif %}
         </div>
       {% endfor %}
 

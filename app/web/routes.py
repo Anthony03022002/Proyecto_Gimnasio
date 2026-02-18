@@ -20,6 +20,7 @@ from app.extensions import bcrypt
 from app.services.ventas_service import contar_ventas_por_cajero, crear_venta, listar_ventas_por_cajero, resumen_ventas_hoy_por_cajero, get_ventas_collection
 from datetime import date, datetime, timedelta, timezone, time as dtime
 import time as pytime
+from pymongo.errors import DuplicateKeyError
 import app.extensions as extensions
 from app.services.horarios_semanales import (
     TZ_EC,
@@ -659,25 +660,17 @@ def admin_no_asistire_manana():
     if db is None:
         raise RuntimeError("mongo_db no está inicializado.")
 
-    reservas_col = db["reservas"]
+    noasistire_col = db["no_asistire_manana"]
     clientes_col = db["clientes"]
-    users_col = db["users"]
+    reservas_col = db["reservas"]
 
     TZ_EC = ZoneInfo("America/Guayaquil")
-    manana = datetime.now(TZ_EC).date() + timedelta(days=1)
-    manana_key = manana.isoformat()
+    manana_key = (datetime.now(TZ_EC).date() + timedelta(days=1)).isoformat()
 
     pipeline = [
         {"$match": {
             "fecha": manana_key,
-            "no_asistire": True,
-
-            "no_asistire_visto_admin": {"$ne": True},
-
-            "$or": [
-                {"estado": {"$ne": "cancelada"}, "cancelada": {"$ne": True}},
-                {"cancelada_por": "cliente_no_asistire_manana"}
-            ]
+            "visto_admin": {"$ne": True},
         }},
         {"$lookup": {
             "from": "clientes",
@@ -686,89 +679,81 @@ def admin_no_asistire_manana():
             "as": "cli"
         }},
         {"$unwind": {"path": "$cli", "preserveNullAndEmptyArrays": True}},
+        # ✅ calcular cuántas reservas confirmadas tenía mañana (y opcionalmente canceladas por este motivo)
         {"$lookup": {
-            "from": "users",
-            "localField": "entrenador_id",
-            "foreignField": "_id",
-            "as": "ent"
+            "from": "reservas",
+            "let": {"cid": "$cliente_id", "f": "$fecha"},
+            "pipeline": [
+                {"$match": {"$expr": {"$and": [
+                    {"$eq": ["$cliente_id", "$$cid"]},
+                    {"$eq": ["$fecha", "$$f"]},
+                ]}}},
+                {"$project": {"_id": 1, "estado": 1, "cancelada": 1, "cancelada_por": 1, "slot_id": 1}}
+            ],
+            "as": "res"
         }},
-        {"$unwind": {"path": "$ent", "preserveNullAndEmptyArrays": True}},
+        {"$addFields": {
+            "total_reservas_manana": {"$size": "$res"},
+            "total_canceladas_por_noasistire": {
+                "$size": {
+                    "$filter": {
+                        "input": "$res",
+                        "as": "r",
+                        "cond": {"$eq": ["$$r.cancelada_por", "cliente_no_asistire_manana"]}
+                    }
+                }
+            }
+        }},
         {"$project": {
             "_id": 1,
             "fecha": 1,
-            "slot_id": 1,
-            "no_asistire_at": 1,
-            "no_asistire_motivo": 1,
-            "estado": 1,
+            "created_at": 1,
+            "cliente_id": 1,
             "cliente_nombre": {"$ifNull": ["$cli.nombre", ""]},
             "cliente_apellido": {"$ifNull": ["$cli.apellido", ""]},
             "cliente_identificacion": {"$ifNull": ["$cli.identificacion", ""]},
             "cliente_telefono": {"$ifNull": ["$cli.telefono", ""]},
-            "entrenador": {"$ifNull": ["$ent.username", "-"]},
+            "total_reservas_manana": 1,
+            "total_canceladas_por_noasistire": 1,
         }},
-        {"$sort": {"no_asistire_at": -1}}
+        {"$sort": {"created_at": -1}}
     ]
 
-    rows = list(reservas_col.aggregate(pipeline))
-
-    # opcional: calcula hora desde slot_id "YYYY-MM-DD|HH:MM"
-    for r in rows:
-        sid = r.get("slot_id") or ""
-        r["hora"] = sid.split("|", 1)[1] if ("|" in sid) else ""
+    rows = list(noasistire_col.aggregate(pipeline))
 
     return render_template(
         "admin_no_asistir.html",
         manana_key=manana_key,
-        rows=rows
+        rows=rows,
+        modo="noasistire"  
     )
 
-@web_bp.post("/admin/no-asistire/<reserva_id>/visto")
+@web_bp.post("/admin/no-asistire-reg/<reg_id>/visto")
 @login_required(role="admin")
-def admin_marcar_no_asistire_visto(reserva_id):
+def admin_marcar_no_asistire_reg_visto(reg_id):
     db = extensions.mongo_db
     if db is None:
         raise RuntimeError("mongo_db no está inicializado.")
 
-    reservas_col = db["reservas"]
+    noasistire_col = db["no_asistire_manana"]
 
     try:
-        rid = ObjectId(reserva_id)
+        rid = ObjectId(reg_id)
     except Exception:
-        flash("Reserva inválida.", "danger")
+        flash("Registro inválido.", "danger")
         return redirect(url_for("web.admin_no_asistire_manana"))
-
-    # admin logueado
-    admin_id = session.get("user_id")
-    admin_oid = None
-    try:
-        if admin_id:
-            admin_oid = ObjectId(admin_id)
-    except Exception:
-        admin_oid = None
 
     TZ_EC = ZoneInfo("America/Guayaquil")
     now_ec = datetime.now(TZ_EC)
 
-    r = reservas_col.find_one({"_id": rid}, {"no_asistire": 1})
-    if not r:
-        flash("No se encontró la reserva.", "danger")
-        return redirect(url_for("web.admin_no_asistire_manana"))
-
-    if r.get("no_asistire") is not True:
-        flash("Esta reserva no está marcada como 'no asistiré'.", "warning")
-        return redirect(url_for("web.admin_no_asistire_manana"))
-
-    reservas_col.update_one(
+    noasistire_col.update_one(
         {"_id": rid},
-        {"$set": {
-            "no_asistire_visto_admin": True,
-            "no_asistire_visto_at": now_ec,
-            **({"no_asistire_visto_por": admin_oid} if admin_oid else {})
-        }}
+        {"$set": {"visto_admin": True, "visto_admin_at": now_ec}}
     )
 
     flash("Marcado como visto.", "success")
     return redirect(url_for("web.admin_no_asistire_manana"))
+
 
 # ADMIN CAJEROS
 @web_bp.get("/admin/cajeros")
@@ -3169,6 +3154,9 @@ def cliente_dashboard():
     noti_col = db["notificaciones"]
     users_col = db["users"] 
     plan_col = db["planificaciones"]
+    noasistire_col = db["no_asistire_manana"]
+
+    
 
     user_id = session.get("user_id")
     if not user_id:
@@ -3375,6 +3363,11 @@ def cliente_dashboard():
     
     manana = datetime.now(TZ_EC).date() + timedelta(days=1)
     manana_key = manana.isoformat()
+    
+    ya_marco_no_asistire = noasistire_col.find_one(
+        {"cliente_id": cliente_id, "fecha": manana_key},
+        {"_id": 1}
+    ) is not None
 
     reserva_manana = reservas_col.find_one(
         {
@@ -3385,7 +3378,7 @@ def cliente_dashboard():
         {"_id": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1, "no_asistire": 1}
     )
 
-    puede_no_asistir = bool(reserva_manana) and not bool((reserva_manana or {}).get("no_asistire"))
+    puede_no_asistir = not ya_marco_no_asistire
 
 
     noti_col = db["notificaciones"]
@@ -3472,6 +3465,7 @@ def cliente_dashboard():
         dias_restantes=dias_restantes,
         alertas_membresia=alertas_membresia,
         clases_proximas=clases_prox,
+        ya_marco_no_asistire=ya_marco_no_asistire,
         reserva_manana=reserva_manana,
         puede_no_asistir=puede_no_asistir,
         manana_key=manana_key,
@@ -3509,6 +3503,7 @@ def cliente_no_podre_asistir_manana():
     reservas_col = db["reservas"]
     noti_col = db["notificaciones"]
     clientes_col = db["clientes"]
+    noasistire_col = db["no_asistire_manana"]  # ✅ NUEVO
 
     user_id = session.get("user_id")
     if not user_id:
@@ -3516,36 +3511,41 @@ def cliente_no_podre_asistir_manana():
 
     cliente_id = ObjectId(user_id)
 
-    from zoneinfo import ZoneInfo
-    from datetime import datetime, timedelta
     TZ_EC = ZoneInfo("America/Guayaquil")
-
     now_ec = datetime.now(TZ_EC)
-    manana = now_ec.date() + timedelta(days=1)
-    manana_key = manana.isoformat()
+    manana_key = (now_ec.date() + timedelta(days=1)).isoformat()
+
+    try:
+        noasistire_col.insert_one({
+            "cliente_id": cliente_id,
+            "fecha": manana_key,
+            "created_at": now_ec,
+        })
+    except DuplicateKeyError:
+        flash("Ya marcaste que no asistirás mañana (solo se puede una vez).", "info")
+        return redirect(url_for("web.cliente_dashboard"))
 
     reservas = list(reservas_col.find(
         {"cliente_id": cliente_id, "estado": "confirmada", "fecha": manana_key},
-        {"_id": 1, "slot_id": 1, "fecha": 1, "entrenador_id": 1}
+        {"_id": 1}
     ))
-
-    if not reservas:
-        flash("No tienes una reserva confirmada para mañana.", "warning")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=manana_key))
-
     ids = [r["_id"] for r in reservas]
 
-    reservas_col.update_many(
-        {"_id": {"$in": ids}, "estado": "confirmada"},
-        {"$set": {
-            "cancelada": True,
-            "cancelada_por": "cliente_no_asistire_manana",
-            "no_asistire": True,
-            "no_asistire_at": now_ec,
-        }}
-    )
+    if ids:
+        reservas_col.update_many(
+            {"_id": {"$in": ids}, "estado": "confirmada"},
+            {"$set": {
+                "cancelada": True,
+                "cancelada_por": "cliente_no_asistire_manana",
+                "no_asistire": True,
+                "no_asistire_at": now_ec,
+            }}
+        )
 
-    cli = clientes_col.find_one({"_id": cliente_id}, {"nombre": 1, "apellido": 1, "identificacion": 1})
+    cli = clientes_col.find_one(
+        {"_id": cliente_id},
+        {"nombre": 1, "apellido": 1, "identificacion": 1}
+    )
     nombre = ((cli or {}).get("nombre") or "")
     apellido = ((cli or {}).get("apellido") or "")
     ident = ((cli or {}).get("identificacion") or "")
@@ -3556,7 +3556,10 @@ def cliente_no_podre_asistir_manana():
         "rol_destino": "admin",
         "cliente_id": cliente_id,
         "fecha": manana_key,
-        "mensaje": f"{nombre_full} ({ident}) canceló su(s) reserva(s) de mañana. Total: {len(ids)}",
+        "mensaje": (
+            f"{nombre_full} ({ident}) marcó que no asistirá mañana."
+            + (f" Reservas canceladas: {len(ids)}" if ids else " (sin reservas).")
+        ),
         "leido": False,
         "created_at": now_ec,
         "meta": {
@@ -3564,8 +3567,8 @@ def cliente_no_podre_asistir_manana():
         }
     })
 
-    flash("Listo. Se canceló tu(s) reserva(s) de mañana y se notificó al administrador.", "success")
-    return redirect(url_for("web.horarios_publico", view="week", fecha=manana_key))
+    flash("Listo. Se registró que no asistirás mañana.", "success")
+    return redirect(url_for("web.cliente_dashboard"))
 
 
 @web_bp.get("/cliente/config")

@@ -652,6 +652,11 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
     -webkit-backdrop-filter: blur(8px);
     box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
   }
+  .btn-disabled-fws {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+
 
   @media (max-width: 768px) {
     .dashboard {
@@ -877,18 +882,30 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
           Cancelar
         </button>
       </form>
-      {% endif %} {% if puede_no_asistir %}
-      <form
-        method="post"
-        action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
-        onsubmit="return confirm('¿Seguro que no podrás asistir mañana?');"
+      {% endif %} 
+     <form
+      id="frmNoAsistire"
+      method="post"
+      action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
+      data-locked="{{ 1 if ya_marco_no_asistire else 0 }}"
+    >
+      <button
+        id="btnNoAsistire"
+        type="submit"
+        class="btn btn-danger {% if ya_marco_no_asistire %}btn-disabled-fws{% endif %}"
+        {% if ya_marco_no_asistire %}disabled aria-disabled="true"{% endif %}
       >
-        <button type="submit" class="btn btn-danger">
-          <span class="material-symbols-outlined btn-icon">event_busy</span>
+        <span class="material-symbols-outlined btn-icon">event_busy</span>
+        {% if ya_marco_no_asistire %}
           No podré asistir
-        </button>
-      </form>
-      {% endif %}
+        {% else %}
+          No podré asistir
+        {% endif %}
+      </button>
+    </form>
+
+
+
     </div>
   </section>
 
@@ -1019,73 +1036,92 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
 
 <script>
   (function () {
-    const cfg = document.getElementById("dash-config");
-    if (!cfg) return;
+  const cfg = document.getElementById("dash-config");
+  if (!cfg) return;
 
-    const CUMPLE_HOY = cfg.dataset.cumpleHoy === "1";
-    const SHOW_PUBLICIDAD = cfg.dataset.showPublicidad === "1";
-    const PUBLICIDAD_IMG_URL = (cfg.dataset.publicidadImgUrl || "").trim();
-    const DELAY_PUBLICIDAD_MS = parseInt(
-      cfg.dataset.delayPublicidadMs || "150",
-      10,
-    );
+  const CUMPLE_HOY = cfg.dataset.cumpleHoy === "1";
+  const SHOW_PUBLICIDAD = cfg.dataset.showPublicidad === "1";
+  const PUBLICIDAD_IMG_URL = (cfg.dataset.publicidadImgUrl || "").trim();
+  const DELAY_PUBLICIDAD_MS = parseInt(cfg.dataset.delayPublicidadMs || "150", 10);
 
-    function openModal(id) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.classList.add("is-open");
-      el.setAttribute("aria-hidden", "false");
-    }
-    function closeModal(id) {
-      const el = document.getElementById(id);
-      if (!el) return;
-      el.classList.remove("is-open");
-      el.setAttribute("aria-hidden", "true");
-    }
+  function openModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.add("is-open");
+    el.setAttribute("aria-hidden", "false");
+  }
+  function closeModal(id) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    el.classList.remove("is-open");
+    el.setAttribute("aria-hidden", "true");
+  }
 
-    document.addEventListener("click", (e) => {
-      const btn = e.target.closest("[data-close]");
-      if (btn) {
-        closeModal(btn.getAttribute("data-close"));
+  // ✅ No asistir mañana (anti doble submit + confirm)
+  (function () {
+    const frm = document.getElementById("frmNoAsistire");
+    if (!frm) return;
+
+    const btn = frm.querySelector("button[type='submit']");
+    const labelEl = btn ? btn.querySelector(".btn-label") : null;
+
+    frm.addEventListener("submit", function (e) {
+      const locked = frm.dataset.locked === "1";
+      if (locked) {
+        e.preventDefault();
         return;
       }
-      const backdrop = e.target.classList.contains("modal-backdrop-fws")
-        ? e.target
-        : null;
-      if (backdrop) closeModal(backdrop.id);
-    });
 
-    document.addEventListener("keydown", (e) => {
-      if (e.key === "Escape") {
-        document
-          .querySelectorAll(".modal-backdrop-fws.is-open")
-          .forEach((m) => {
-            m.classList.remove("is-open");
-            m.setAttribute("aria-hidden", "true");
-          });
+      const ok = confirm("¿Seguro que no podrás asistir mañana?");
+      if (!ok) {
+        e.preventDefault();
+        return;
       }
+
+      // ✅ Bloqueo inmediato (evita doble click)
+      frm.dataset.locked = "1";
+      if (btn) {
+        btn.disabled = true;
+        btn.setAttribute("aria-disabled", "true");
+        btn.classList.add("btn-disabled-fws");
+      }
+      if (labelEl) labelEl.textContent = "Ya marcado (mañana)";
     });
-
-    // ✅ Cumple (1 vez por sesión)
-    if (CUMPLE_HOY && !sessionStorage.getItem("seen_cumple_modal")) {
-      openModal("modalCumple");
-      sessionStorage.setItem("seen_cumple_modal", "1");
-    }
-
-    // ✅ Publicidad (1 vez por sesión) - SOLO si realmente existe modal + url
-    if (
-      SHOW_PUBLICIDAD &&
-      PUBLICIDAD_IMG_URL &&
-      !sessionStorage.getItem("seen_publicidad_modal")
-    ) {
-      setTimeout(() => {
-        const exists = document.getElementById("modalPublicidad");
-        if (exists) openModal("modalPublicidad");
-      }, DELAY_PUBLICIDAD_MS);
-
-      sessionStorage.setItem("seen_publicidad_modal", "1");
-    }
   })();
+
+  document.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-close]");
+    if (btn) {
+      closeModal(btn.getAttribute("data-close"));
+      return;
+    }
+    const backdrop = e.target.classList.contains("modal-backdrop-fws") ? e.target : null;
+    if (backdrop) closeModal(backdrop.id);
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-backdrop-fws.is-open").forEach((m) => {
+        m.classList.remove("is-open");
+        m.setAttribute("aria-hidden", "true");
+      });
+    }
+  });
+
+  if (CUMPLE_HOY && !sessionStorage.getItem("seen_cumple_modal")) {
+    openModal("modalCumple");
+    sessionStorage.setItem("seen_cumple_modal", "1");
+  }
+
+  if (SHOW_PUBLICIDAD && PUBLICIDAD_IMG_URL && !sessionStorage.getItem("seen_publicidad_modal")) {
+    setTimeout(() => {
+      const exists = document.getElementById("modalPublicidad");
+      if (exists) openModal("modalPublicidad");
+    }, DELAY_PUBLICIDAD_MS);
+
+    sessionStorage.setItem("seen_publicidad_modal", "1");
+  }
+})();
 </script>
 
 {% endblock %}
