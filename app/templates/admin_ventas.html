@@ -525,8 +525,7 @@ block header %}
             {% if ventas %} {% for v in ventas %}
             <tr>
               <td class="td-fecha">
-                {% if v.fecha %}{{ v.fecha.strftime('%d/%m/%Y') }}{% else %}-{%
-                endif %}
+                {% if v.fecha_ec_txt %}{{ v.fecha_ec_txt }}{% else %}-{% endif %}
               </td>
 
               <td class="td-cliente">
@@ -566,7 +565,7 @@ block header %}
                     data-bs-toggle="modal"
                     data-bs-target="#modalEditarVenta"
                     data-id="{{ v._id }}"
-                    data-fecha="{{ v.fecha.strftime('%Y-%m-%d') if v.fecha else '' }}"
+                    data-fecha="{{ v.fecha_ec_ymd or '' }}"
                     data-vendedor="{{ v.vendedor or '' }}"
                     data-ident="{{ v.cliente_identificacion or '' }}"
                     data-cliente="{{ (v.cliente_nombre or '') ~ ' ' ~ (v.cliente_apellido or '') }}"

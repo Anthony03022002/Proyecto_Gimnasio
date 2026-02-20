@@ -321,6 +321,22 @@ def admin_noti_visto(tipo, noti_id):
 
 
 
+TZ_EC = ZoneInfo("America/Guayaquil")
+
+def _utc_bounds_from_ec_date_str(s: str, end_of_day: bool):
+    if not s:
+        return None
+    try:
+        d = datetime.strptime(s.strip(), "%Y-%m-%d").date()
+        if end_of_day:
+            dt_ec = datetime(d.year, d.month, d.day, 23, 59, 59, 999000, tzinfo=TZ_EC)
+        else:
+            dt_ec = datetime(d.year, d.month, d.day, 0, 0, 0, 0, tzinfo=TZ_EC)
+        return dt_ec.astimezone(timezone.utc)
+    except Exception:
+        return None
+
+
 @web_bp.get("/admin/ventas")
 @login_required(role="admin")
 def admin_ventas_listado():
@@ -332,11 +348,12 @@ def admin_ventas_listado():
     q = (request.args.get("q") or "").strip()
     desde = (request.args.get("desde") or "").strip()
     hasta = (request.args.get("hasta") or "").strip()
-    
-    dt_desde = _parse_date_yyyy_mm_dd(desde)
-    dt_hasta = _parse_date_yyyy_mm_dd(hasta)
 
-    has_filters = bool(q or dt_desde or dt_hasta)
+    # ✅ convertir filtros (día Ecuador) -> UTC
+    dt_desde_utc = _utc_bounds_from_ec_date_str(desde, end_of_day=False)
+    dt_hasta_utc = _utc_bounds_from_ec_date_str(hasta, end_of_day=True)
+
+    has_filters = bool(q or dt_desde_utc or dt_hasta_utc)
     if not has_filters:
         return render_template(
             "admin_ventas.html",
@@ -347,26 +364,22 @@ def admin_ventas_listado():
             has_filters=False
         )
 
-
-    page = request.args.get("page", "1")
+    # paginación
     try:
-        page = max(1, int(page))
+        page = max(1, int(request.args.get("page", "1")))
     except ValueError:
         page = 1
 
     limit = 20
     skip = (page - 1) * limit
 
-    dt_desde = _parse_date_yyyy_mm_dd(desde)
-    dt_hasta = _parse_date_yyyy_mm_dd(hasta)
-
     match = {}
-    if dt_desde or dt_hasta:
+    if dt_desde_utc or dt_hasta_utc:
         rango = {}
-        if dt_desde:
-            rango["$gte"] = dt_desde.replace(hour=0, minute=0, second=0, microsecond=0)
-        if dt_hasta:
-            rango["$lte"] = dt_hasta.replace(hour=23, minute=59, second=59, microsecond=999000)
+        if dt_desde_utc:
+            rango["$gte"] = dt_desde_utc
+        if dt_hasta_utc:
+            rango["$lte"] = dt_hasta_utc
         match["fecha"] = rango
 
     pipeline_base = []
@@ -397,7 +410,11 @@ def admin_ventas_listado():
     total_pipe = pipeline_base + [{"$count": "total"}]
     total_res = list(ventas_col.aggregate(total_pipe))
     total = total_res[0]["total"] if total_res else 0
-    total_pages = (total + limit - 1) // limit
+    total_pages = (total + limit - 1) // limit if total else 0
+
+    if total_pages and page > total_pages:
+        page = total_pages
+        skip = (page - 1) * limit
 
     pipeline_data = pipeline_base + [
         {"$sort": {"fecha": -1}},
@@ -416,6 +433,18 @@ def admin_ventas_listado():
     ]
 
     rows = list(ventas_col.aggregate(pipeline_data))
+    
+    for r in rows:
+        f = r.get("fecha")
+        if isinstance(f, datetime):
+            if f.tzinfo is None:
+                f = f.replace(tzinfo=timezone.utc)
+            f_ec = f.astimezone(TZ_EC)
+            r["fecha_ec_txt"] = f_ec.strftime("%d/%m/%Y")
+            r["fecha_ec_ymd"] = f_ec.strftime("%Y-%m-%d")  # para el modal
+        else:
+            r["fecha_ec_txt"] = ""
+            r["fecha_ec_ymd"] = ""
 
     return render_template(
         "admin_ventas.html",
