@@ -1387,10 +1387,14 @@ def admin_clientes_editar(cliente_id):
 
 # VENTA 
 
+from zoneinfo import ZoneInfo
+TZ_EC = ZoneInfo("America/Guayaquil")
+
 @web_bp.get("/admin/facturacion/nueva")
-@login_required()  
+@login_required()
 def facturacion_nueva():
-    return render_template("facturacion.html")
+    hoy_ec = datetime.now(TZ_EC).date().isoformat()
+    return render_template("facturacion.html", hoy_ec=hoy_ec)
 
 
 @web_bp.post("/admin/facturacion/nueva")
@@ -1424,19 +1428,15 @@ def facturacion_nueva_post():
             flash("Fecha de nacimiento inválida.", "danger")
             return redirect(url_for("web.facturacion_nueva"))
         
-    # sexo permitido: ajusta a tu gusto
     if sexo and sexo not in ("M", "F", "O"):
         flash("Sexo inválido (use M, F u O).", "danger")
         return redirect(url_for("web.facturacion_nueva"))
 
-    # teléfono emergencia: mínimo 7 dígitos (simple)
     if contacto_emergencia_numero:
         solo_digitos = "".join(ch for ch in contacto_emergencia_numero if ch.isdigit())
         if len(solo_digitos) < 7:
             flash("Número de contacto de emergencia inválido.", "danger")
             return redirect(url_for("web.facturacion_nueva"))
-
-
 
     try:
         meses = int(meses_raw)
@@ -1448,9 +1448,9 @@ def facturacion_nueva_post():
 
     try:
         if fecha_desde_raw:
-            fecha_desde_date = datetime.strptime(fecha_desde_raw, "%Y-%m-%d").date()
+            fecha_desde_date = datetime.now(TZ_EC).date()
         else:
-            fecha_desde_date = date.today()
+            fecha_desde_date = datetime.now(TZ_EC).date()
     except ValueError:
         flash("Fecha desde inválida.", "danger")
         return redirect(url_for("web.facturacion_nueva"))
@@ -1464,8 +1464,8 @@ def facturacion_nueva_post():
         flash("Fecha hasta inválida.", "danger")
         return redirect(url_for("web.facturacion_nueva"))
 
-    fecha_desde_dt = datetime.combine(fecha_desde_date, dtime.min)
-    fecha_hasta_dt = datetime.combine(fecha_hasta_date, dtime.min)
+    fecha_desde_dt = datetime.combine(fecha_desde_date, dtime.min, tzinfo=TZ_EC)
+    fecha_hasta_dt = datetime.combine(fecha_hasta_date, dtime.min, tzinfo=TZ_EC)
 
 
     cliente_data = {
@@ -1475,7 +1475,6 @@ def facturacion_nueva_post():
         "email": email,
         "telefono": telefono,
         "fecha_nacimiento": fecha_nacimiento,
-        
         "nickname": nickname,
         "sexo": sexo,
         "contacto_emergencia": {
@@ -1756,6 +1755,22 @@ def cajero_dashboard():
 
     ultima_venta_list = listar_ventas_por_cajero(username, limit=1)
     ultima_venta = ultima_venta_list[0] if ultima_venta_list else None
+    
+    if ultima_venta and ultima_venta.get("fecha"):
+        f = ultima_venta["fecha"]
+
+        if isinstance(f, str):
+            f = datetime.fromisoformat(f.replace("Z", "+00:00"))
+
+        if getattr(f, "tzinfo", None) is None:
+            f = f.replace(tzinfo=timezone.utc)
+
+        f_ec = f.astimezone(TZ_EC)
+        ultima_venta["fecha_ec_dt"] = f_ec
+        ultima_venta["fecha_ec_txt"] = f_ec.strftime("%d/%m/%Y")
+    else:
+        if ultima_venta is not None:
+            ultima_venta["fecha_ec_txt"] = ""
 
     clientes_por_vencer = obtener_clientes_por_vencer(
         db,

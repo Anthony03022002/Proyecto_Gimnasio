@@ -109,7 +109,7 @@ session.get("username") or "Usuario" %} {% set noti_count =
         {{ ultima_venta.cliente_nombre }}
       </p>
       <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-1 font-medium">
-        {{ ultima_venta.fecha.strftime('%d/%m/%Y') }}
+        {{ ultima_venta.fecha_ec_txt }}
       </p>
       {% else %}
       <p class="text-[11px] text-[rgba(255,255,255,0.6)] mt-2 font-medium">
