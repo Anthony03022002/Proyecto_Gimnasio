@@ -3,7 +3,7 @@
 nombre_cliente = ((cliente.nombre or '') ~ ' ' ~ (cliente.apellido or ''))|trim
 if cliente else (session.get('username') or 'Cliente') %} {% set estado =
 estado_membresia or "Sin membresía" %} {% set dias = dias_restantes if
-dias_restantes is not none else None %} {% set WHATSAPP_NUM = "593962150368" %}
+dias_restantes is not none else None %} {% set WHATSAPP_NUM = "593992055632" %}
 {% set ident = cliente.identificacion or '' if cliente else '' %} {% set user =
 session.get('username') or '' %} {% if membresia and membresia.fecha_hasta %} {%
 set vence_txt = membresia.fecha_hasta.strftime('%d/%m/%Y') %} {% else %} {% set

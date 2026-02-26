@@ -2,7 +2,7 @@
 {% block title %}Mi membresía{% endblock %}
 
 {% set nombre_cliente = ((cliente.nombre or '') ~ ' ' ~ (cliente.apellido or ''))|trim if cliente else (session.get('username') or 'Cliente') %}
-{% set WHATSAPP_NUM = "593992899479" %}
+{% set WHATSAPP_NUM = "593992055632" %}
 {% set ident = cliente.identificacion or '' if cliente else '' %}
 {% set user = session.get('username') or '' %}
 
