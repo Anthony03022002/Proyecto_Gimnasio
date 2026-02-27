@@ -22,7 +22,6 @@ title %}Horarios{% endblock %} {% block header %}
       </h2>
     </div>
 
-    <!-- Derecha: navegación -->
     <form
       method="get"
       action="{{ url_for('web.horarios_publico') }}"
@@ -30,7 +29,6 @@ title %}Horarios{% endblock %} {% block header %}
     >
       <input type="hidden" name="view" value="week" />
 
-      <!-- ✅ Botones más pequeños en móvil -->
       <a
         class="inline-flex items-center justify-center w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-white transition-colors shrink-0"
         href="{{ url_for('web.horarios_publico', view='week', fecha=prev_date.isoformat()) }}"
@@ -38,7 +36,6 @@ title %}Horarios{% endblock %} {% block header %}
         >←</a
       >
 
-      <!-- ✅ Date con ancho controlado en móvil -->
       <input
         type="date"
         name="fecha"
@@ -723,8 +720,7 @@ title %}Horarios{% endblock %} {% block header %}
   }
 </style>
 
-{# ========================= ✅ DESKTOP: GRID SEMANAL =========================
-#}
+
 <div class="cal-wrap shadow-sm cal-desktop">
   <div class="cal-head">
     <div class="cal-row">
@@ -793,9 +789,7 @@ title %}Horarios{% endblock %} {% block header %}
         {% elif is_cliente and cupo_ok and reservable %}
         <button
           type="button"
-          class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none"
-          data-bs-toggle="modal"
-          data-bs-target="#modalReservar"
+          class="slot-pill {{ estado_class }} text-start btn btn-link p-0 text-decoration-none js-reservar-slot"
           data-slot-id="{{ key }}|{{ t }}"
           data-fecha="{{ key }}"
           data-inicio="{{ s.inicio.strftime('%H:%M') }}"
@@ -809,7 +803,7 @@ title %}Horarios{% endblock %} {% block header %}
 
           {% if reserva_id_dia %}
           <div class="text-muted small mt-1">
-            Clic para cambiar tu reserva (elige entrenador)
+            Clic para cambiar tu reserva
           </div>
           {% else %}
           <div class="text-muted small mt-1">Clic para reservar</div>
@@ -939,9 +933,7 @@ title %}Horarios{% endblock %} {% block header %}
         {% elif is_cliente and reservable and (not is_full) %}
         <button
           type="button"
-          class="agenda-card {{ estado_class }} agenda-btn"
-          data-bs-toggle="modal"
-          data-bs-target="#modalReservar"
+          class="agenda-card {{ estado_class }} agenda-btn js-reservar-slot"
           data-slot-id="{{ key }}|{{ t }}"
           data-fecha="{{ key }}"
           data-inicio="{{ s.inicio.strftime('%H:%M') }}"
@@ -953,8 +945,7 @@ title %}Horarios{% endblock %} {% block header %}
           </div>
           <div class="agenda-meta">{{ usados }} / {{ maximo }} cupos</div>
           <div class="agenda-hint">
-            {{ "Clic para cambiar reserva" if reserva_id_dia else "Clic para
-            reservar" }}
+            {{ "Clic para cambiar reserva" if reserva_id_dia else "Clic para reservar" }}
           </div>
         </button>
 
@@ -1018,72 +1009,53 @@ title %}Horarios{% endblock %} {% block header %}
   </div>
 </div>
 
-{# =========================== ✅ MODAL RESERVAR (CLIENTE)
-=========================== #} {% if session.get("user_role") == "cliente" %}
-<div class="modal fade" id="modalReservar" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-md modal-dialog-centered">
-    <div class="modal-content">
-      <form
-        method="post"
-        action="{{ url_for('web.cliente_reservar') }}"
-        id="formReservar"
-      >
-        <div class="modal-header">
-          <div>
-            <h5 class="modal-title mb-0">Reservar horario</h5>
-            <div class="text-muted small" id="txtSlotInfo">-</div>
-          </div>
-          <button
-            type="button"
-            class="btn-close"
-            data-bs-dismiss="modal"
-            aria-label="Cerrar"
-          ></button>
-        </div>
+<form method="post" id="formReservarDirecto" class="d-none">
+  <input type="hidden" name="slot_id" id="inpSlotIdDirecto" />
+  <input type="hidden" name="fecha_ref" id="inpFechaRefDirecto" value="{{ fecha.isoformat() }}" />
+</form>
 
-        <div class="modal-body">
-          <input type="hidden" name="slot_id" id="inpSlotId" />
-          <input
-            type="hidden"
-            name="fecha_ref"
-            id="inpFechaRef"
-            value="{{ fecha.isoformat() }}"
-          />
-          <input type="hidden" name="reserva_id" id="inpReservaId" value="" />
+<script>
+  (function () {
+    const form = document.getElementById("formReservarDirecto");
+    const inpSlot = document.getElementById("inpSlotIdDirecto");
+    const inpFechaRef = document.getElementById("inpFechaRefDirecto");
 
-          <label class="form-label">Entrenador</label>
-          <select class="form-select" name="entrenador_id" required>
-            <option value="">-- Selecciona --</option>
-            {% for e in entrenadores %}
-            <option value="{{ e._id }}">
-              {{ (e.nombre or '') ~ ' ' ~ (e.apellido or '') | trim if
-              ((e.nombre or e.apellido)) else e.username }}
-            </option>
+    const URL_RESERVAR = "{{ url_for('web.cliente_reservar') }}";
+    const URL_CAMBIAR_TPL =
+      "{{ url_for('web.cliente_cambiar_reserva', reserva_id='__RID__') }}";
 
-            {% endfor %}
-          </select>
+    if (!form || !inpSlot) return;
+    if (form.dataset.bound === "1") return;
+    form.dataset.bound = "1";
 
-          <div class="form-text mt-2">
-            Al confirmar, el cupo se toma inmediatamente.
-          </div>
-        </div>
+    document.addEventListener("click", (e) => {
+      const btn = e.target.closest(".js-reservar-slot");
+      if (!btn) return;
 
-        <div class="modal-footer">
-          <button
-            class="btn btn-outline-secondary"
-            type="button"
-            data-bs-dismiss="modal"
-          >
-            Cancelar
-          </button>
-          <button class="btn btn-primary" type="submit" id="btnSubmitReservar">
-            <i class="bi bi-check2-circle"></i> Reservar
-          </button>
-        </div>
-      </form>
-    </div>
-  </div>
-</div>
+      const slotId = btn.getAttribute("data-slot-id") || "";
+      const fecha = btn.getAttribute("data-fecha") || "";
+      const inicio = btn.getAttribute("data-inicio") || "";
+      const fin = btn.getAttribute("data-fin") || "";
+      const reservaId = btn.getAttribute("data-reserva-id") || "";
+
+      if (!slotId) return;
+
+      if (reservaId) {
+        if (!confirm(`Ya tienes una reserva el ${fecha}.\n¿Deseas cambiarla a ${inicio} - ${fin}?`)) {
+          return;
+        }
+        form.action = URL_CAMBIAR_TPL.replace("__RID__", encodeURIComponent(reservaId));
+      } else {
+        form.action = URL_RESERVAR;
+      }
+
+      inpSlot.value = slotId;
+      if (inpFechaRef) inpFechaRef.value = fecha || (inpFechaRef.value || "");
+
+      form.submit();
+    });
+  })();
+</script>
 
 <form method="post" id="formCambiarReserva" class="d-none">
   <input type="hidden" name="slot_id" id="inpNuevoSlotId" />
@@ -1175,8 +1147,8 @@ title %}Horarios{% endblock %} {% block header %}
     });
   })();
 </script>
-{% endif %} {# =========================== ✅ MODAL ALUMNOS (ENTRENADOR)
-=========================== #} {% if session.get("user_role") == "entrenador" %}
+
+ {% if session.get("user_role") == "entrenador" %}
 <div class="modal fade" id="modalAlumnos" tabindex="-1" aria-hidden="true">
   <div
     class="modal-dialog modal-dialog-scrollable modal-md modal-dialog-centered"
@@ -1302,8 +1274,8 @@ title %}Horarios{% endblock %} {% block header %}
             <thead class="table-light">
               <tr>
                 <th>Cliente</th>
+                <th>Creado</th>
                 <th>Cédula</th>
-                <th>Entrenador</th>
                 <th>Estado</th>
                 <th class="text-end">Acciones</th>
               </tr>
@@ -1375,7 +1347,7 @@ title %}Horarios{% endblock %} {% block header %}
           tr.innerHTML = `
             <td class="fw-semibold">${r.cliente || "-"}</td>
             <td>${r.identificacion || "-"}</td>
-            <td>${r.entrenador || "-"}</td>
+            <td>${r.creado_ec || "-"}</td>
             <td>
               <span class="badge ${yaCancelada ? "text-bg-secondary" : "text-bg-success"}">
                 ${r.estado || "-"}

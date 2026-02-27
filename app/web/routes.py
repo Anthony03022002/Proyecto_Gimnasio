@@ -2334,7 +2334,13 @@ def cajero_noti_visto(tipo, noti_id):
 @web_bp.get("/staff/slot-reservas")
 @login_required()
 def staff_slot_reservas():
-    # ✅ solo admin/cajero
+    def fmt_creado_ec(dt):
+        if not dt:
+            return ""
+        if getattr(dt, "tzinfo", None) is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt_ec = dt.astimezone(TZ_EC)
+        return dt_ec.strftime("%d/%m/%Y %H:%M:%S")
     if session.get("user_role") not in ("admin", "cajero"):
         return jsonify({"ok": False, "error": "No autorizado"}), 403
 
@@ -2357,6 +2363,7 @@ def staff_slot_reservas():
         {"$project": {
             "_id": 0,
             "reserva_id": {"$toString": "$_id"},
+            "creado": {"$ifNull": ["$creado", None]},
             "cliente_nombre": {
                 "$trim": {"input": {"$concat": [
                     {"$ifNull": ["$cliente.nombre", ""]},
@@ -2379,6 +2386,7 @@ def staff_slot_reservas():
         "identificacion": (r.get("cliente_identificacion") or "").strip(),
         "entrenador": (r.get("entrenador_nombre") or "-").strip(),
         "estado": (r.get("estado") or "").strip(),
+        "creado_ec": fmt_creado_ec(r.get("creado")),
     } for r in rows]
 
     return jsonify({"ok": True, "slot_id": slot_id, "reservas": reservas})
@@ -2657,22 +2665,18 @@ def entrenador_alumnos():
     reservas_col = db["reservas"]
     clientes_col = db["clientes"]
 
-    # --- entrenador ---
     try:
         entrenador_oid = ObjectId(session["user_id"])
     except Exception:
         flash("Entrenador inválido.", "danger")
         return redirect(url_for("web.logout"))
 
-    # --- scope ---
     scope = (request.args.get("scope") or "mine").strip().lower()
     if scope not in ("mine", "all"):
         scope = "mine"
 
-    # --- filtro ---
     q = (request.args.get("q") or "").strip()
 
-    # --- paginación ---
     page_qs = request.args.get("page", "1")
     try:
         page = max(1, int(page_qs))
@@ -2682,7 +2686,6 @@ def entrenador_alumnos():
     limit = 25
     skip = (page - 1) * limit
 
-    # ✅ primero filtra (si no hay q, no consultes ni muestres)
     has_filters = bool(q)
     if not has_filters:
         return render_template(
@@ -2699,9 +2702,6 @@ def entrenador_alumnos():
 
     rx = re.escape(q)
 
-    # =========================
-    # MIS ALUMNOS (con reservas)
-    # =========================
     if scope == "mine":
         pipeline_base = [
             {"$match": {"entrenador_id": entrenador_oid, "estado": {"$ne": "cancelada"}}},
@@ -2722,7 +2722,6 @@ def entrenador_alumnos():
             ]}},
         ]
 
-        # ✅ total (alumnos únicos)
         total_res = list(reservas_col.aggregate(pipeline_base + [{"$count": "total"}]))
         total = total_res[0]["total"] if total_res else 0
         total_pages = (total + limit - 1) // limit if total else 0
@@ -2770,9 +2769,6 @@ def entrenador_alumnos():
 
         alumnos = list(reservas_col.aggregate(pipeline_data))
 
-    # =========================
-    # TODOS (clientes del sistema)
-    # =========================
     else:
         cliente_match = {"$or": [
             {"nombre": {"$regex": rx, "$options": "i"}},
@@ -4474,8 +4470,8 @@ def cliente_reservar():
     reservas_col = db["reservas"]
     users_col    = db["users"]
 
-    slot_id = (request.form.get("slot_id") or "").strip()  # "YYYY-MM-DD|HH:MM"
-    entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()
+    slot_id = (request.form.get("slot_id") or "").strip()  
+    entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()  
     fecha_ref = (request.form.get("fecha_ref") or "").strip()
 
     app.logger.info(f"[cliente_reservar] slot_id={slot_id} entrenador={entrenador_id_raw} fecha_ref={fecha_ref}")
@@ -4486,23 +4482,48 @@ def cliente_reservar():
 
     fecha_key, slot_key = slot_id.split("|", 1)
 
-    if not entrenador_id_raw:
-        flash("Selecciona un entrenador.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+    entrenador_id = None
+    entrenador_doc = None
 
-    try:
-        entrenador_id = ObjectId(entrenador_id_raw)
-    except Exception:
-        flash("Entrenador inválido.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+    if entrenador_id_raw:
+        try:
+            entrenador_id = ObjectId(entrenador_id_raw)
+        except Exception:
+            entrenador_id = None
 
-    entrenador_doc = users_col.find_one(
-        {"_id": entrenador_id, "role": "entrenador", "activo": True},
-        {"_id": 1, "username": 1, "nombre": 1, "apellido": 1}
-    )
+        if entrenador_id:
+            entrenador_doc = users_col.find_one(
+                {"_id": entrenador_id, "role": "entrenador", "activo": True},
+                {"_id": 1, "username": 1, "nombre": 1, "apellido": 1}
+            )
+
+    # Si no vino entrenador o no es válido, asignar uno automáticamente
     if not entrenador_doc:
-        flash("Entrenador no encontrado o inactivo.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+        entrenadores = list(users_col.find(
+            {"role": "entrenador", "activo": True},
+            {"_id": 1, "username": 1, "nombre": 1, "apellido": 1}
+        ))
+
+        if not entrenadores:
+            flash("No hay entrenadores activos disponibles.", "danger")
+            return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+        # ✅ Escoge el entrenador con menos reservas confirmadas en ESE slot (balance simple)
+        mejor = None
+        mejor_count = None
+        for e in entrenadores:
+            c = reservas_col.count_documents({
+                "slot_id": slot_id,
+                "entrenador_id": e["_id"],
+                "estado": "confirmada",
+                "cancelada": {"$ne": True},
+            })
+            if (mejor_count is None) or (c < mejor_count):
+                mejor = e
+                mejor_count = c
+
+        entrenador_doc = mejor
+        entrenador_id = entrenador_doc["_id"]
 
     try:
         cliente_id = ObjectId(session["user_id"])
@@ -4515,7 +4536,6 @@ def cliente_reservar():
     ucli = users_col.find_one({"_id": cliente_id}, {"turno": 1})
     turno_cliente = (ucli or {}).get("turno") or "full"
 
-    # 1 por día
     ya_hoy = reservas_col.find_one({
         "cliente_id": cliente_id,
         "estado": "confirmada",
@@ -4525,14 +4545,9 @@ def cliente_reservar():
         flash("Solo puedes reservar 1 clase por día. Cancela tu reserva para agendar otra.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # evita duplicado exacto
     if reservas_col.find_one({"cliente_id": cliente_id, "slot_id": slot_id, "estado": "confirmada"}):
         flash("Ya tienes una reserva en ese horario.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
-
-    # if not primera_vez:
-    #     # aquí iría tu validación extra (mañana/tarde), si aplica
-    #     pass
 
 
     try:
@@ -4556,7 +4571,6 @@ def cliente_reservar():
         flash("Día no encontrado en el horario.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ FIX: no revienta si inicio es string
     slot_doc = None
     for ss in (day_doc.get("slots") or []):
         ini = ss.get("inicio")
@@ -4575,9 +4589,6 @@ def cliente_reservar():
         flash("Ese horario no existe.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ==========================================================
-    # validar ventana de apertura y turno (backend)
-    # ==========================================================
     cfg = get_config_semanal() or {}
 
     try:
@@ -4595,15 +4606,12 @@ def cliente_reservar():
         flash("Horario inválido (sin inicio).", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    # ✅ FIX: slot_start puede ser datetime o "HH:MM"
     if hasattr(slot_start, "tzinfo"):
-        # es datetime
         if slot_start.tzinfo is None:
             slot_start = slot_start.replace(tzinfo=TZ_EC)
         else:
             slot_start = slot_start.astimezone(TZ_EC)
     else:
-        # string "HH:MM"
         try:
             hh, mm = str(slot_start).split(":")
             slot_start = datetime(slot_date_obj.year, slot_date_obj.month, slot_date_obj.day,
@@ -4693,7 +4701,12 @@ def cliente_cancelar_reserva(reserva_id):
         flash("Solicitud inválida.", "danger")
         return redirect(url_for("web.cliente_dashboard"))
 
-    reserva = reservas_col.find_one({"_id": rid, "cliente_id": cliente_id, "estado": "confirmada"})
+    reserva = reservas_col.find_one({
+        "_id": rid,
+        "cliente_id": cliente_id,
+        "estado": "confirmada",
+        "cancelada": {"$ne": True},
+    })
     if not reserva:
         flash("Reserva no encontrada o ya cancelada.", "warning")
         return redirect(url_for("web.cliente_dashboard"))
@@ -4817,37 +4830,50 @@ def cliente_cambiar_reserva(reserva_id):
         flash(f"Solo puedes cambiar hasta 2 horas antes. Faltan {mins} minuto(s).", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    if not entrenador_id_raw:
-        flash("Selecciona un entrenador.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+    entrenador_id = None
 
-    try:
-        entrenador_id = ObjectId(entrenador_id_raw)
-    except Exception:
-        flash("Entrenador inválido.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+    ent_actual = reserva.get("entrenador_id")
+    if ent_actual:
+        ent_doc = users_col.find_one(
+            {"_id": ent_actual, "role": "entrenador", "activo": True},
+            {"_id": 1}
+        )
+        if ent_doc:
+            entrenador_id = ent_actual
 
-    entrenador_doc = users_col.find_one(
-        {"_id": entrenador_id, "role": "entrenador", "activo": True},
-        {"_id": 1}
-    )
-    if not entrenador_doc:
-        flash("Entrenador no encontrado o inactivo.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+    if entrenador_id is None:
+        entrenadores = list(users_col.find(
+            {"role": "entrenador", "activo": True},
+            {"_id": 1}
+        ))
+        if not entrenadores:
+            flash("No hay entrenadores activos disponibles.", "danger")
+            return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # si cambia al mismo slot, no hagas nada
+        mejor_id = None
+        mejor_count = None
+        for e in entrenadores:
+            c = reservas_col.count_documents({
+                "slot_id": slot_id_new,
+                "entrenador_id": e["_id"],
+                "estado": "confirmada",
+                "cancelada": {"$ne": True},
+            })
+            if mejor_count is None or c < mejor_count:
+                mejor_count = c
+                mejor_id = e["_id"]
+
+        entrenador_id = mejor_id
     if slot_id_new == slot_id_old:
         flash("Ya tienes esa reserva.", "info")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # week_id
     try:
         week_id = _week_id_from_date_str(fecha_old)
     except Exception:
         flash("Fecha inválida.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # ✅ 1) tomar cupo del NUEVO (si hay)
     dec = semanas_col.update_one(
         {"_id": week_id},
         {"$inc": {"days.$[d].slots.$[s].cupo_restante": -1}},
@@ -4860,7 +4886,6 @@ def cliente_cambiar_reserva(reserva_id):
         flash("Ese horario no existe o ya no tiene cupos.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # ✅ 2) devolver cupo del VIEJO
     semanas_col.update_one(
         {"_id": week_id},
         {"$inc": {"days.$[d].slots.$[s].cupo_restante": 1}},
@@ -4870,11 +4895,9 @@ def cliente_cambiar_reserva(reserva_id):
         ]
     )
 
-    # clamps defensivos
     _clamp_slot_restante(db, week_id, fecha_old, key_old)
     _clamp_slot_restante(db, week_id, fecha_new, key_new)
 
-    # ✅ 3) actualizar reserva
     try:
         reservas_col.update_one(
             {"_id": rid, "cliente_id": cliente_id, "estado": "confirmada"},
@@ -4887,7 +4910,6 @@ def cliente_cambiar_reserva(reserva_id):
             }}
         )
     except Exception:
-        # rollback “mejor esfuerzo”
         semanas_col.update_one(
             {"_id": week_id},
             {"$inc": {"days.$[d].slots.$[s].cupo_restante": 1}},
