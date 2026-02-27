@@ -1346,8 +1346,8 @@ title %}Horarios{% endblock %} {% block header %}
           const tr = document.createElement("tr");
           tr.innerHTML = `
             <td class="fw-semibold">${r.cliente || "-"}</td>
-            <td>${r.identificacion || "-"}</td>
             <td>${r.creado_ec || "-"}</td>
+            <td>${r.identificacion || "-"}</td>
             <td>
               <span class="badge ${yaCancelada ? "text-bg-secondary" : "text-bg-success"}">
                 ${r.estado || "-"}
