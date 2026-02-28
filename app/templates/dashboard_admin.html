@@ -28,15 +28,21 @@
     .noti-scroll{
       flex: 1 1 auto;
       min-height: 0;
-      overflow: auto;
+
+      overflow-x: auto;  
+      overflow-y: auto;   
       -webkit-overflow-scrolling: touch;
     }
 
-    .noti-modal-scroll{
-      max-height: 50vh;         
-      overflow: auto;
-      -webkit-overflow-scrolling: touch;
+    .noti-scroll::-webkit-scrollbar{ width: 10px; height: 10px; }
+    .noti-scroll::-webkit-scrollbar-thumb{
+      background: rgba(255,255,255,.12);
+      border-radius: 999px;
+      border: 2px solid rgba(0,0,0,0);
+      background-clip: padding-box;
     }
+    .noti-scroll::-webkit-scrollbar-thumb:hover{ background: rgba(255,255,255,.18); }
+    .noti-scroll::-webkit-scrollbar-track{ background: rgba(0,0,0,.18); }
 
     @media (max-width: 640px){
       .noti-modal-panel{ max-height: 92vh; }
@@ -168,7 +174,7 @@
     </div>
 
     <div class="overflow-x-auto">
-      <table class="w-full text-left">
+      <table class="w-full text-left min-w-[980px]">
         <thead class="bg-white/5">
           <tr>
             <th class="px-6 py-4 text-xs font-bold text-accent uppercase tracking-wider">Cliente</th>
@@ -266,10 +272,10 @@
        <div class="noti-body px-4 md:px-7 py-4">
           {% if notificaciones and notificaciones|length > 0 %}
 
-            <div class="rounded-2xl border border-white/10 overflow-hidden bg-black/20">
+            <div class="rounded-2xl border border-white/10 overflow-hidden">
               <div class="noti-scroll">
 
-                <table class="w-full text-left">
+                <table class="w-full text-left min-w-[980px]">
                   <thead class="sticky top-0 z-10 bg-surface-dark/90 backdrop-blur-md border-b border-white/10">
                     <tr>
                       <th class="px-5 py-3 text-[11px] font-extrabold uppercase tracking-widest text-white/70">Cliente</th>
