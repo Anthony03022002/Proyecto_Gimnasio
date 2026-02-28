@@ -4,6 +4,30 @@ session.get("username") or "Usuario" %} {% set noti_count =
 (notificaciones|length) if notificaciones is defined and notificaciones else 0
 %}
 
+<style>
+    .noti-modal-panel{
+      max-height: 88vh;         
+      display: flex;
+      flex-direction: column;
+    }
+
+    .noti-modal-body{
+      flex: 1 1 auto;
+      min-height: 0;           
+    }
+
+    .noti-modal-scroll{
+      max-height: 62vh;          
+      overflow: auto;
+      -webkit-overflow-scrolling: touch;
+    }
+
+    @media (max-width: 640px){
+      .noti-modal-panel{ max-height: 92vh; }
+      .noti-modal-scroll{ max-height: 68vh; }
+    }
+</style>
+
 <header
   class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5"
 >
@@ -363,9 +387,7 @@ Notificaciones (CUMPLEAÑOS + RENOVACIÓN) Se alimenta desde: notificaciones
   ></div>
 
   <div class="relative mx-auto mt-6 md:mt-10 w-[94vw] max-w-5xl">
-    <div
-      class="rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.65)] bg-gradient-to-b from-white/[0.06] to-white/[0.03]"
-    >
+    <div class="noti-modal-panel rounded-3xl overflow-hidden border border-white/10 shadow-[0_30px_90px_rgba(0,0,0,.65)] bg-gradient-to-b from-white/[0.06] to-white/[0.03]">
       <div
         class="px-5 md:px-7 py-5 border-b border-white/10 flex items-start justify-between gap-4"
       >
@@ -631,6 +653,7 @@ Notificaciones (CUMPLEAÑOS + RENOVACIÓN) Se alimenta desde: notificaciones
     if (!m) return;
     m.classList.remove("hidden");
     m.setAttribute("aria-hidden", "false");
+    document.body.style.overflow = "hidden";
   }
 
   function closeNotiModal() {
@@ -638,6 +661,7 @@ Notificaciones (CUMPLEAÑOS + RENOVACIÓN) Se alimenta desde: notificaciones
     if (!m) return;
     m.classList.add("hidden");
     m.setAttribute("aria-hidden", "true");
+    document.body.style.overflow = "";
   }
 
   (function () {
