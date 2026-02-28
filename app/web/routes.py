@@ -272,9 +272,13 @@ def admin_dashboard():
     ultimas_ventas = list(ventas.aggregate(pipeline))
     
     notificaciones = list(
-        noti_col.find({"para_rol": "admin", "visto": False})
-                .sort([("creado_at", -1)])
-                .limit(50)
+        noti_col.find({
+            "visto": False,
+            "$or": [
+                {"para_rol": "admin"},                
+                {"tipo": "renovacion", "cliente_id": {"$exists": True}}, 
+            ]
+        }).sort([("creado_at", -1)]).limit(50)
     )
 
     noti_count = len(notificaciones)
@@ -1730,10 +1734,57 @@ def cajero_dashboard():
         raise RuntimeError("mongo_db no está inicializado.")
 
     username = session.get("username")
+    
+    
 
     generar_notificaciones_cumple(db, para_rol="cajero")
+    
+    clientes_por_vencer_raw = obtener_clientes_por_vencer(
+        db,
+        dias_objetivo=(2, 1, 0),
+        limitar=200
+    ) or []
 
+    now_ec = datetime.now(TZ_EC)
+    
     noti_col = db["notificaciones"]
+    
+
+    for c in clientes_por_vencer_raw:
+        cid = _to_oid(c.get("cliente_id") or c.get("_id") or c.get("idCliente"))
+        if not cid:
+            continue
+
+        fh_key = _fecha_key(c.get("fecha_hasta") or c.get("hasta") or c.get("vence"))
+
+        noti_col.find_one_and_update(
+            {"tipo": "renovacion", "para_rol": "cajero", "cliente_id": cid, "fecha_hasta": fh_key},
+            {
+                "$setOnInsert": {
+                    "tipo": "renovacion",
+                    "para_rol": "cajero",      # ✅ CLAVE
+                    "cliente_id": cid,
+                    "fecha_hasta": fh_key,
+                    "creado_at": now_ec,
+                    "visto": False,
+                },
+                "$set": {
+                    "updated_at": now_ec,
+                    "payload": {
+                        "nombre": c.get("nombre"),
+                        "identificacion": c.get("identificacion"),
+                        "telefono": c.get("telefono"),
+                        "email": c.get("email"),
+                        "dias_restantes": c.get("dias_restantes"),
+                        "no_renovo": bool(c.get("no_renovo")),
+                        "fecha_hasta": fh_key,
+                    }
+                },
+            },
+            upsert=True,
+            return_document=ReturnDocument.AFTER,
+        )
+
     notificaciones = list(
         noti_col.find({"para_rol": "cajero", "visto": False})
                 .sort([("creado_at", -1)])
@@ -1801,11 +1852,7 @@ def cajero_dashboard():
         if ultima_venta is not None:
             ultima_venta["fecha_ec_txt"] = ""
 
-    clientes_por_vencer = obtener_clientes_por_vencer(
-        db,
-        dias_objetivo=(2, 1, 0),
-        limitar=200
-    )
+    clientes_por_vencer = clientes_por_vencer_raw
 
     return render_template(
         "dashboard_cajero.html",
@@ -2341,7 +2388,7 @@ def staff_slot_reservas():
             dt = dt.replace(tzinfo=timezone.utc)
         dt_ec = dt.astimezone(TZ_EC)
         return dt_ec.strftime("%d/%m/%Y %H:%M:%S")
-    if session.get("user_role") not in ("admin", "cajero"):
+    if session.get("user_role") not in ("admin", "cajero", "entrenador"):
         return jsonify({"ok": False, "error": "No autorizado"}), 403
 
     db = extensions.mongo_db
@@ -2361,8 +2408,7 @@ def staff_slot_reservas():
         {"$lookup": {"from": "users", "localField": "entrenador_id", "foreignField": "_id", "as": "entrenador"}},
         {"$unwind": {"path": "$entrenador", "preserveNullAndEmptyArrays": True}},
         {"$project": {
-            "_id": 0,
-            "reserva_id": {"$toString": "$_id"},
+            "_id": 1,
             "creado": {"$ifNull": ["$creado", None]},
             "cliente_nombre": {
                 "$trim": {"input": {"$concat": [
@@ -2473,8 +2519,6 @@ def entrenador_dashboard():
         clases_hoy=clases_hoy,
         tz=tz,
         activate="entrenador_dashboard",
-
-        # ✅ pásalas al HTML
         notificaciones=notificaciones,
         noti_count=noti_count,
     )
@@ -2514,8 +2558,8 @@ def entrenador_noti_visto(tipo, noti_id):
 def entrenador_slot_alumnos():
     db = extensions.mongo_db
     reservas_col = db["reservas"]
-    clientes_col = db["clientes"]  # (no es necesario aquí, pero lo dejo)
-    plan_col = db["planificaciones"]  # ✅ NUEVO
+    clientes_col = db["clientes"] 
+    plan_col = db["planificaciones"]  
 
     slot_id = (request.args.get("slot_id") or "").strip()
     if not slot_id or "|" not in slot_id:
@@ -4154,7 +4198,7 @@ def horarios_publico():
         }
         semanas_col.insert_one(doc_week)
 
-    solo_mis_reservas = (session.get("user_role") == "entrenador" and session.get("user_id"))
+    solo_mis_reservas = False
     slot_ids_entrenador = set()
     slot_count_entrenador = {}
 

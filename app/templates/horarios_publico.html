@@ -806,6 +806,7 @@ title %}Horarios{% endblock %} {% block header %}
             Clic para cambiar tu reserva
           </div>
           {% else %}
+
           <div class="text-muted small mt-1">Clic para reservar</div>
           {% endif %}
         </button>
@@ -853,8 +854,23 @@ title %}Horarios{% endblock %} {% block header %}
             {{ s.inicio.strftime('%H:%M') }} - {{ s.fin.strftime('%H:%M') }}
           </div>
           <div class="cap">{{ usados }} alumno(s)</div>
-          <div class="text-muted small mt-1">Clic para ver alumnos</div>
         </button>
+        {% if usados > 0 %}
+        <button
+          type="button"
+          class="btn btn-sm btn-outline-dark mt-2 w-100 btn-ver-reservas"
+          style="color: #ffffff;"
+          data-bs-toggle="modal"
+          data-bs-target="#modalReservasStaff"
+          data-slot-id="{{ key }}|{{ t }}"
+          data-fecha="{{ key }}"
+          data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+          data-fin="{{ s.fin.strftime('%H:%M') }}"
+        >
+          <i class="bi bi-people"></i> Ver reservas
+        </button>
+        {% endif %}
+        
 
         {% else %}
         <div class="slot-pill {{ estado_class }}">
@@ -866,7 +882,7 @@ title %}Horarios{% endblock %} {% block header %}
           {% if (is_cajero or is_admin) and usados > 0 %}
           <button
             type="button"
-            class="btn btn-sm btn-outline-dark mt-2 w-100"
+            class="btn btn-sm btn-outline-dark mt-2 w-100 btn-ver-reservas"
             data-bs-toggle="modal"
             data-bs-target="#modalReservasStaff"
             data-slot-id="{{ key }}|{{ t }}"
@@ -975,8 +991,21 @@ title %}Horarios{% endblock %} {% block header %}
             {{ s.inicio.strftime('%H:%M') }}–{{ s.fin.strftime('%H:%M') }}
           </div>
           <div class="agenda-meta">{{ usados }} alumno(s)</div>
-          <div class="agenda-hint">Ver alumnos</div>
         </button>
+        {% if usados > 0 %}
+        <button
+          type="button"
+          class="agenda-mini"
+          data-bs-toggle="modal"
+          data-bs-target="#modalReservasStaff"
+          data-slot-id="{{ key }}|{{ t }}"
+          data-fecha="{{ key }}"
+          data-inicio="{{ s.inicio.strftime('%H:%M') }}"
+          data-fin="{{ s.fin.strftime('%H:%M') }}"
+        >
+          Ver reservas
+        </button>
+        {% endif %}
 
         {% else %}
         <div class="agenda-card {{ estado_class }}">
@@ -1240,14 +1269,14 @@ title %}Horarios{% endblock %} {% block header %}
     });
   })();
 </script>
-{% endif %} {# =========================== ✅ MODAL RESERVAS (ADMIN + CAJERO)
-=========================== #} {% if session.get("user_role") in ["cajero",
-"admin"] %}
+{% endif %} 
+{% if session.get("user_role") in ["cajero","admin", "entrenador"] %}
 <div
   class="modal fade"
   id="modalReservasStaff"
   tabindex="-1"
   aria-hidden="true"
+  data-can-cancel="{% if session.get('user_role') in ['cajero','admin'] %}1{% else %}0{% endif %}"
 >
   <div
     class="modal-dialog modal-dialog-scrollable modal-lg modal-dialog-centered"
@@ -1277,7 +1306,9 @@ title %}Horarios{% endblock %} {% block header %}
                 <th>Creado</th>
                 <th>Cédula</th>
                 <th>Estado</th>
-                <th class="text-end">Acciones</th>
+                {% if session.get("user_role") in ["cajero","admin"] %}
+                  <th class="text-end">Acciones</th>
+                {% endif %}
               </tr>
             </thead>
             <tbody id="reservasTbody"></tbody>
@@ -1304,6 +1335,8 @@ title %}Horarios{% endblock %} {% block header %}
     const reservasTbody = document.getElementById("reservasTbody");
     const reservasStatus = document.getElementById("reservasStatus");
     const txtReservasInfo = document.getElementById("txtReservasSlotInfo");
+    const CAN_CANCEL = (modalReservas.dataset.canCancel === "1");
+    const COLSPAN = CAN_CANCEL ? 5 : 4;
 
     if (!modalReservas || !reservasTbody) return;
 
@@ -1335,7 +1368,7 @@ title %}Horarios{% endblock %} {% block header %}
           reservasStatus.textContent = `${rows.length} reserva(s)`;
 
         if (rows.length === 0) {
-          reservasTbody.innerHTML = `<tr><td colspan="5" class="text-center text-muted py-3">Sin reservas</td></tr>`;
+          reservasTbody.innerHTML = `<tr><td colspan="${COLSPAN}" class="text-center text-muted py-3">Sin reservas</td></tr>`;
           return;
         }
 
@@ -1344,6 +1377,20 @@ title %}Horarios{% endblock %} {% block header %}
           const yaCancelada = estado === "cancelada";
 
           const tr = document.createElement("tr");
+
+          const accionesTd = CAN_CANCEL
+            ? `<td class="text-end">
+                <button
+                  type="button"
+                  class="btn btn-sm btn-outline-danger btn-cancelar-reserva"
+                  data-reserva-id="${r.reserva_id}"
+                  ${yaCancelada ? "disabled" : ""}
+                >
+                  <i class="bi bi-x-circle"></i> Cancelar
+                </button>
+              </td>`
+            : "";
+
           tr.innerHTML = `
             <td class="fw-semibold">${r.cliente || "-"}</td>
             <td>${r.creado_ec || "-"}</td>
@@ -1353,16 +1400,7 @@ title %}Horarios{% endblock %} {% block header %}
                 ${r.estado || "-"}
               </span>
             </td>
-            <td class="text-end">
-              <button
-                type="button"
-                class="btn btn-sm btn-outline-danger btn-cancelar-reserva"
-                data-reserva-id="${r.reserva_id}"
-                ${yaCancelada ? "disabled" : ""}
-              >
-                <i class="bi bi-x-circle"></i> Cancelar
-              </button>
-            </td>
+            ${accionesTd}
           `;
           reservasTbody.appendChild(tr);
         }
@@ -1385,6 +1423,8 @@ title %}Horarios{% endblock %} {% block header %}
     });
 
     reservasTbody.addEventListener("click", async (e) => {
+      if (!CAN_CANCEL) return;
+
       const btn = e.target.closest(".btn-cancelar-reserva");
       if (!btn) return;
 

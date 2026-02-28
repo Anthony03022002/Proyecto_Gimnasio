@@ -656,6 +656,55 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
     opacity: 0.6;
     cursor: not-allowed;
   }
+  .memb-alerts {
+    margin: 14px 0 6px;
+    display: grid;
+    gap: 10px;
+  }
+
+  .memb-alert {
+    display: flex;
+    align-items: flex-start;
+    gap: 5px;
+
+    padding: 12px 14px;
+    border-radius: 14px;
+
+    background: rgba(239, 68, 68, 0.18);      /* rojo suave */
+    border: 1px solid rgba(239, 68, 68, 0.35);
+    color: rgba(255, 255, 255, 0.95);
+
+    box-shadow: 0 10px 26px rgba(0, 0, 0, 0.28);
+  }
+
+  .memb-alert .ico {
+    width: 26px;
+    height: 26px;
+    flex: 0 0 auto;
+
+    display: grid;
+    place-items: center;
+
+    border-radius: 999px;
+    background: rgba(239, 68, 68, 0.28);
+    border: 1px solid rgba(239, 68, 68, 0.40);
+
+    font-size: 16px;
+    line-height: 1;
+  }
+
+  .memb-alert .txt {
+    font-weight: 850;
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .memb-alert .sub {
+    margin-top: 4px;
+    font-size: 0.82rem;
+    font-weight: 700;
+    color: rgba(255, 255, 255, 0.78);
+  }
 
 
   @media (max-width: 768px) {
@@ -746,7 +795,21 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
 </style>
 
 <div class="dashboard">
-  <!-- Hero Section -->
+
+  {% if alertas_membresia and alertas_membresia|length > 0 %}
+    <div class="memb-alerts">
+      {% for msg in alertas_membresia %}
+        <div class="memb-alert">
+          <div class="ico">!</div>
+          <div>
+            <div class="txt">Aviso importante</div>
+            <div class="sub">{{ msg }}</div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+
   <section class="hero">
     <img
       class="hero-image"
@@ -760,6 +823,7 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
       </p>
     </div>
   </section>
+  
 
   <!-- Progress Card -->
   <section class="progress-card">
