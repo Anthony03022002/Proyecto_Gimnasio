@@ -193,11 +193,47 @@ def admin_dashboard():
     
     generar_notificaciones_cumple(db, para_rol="admin")
 
-    total_clientes = clientes.count_documents({})
+    total_clientes = users.count_documents({"role": "cliente"})
     total_entrenadores = users.count_documents({"role": "entrenador"})
     total_cajeros = users.count_documents({"role": "cajero"})
     
-    clientes_activos = users.count_documents({"role": "cliente", "activo": True})
+    now_utc = datetime.now(timezone.utc)
+
+    pipeline_clientes_activos = [
+
+        {"$match": {"role": "cliente", "activo": True}},  
+
+        
+        {"$lookup": {
+            "from": "ventas",
+            "let": {"cid": "$_id"},
+            "pipeline": [
+                {"$match": {"$expr": {"$eq": ["$cliente_id", "$$cid"]}}},
+                {"$match": {
+                    "membresia": {"$type": "object"},
+                    "membresia.fecha_desde": {"$type": "date"},
+                    "membresia.fecha_hasta": {"$type": "date"},
+                    "fecha": {"$type": "date"},
+                }},
+                {"$sort": {"fecha": -1}},
+                {"$limit": 1},
+                {"$project": {"membresia": 1}}
+            ],
+            "as": "ult"
+        }},
+
+        {"$unwind": "$ult"},
+
+        {"$match": {
+            "ult.membresia.fecha_desde": {"$lte": now_utc},
+            "ult.membresia.fecha_hasta": {"$gte": now_utc},
+        }},
+
+        {"$count": "total"}
+    ]
+
+    res = list(users.aggregate(pipeline_clientes_activos, allowDiskUse=True))
+    clientes_activos = res[0]["total"] if res else 0
 
     clientes_por_vencer_raw = obtener_clientes_por_vencer(db, dias_objetivo=(2,1,0), limitar=300) or []
 
