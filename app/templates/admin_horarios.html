@@ -61,6 +61,43 @@
   {% endif %}
 {% endwith %}
 
+<style>
+  .admin-soft-card {
+    background: linear-gradient(180deg, rgba(255,255,255,.04), rgba(255,255,255,.025));
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 16px 42px rgba(0,0,0,.22);
+  }
+  .special-close-card {
+    background:
+      radial-gradient(720px 220px at 0% 0%, rgba(239,68,68,.10), transparent 58%),
+      linear-gradient(180deg, rgba(255,255,255,.045), rgba(255,255,255,.02));
+    border: 1px solid rgba(255,255,255,.08);
+    box-shadow: 0 18px 48px rgba(0,0,0,.24);
+  }
+  .special-close-list {
+    max-height: 360px;
+    overflow-y: auto;
+    padding-right: 4px;
+  }
+  .special-close-list::-webkit-scrollbar {
+    width: 8px;
+  }
+  .special-close-list::-webkit-scrollbar-thumb {
+    background: rgba(255,255,255,.14);
+    border-radius: 999px;
+  }
+  .special-close-item {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    transition: background-color .18s ease, border-color .18s ease, transform .18s ease;
+  }
+  .special-close-item:hover {
+    background: rgba(255,255,255,.05);
+    border-color: rgba(255,255,255,.14);
+    transform: translateY(-1px);
+  }
+</style>
+
 <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
 
   {# ASIGNAR DÍAS #}
@@ -276,6 +313,101 @@
     </div>
   </div>
 
+</div>
+
+<div class="grid grid-cols-1 lg:grid-cols-12 gap-6 mt-6">
+  <div class="lg:col-span-6">
+    <div class="rounded-3xl overflow-hidden special-close-card">
+      <div class="p-6 border-b border-white/10">
+        <div class="flex items-start gap-3">
+          <div class="h-11 w-11 rounded-2xl bg-red-500/12 border border-red-500/20 flex items-center justify-center text-red-300 shrink-0">
+            <span class="material-symbols-outlined text-[22px]">event_busy</span>
+          </div>
+          <div>
+        <h3 class="text-lg font-bold text-white">Cerrar un día puntual</h3>
+        <p class="text-xs text-secondary mt-1">Cierra solo una fecha específica. La siguiente semana ese día vuelve a operar normal.</p>
+          </div>
+        </div>
+      </div>
+
+      <div class="p-6">
+        <form method="post" action="{{ url_for('web.admin_horarios_cerrar_dia') }}" class="space-y-4">
+          <div>
+            <label class="block text-sm font-semibold text-white mb-2">Fecha</label>
+            <input
+              type="date"
+              name="fecha_cierre"
+              min="{{ hoy_ec.isoformat() }}"
+              required
+              class="w-full px-4 py-3 rounded-2xl bg-black/10 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-400/20 focus:border-red-400/20"
+            />
+          </div>
+
+          <div>
+            <label class="block text-sm font-semibold text-white mb-2">Motivo opcional</label>
+            <input
+              type="text"
+              name="motivo_cierre"
+              maxlength="120"
+              placeholder="Ej: cerrado por mantenimiento"
+              class="w-full px-4 py-3 rounded-2xl bg-black/10 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-400/20 focus:border-red-400/20"
+            />
+          </div>
+
+          <button
+            type="submit"
+            class="w-full h-[48px] rounded-2xl bg-red-500/85 hover:bg-red-500 text-sm font-bold text-white transition-colors focus:outline-none focus:ring-2 focus:ring-red-300/20"
+          >
+            Cerrar ese día
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="lg:col-span-6">
+    <div class="rounded-3xl overflow-hidden admin-soft-card">
+      <div class="p-6 border-b border-white/10 flex items-center justify-between gap-3">
+        <div>
+          <h3 class="text-lg font-bold text-white">Cierres programados</h3>
+          <p class="text-xs text-secondary mt-1">Aplican solo a la fecha indicada.</p>
+        </div>
+        <span class="inline-flex items-center px-3 py-1 rounded-full bg-white/5 border border-white/10 text-xs text-white/70">{{ cierres|length }} total</span>
+      </div>
+
+      <div class="p-6">
+        {% if cierres %}
+          <div class="space-y-3 special-close-list">
+            {% for c in cierres %}
+              <div class="special-close-item rounded-2xl p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                <div class="min-w-0">
+                  <div class="flex items-center gap-2 mb-1">
+                    <span class="inline-flex h-8 w-8 items-center justify-center rounded-xl bg-red-500/10 border border-red-500/20 text-red-300">
+                      <span class="material-symbols-outlined text-[18px]">event</span>
+                    </span>
+                    <div class="text-white font-semibold tracking-wide">{{ c.fecha }}</div>
+                  </div>
+                  <div class="text-xs text-secondary mt-1 leading-relaxed">{{ c.motivo or 'Sin motivo registrado' }}</div>
+                </div>
+                <form method="post" action="{{ url_for('web.admin_horarios_reabrir_dia', fecha=c.fecha) }}" onsubmit="return confirm('¿Reabrir este día?');">
+                  <button
+                    type="submit"
+                    class="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-white/5 hover:bg-white/10 border border-white/10 text-sm font-semibold text-white transition-colors"
+                  >
+                    Reabrir
+                  </button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="rounded-2xl border border-white/10 bg-white/5 p-6 text-sm text-secondary">
+            No hay cierres puntuales programados.
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
 </div>
 
 {% endblock %}

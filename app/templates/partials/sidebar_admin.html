@@ -4,7 +4,7 @@ session.get("username") or "Usuario" %} {% set active = active or "" %}
 <div class="flex flex-col h-full">
   <div class="hidden md:flex p-6 border-b border-white/5 items-center gap-3">
     <img
-      src="../../static/images/logo_gym.jpeg"
+      src="{{ url_for('static', filename='images/logo_gym.jpeg') }}"
       alt="Logo"
       class="w-20 h-20 object-contain"
     >

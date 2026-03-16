@@ -744,7 +744,9 @@ title %}Horarios{% endblock %} {% block header %}
             {{ ["Lun","Mar","Mié","Jue","Vie","Sáb","Dom"][loop.index0] }}
           </div>
           <div class="dom">{{ d.strftime('%d/%m') }}</div>
-
+          {% if cierres_map is defined and cierres_map.get(d.isoformat()) %}
+            <div class="text-[10px] uppercase tracking-wider text-red-300 mt-1">Cerrado</div>
+          {% endif %}
         </div>
       {% endfor %}
 
@@ -775,8 +777,10 @@ title %}Horarios{% endblock %} {% block header %}
         tiene_reserva_dia = (reserva_id_dia != '') %} {% set estado_class =
         "slot-open" %} {% if is_partial %}{% set estado_class = "slot-partial"
         %}{% endif %} {% if is_full %}{% set estado_class = "slot-full" %}{%
-        endif %} {% set reservable = true if (primera_vez is defined and
-        primera_vez) else (s.reservable if s.reservable is defined else true) %}
+        endif %} {% set reservable = false if (s.cerrado_especial if
+        s.cerrado_especial is defined else false) else (true if (primera_vez is
+        defined and primera_vez) else (s.reservable if s.reservable is defined
+        else true)) %}
         {% set msg_reserva = (s.msg_reserva if s.msg_reserva is defined else '')
         %} {% if is_cliente and ya_reservado %}
         <div class="slot-pill slot-mine">
@@ -934,9 +938,10 @@ title %}Horarios{% endblock %} {% block header %}
         '') %} {% set estado_class = "slot-open" %} {% if is_partial %}{% set
         estado_class = "slot-partial" %}{% endif %} {% if is_full %}{% set
         estado_class = "slot-full" %}{% endif %} {% if ya_reservado %}{% set
-        estado_class = "slot-mine" %}{% endif %} {% set reservable = true if
-        (primera_vez is defined and primera_vez) else (s.reservable if
-        s.reservable is defined else true) %} {% set msg_reserva =
+        estado_class = "slot-mine" %}{% endif %} {% set reservable = false if
+        (s.cerrado_especial if s.cerrado_especial is defined else false) else
+        (true if (primera_vez is defined and primera_vez) else (s.reservable if
+        s.reservable is defined else true)) %} {% set msg_reserva =
         (s.msg_reserva if s.msg_reserva is defined else '') %} {% if is_cliente
         and ya_reservado %}
         <div class="agenda-card {{ estado_class }}">

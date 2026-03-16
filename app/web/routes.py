@@ -23,11 +23,15 @@ from pymongo.errors import DuplicateKeyError
 import app.extensions as extensions
 from app.services.horarios_semanales import (
     TZ_EC,
+    cerrar_dia_especial,
     eliminar_plantilla,
+    fecha_esta_cerrada,
     get_config_semanal,
+    obtener_cierres_especiales,
     listar_plantillas,
     get_plantilla_por_id,
     asignar_plantilla_a_dias,
+    reabrir_dia_especial,
     guardar_config_semanal,
     plantilla_esta_en_uso,
     resolver_bloques_del_dia,
@@ -4377,6 +4381,8 @@ def horarios_publico():
     week_dates = [start + timedelta(days=i) for i in range(7)]
     prev_date = start - timedelta(days=7)
     next_date = start + timedelta(days=7)
+    cierres_semana = obtener_cierres_especiales(desde=week_dates[0].isoformat(), hasta=week_dates[-1].isoformat())
+    cierres_map = {c.get("fecha"): c for c in cierres_semana if c.get("fecha")}
 
     cfg = get_config_semanal() or {}
     intervalo_minutos = int(cfg.get("intervalo_minutos", 60))
@@ -4543,6 +4549,8 @@ def horarios_publico():
                 "bloque": block_num,         
                 "reservable": reservable,     
                 "turno_cliente": turno_cliente,  
+                "cerrado_especial": fecha_key in cierres_map,
+                "msg_reserva": (cierres_map.get(fecha_key) or {}).get("motivo") or "",
             }
 
             all_slots.append({"inicio": s["inicio"], "fin": s["fin"]})
@@ -4565,6 +4573,23 @@ def horarios_publico():
             for k, slot in m.items():
                 sid = slot.get("_id")
                 slot["cupo_usado"] = counts.get(sid, 0)
+
+    for fecha_key, m in slot_map.items():
+        cierre = cierres_map.get(fecha_key)
+        if not cierre:
+            continue
+
+        keys_a_borrar = []
+        for k, slot in m.items():
+            usados = int(slot.get("cupo_usado") or 0)
+            slot["cerrado_especial"] = True
+            slot["reservable"] = False
+            slot["msg_reserva"] = cierre.get("motivo") or "Dia cerrado por administración."
+            if usados <= 0:
+                keys_a_borrar.append(k)
+
+        for k in keys_a_borrar:
+            m.pop(k, None)
 
     def to_minute(dt):
         return dt.hour * 60 + dt.minute
@@ -4604,6 +4629,7 @@ def horarios_publico():
         reserva_por_fecha=reserva_por_fecha,
         entrenadores=entrenadores,
         mis_slot_ids=mis_slot_ids,
+        cierres_map=cierres_map,
         manana_key=manana_key,
         tiene_reserva_manana=tiene_reserva_manana,
         solo_mis_reservas=solo_mis_reservas,
@@ -4619,6 +4645,8 @@ def admin_horarios():
     cfg = get_config_semanal()
     templates = listar_plantillas()
     tpl_map = {str(t.get("_id")): t.get("nombre") for t in templates}
+    hoy_ec = datetime.now(TZ_EC).date()
+    cierres = obtener_cierres_especiales(desde=hoy_ec.isoformat())
 
     days_ui = [
         ("mon", "Lunes"), ("tue", "Martes"), ("wed", "Miércoles"),
@@ -4630,8 +4658,47 @@ def admin_horarios():
         cfg=cfg,
         templates=templates,
         tpl_map=tpl_map,
-        days_ui=days_ui
+        days_ui=days_ui,
+        cierres=cierres,
+        hoy_ec=hoy_ec,
     )
+
+
+@web_bp.post("/admin/horarios/cerrar-dia")
+@login_required(role="admin")
+def admin_horarios_cerrar_dia():
+    fecha = (request.form.get("fecha_cierre") or "").strip()
+    motivo = (request.form.get("motivo_cierre") or "").strip()
+
+    try:
+        fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").date()
+    except Exception:
+        flash("Selecciona una fecha vÃ¡lida.", "danger")
+        return redirect(url_for("web.admin_horarios"))
+
+    if fecha_dt < datetime.now(TZ_EC).date():
+        flash("No puedes cerrar una fecha pasada.", "danger")
+        return redirect(url_for("web.admin_horarios"))
+
+    try:
+        cerrar_dia_especial(fecha_dt.isoformat(), motivo=motivo, creado_por=session.get("username"))
+    except ValueError as e:
+        flash(str(e), "danger")
+        return redirect(url_for("web.admin_horarios"))
+
+    flash("DÃ­a cerrado correctamente para esa fecha.", "success")
+    return redirect(url_for("web.admin_horarios"))
+
+
+@web_bp.post("/admin/horarios/reabrir-dia/<fecha>")
+@login_required(role="admin")
+def admin_horarios_reabrir_dia(fecha):
+    res = reabrir_dia_especial(fecha)
+    if res.deleted_count:
+        flash("DÃ­a reabierto correctamente.", "success")
+    else:
+        flash("No se encontrÃ³ el cierre seleccionado.", "warning")
+    return redirect(url_for("web.admin_horarios"))
 
 
 @web_bp.post("/admin/horarios/asignar")
@@ -4787,6 +4854,11 @@ def cliente_reservar():
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
 
     fecha_key, slot_key = slot_id.split("|", 1)
+
+    cierre = fecha_esta_cerrada(fecha_key)
+    if cierre:
+        flash("Ese dÃ­a estÃ¡ cerrado y no acepta nuevas reservas.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     entrenador_id = None
     entrenador_doc = None
@@ -5112,6 +5184,10 @@ def cliente_cambiar_reserva(reserva_id):
 
     fecha_old, key_old = slot_id_old.split("|", 1)
     fecha_new, key_new = slot_id_new.split("|", 1)
+
+    if fecha_esta_cerrada(fecha_new):
+        flash("Ese dÃ­a estÃ¡ cerrado y no acepta cambios de reserva.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
     # ✅ para “cambiar hora”, obliga mismo día
     if fecha_new != fecha_old:

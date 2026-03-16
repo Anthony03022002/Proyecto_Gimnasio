@@ -216,6 +216,60 @@ def construir_slots_para_fecha(d, bloques, intervalo_minutos: int, cupo_maximo: 
     return slots
 
 
+def get_cierres_especiales_collection():
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no estÃ¡ inicializado.")
+    return db["horarios_cierres_especiales"]
+
+
+def cerrar_dia_especial(fecha: str, motivo: str = "", creado_por: str = ""):
+    col = get_cierres_especiales_collection()
+    fecha = (fecha or "").strip()
+    if not fecha:
+        raise ValueError("La fecha es obligatoria.")
+
+    try:
+        datetime.strptime(fecha, "%Y-%m-%d")
+    except Exception:
+        raise ValueError("La fecha es invÃ¡lida.")
+
+    col.update_one(
+        {"_id": fecha},
+        {"$set": {
+            "fecha": fecha,
+            "motivo": (motivo or "").strip(),
+            "activo": True,
+            "actualizado_en": datetime.now(timezone.utc),
+            "creado_por": creado_por or None,
+        }},
+        upsert=True
+    )
+
+
+def reabrir_dia_especial(fecha: str):
+    col = get_cierres_especiales_collection()
+    return col.delete_one({"_id": str(fecha).strip()})
+
+
+def obtener_cierres_especiales(desde: str = None, hasta: str = None):
+    col = get_cierres_especiales_collection()
+    query = {"activo": True}
+    if desde or hasta:
+        query["fecha"] = {}
+        if desde:
+            query["fecha"]["$gte"] = str(desde)
+        if hasta:
+            query["fecha"]["$lte"] = str(hasta)
+
+    return list(col.find(query).sort("fecha", 1))
+
+
+def fecha_esta_cerrada(fecha: str):
+    col = get_cierres_especiales_collection()
+    return col.find_one({"_id": str(fecha).strip(), "activo": True})
+
+
 def plantilla_esta_en_uso(plantilla_id):
     cfg = get_config_semanal()
     dias = cfg.get("dias") or {}
