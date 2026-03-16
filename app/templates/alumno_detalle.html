@@ -476,21 +476,22 @@
 
             <div class="col-12 col-md-3">
               <label class="form-label">Peso (kg)</label>
-              <input type="number" step="0.1" class="form-control gold-input-focus" name="peso_kg" required>
+              <input type="number" step="0.1" min="1" max="400" class="form-control gold-input-focus" name="peso_kg" required>
             </div>
 
             <div class="col-12 col-md-3">
               <label class="form-label">% Grasa</label>
-              <input type="number" step="0.1" class="form-control gold-input-focus" name="grasa_pct" required>
+              <input type="number" step="0.1" min="0" max="100" class="form-control gold-input-focus" name="grasa_pct" required>
             </div>
 
             <div class="col-12 col-md-3">
               <label class="form-label">% Músculo</label>
-              <input type="number" step="0.1" min="1" max="80" class="form-control gold-input-focus" name="musculo_pct" required>
+              <input type="number" step="0.1" min="0" max="100" class="form-control gold-input-focus" name="musculo_pct" required>
             </div>
 
-            <div class="col-12 d-grid mt-2">
-              <button class="btn"
+            <div class="col-12 mt-2">
+              <div class="d-grid gap-2 d-md-flex">
+              <button class="btn flex-fill"
                       type="submit"
                       style="background: rgba(212,175,55,.20); border:1px solid rgba(212,175,55,.40); color: var(--primary-gold); border-radius: 12px;">
                 <span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">add_circle</span>
@@ -498,6 +499,15 @@
                   Guardar medición
                 </span>
               </button>
+              <a class="btn flex-fill"
+                 href="{{ url_for('web.entrenador_medidas_historial', cliente_id=cliente_id) }}"
+                 style="background: rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.12); color: #fff; border-radius: 12px;">
+                <span class="material-symbols-outlined" style="font-size:18px;vertical-align:-4px;">history</span>
+                <span style="font-size:10px;letter-spacing:.22em;text-transform:uppercase;font-weight:900;">
+                  Ver historial
+                </span>
+              </a>
+              </div>
             </div>
           </form>
 

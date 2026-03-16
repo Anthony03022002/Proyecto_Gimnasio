@@ -1,0 +1,255 @@
+{% extends "base_admin.html" %}
+{% block title %}Historial KPI{% endblock %}
+
+{% block header %}
+  {% set alumno_nombre = ((alumno.nombre or '') ~ ' ' ~ (alumno.apellido or ''))|trim %}
+  <header class="h-20 bg-surface-dark/50 backdrop-blur-md px-5 md:px-8 flex items-center justify-between sticky top-0 z-10 border-b border-white/5">
+    <div class="flex items-center gap-3 min-w-0">
+      <button
+        type="button"
+        class="md:hidden p-2 rounded-lg hover:bg-white/5 text-secondary hover:text-white transition-colors"
+        onclick="openDrawer()"
+        aria-label="Abrir menú"
+      >
+        <span class="material-symbols-outlined">menu</span>
+      </button>
+      <div class="min-w-0">
+        <h2 class="text-xl md:text-2xl font-bold text-white truncate">
+          Historial KPI
+          <span class="text-white/60 font-semibold">- {{ alumno_nombre or 'Alumno' }}</span>
+        </h2>
+        <p class="text-xs text-secondary mt-0.5">Administra todas las mediciones del alumno.</p>
+      </div>
+    </div>
+  </header>
+{% endblock %}
+
+{% block content %}
+{% set alumno_nombre = ((alumno.nombre or '') ~ ' ' ~ (alumno.apellido or ''))|trim %}
+<style>
+  .kpi-shell {
+    background:
+      radial-gradient(900px 480px at 0% -10%, rgba(212, 175, 55, .10), transparent 60%),
+      linear-gradient(180deg, rgba(255,255,255,.03), rgba(255,255,255,.01));
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 24px;
+    padding: 18px;
+    box-shadow: 0 18px 60px rgba(0,0,0,.35);
+  }
+  .kpi-card {
+    background: rgba(255,255,255,.03);
+    border: 1px solid rgba(255,255,255,.08);
+    border-radius: 18px;
+  }
+  .kpi-input,
+  .kpi-table input {
+    background: rgba(255,255,255,.03) !important;
+    border-color: rgba(255,255,255,.12) !important;
+    color: #fff !important;
+  }
+  .kpi-table th,
+  .kpi-table td {
+    vertical-align: middle;
+    border-color: rgba(255,255,255,.08) !important;
+  }
+  .kpi-muted {
+    color: rgba(255,255,255,.58);
+  }
+  .kpi-history-scroll {
+    max-height: 460px;
+    overflow-y: auto;
+    overflow-x: auto;
+    border-radius: 16px;
+  }
+  .kpi-history-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  .kpi-history-scroll::-webkit-scrollbar-track {
+    background: rgba(255,255,255,.04);
+    border-radius: 999px;
+  }
+  .kpi-history-scroll::-webkit-scrollbar-thumb {
+    background: rgba(212,175,55,.35);
+    border-radius: 999px;
+  }
+  .kpi-history-scroll thead th {
+    position: sticky;
+    top: 0;
+    z-index: 2;
+    background: #171a22;
+  }
+  .kpi-action {
+    border-radius: 12px;
+    border: 1px solid rgba(212,175,55,.30);
+    background: rgba(212,175,55,.12);
+    color: #f5d77d;
+  }
+  .kpi-danger {
+    border-radius: 12px;
+    border: 1px solid rgba(251,113,133,.30);
+    background: rgba(251,113,133,.12);
+    color: #fda4af;
+  }
+  .modal-content {
+    background: #151821;
+    border: 1px solid rgba(255,255,255,.10);
+  }
+</style>
+
+<div class="kpi-shell">
+  <div class="d-flex flex-column flex-lg-row justify-content-between gap-3 mb-4">
+    <div>
+      <div class="text-uppercase tracking-[0.35em] text-[11px] text-white/40 mb-2">Alumno</div>
+      <h3 class="text-white text-2xl font-bold mb-1">{{ alumno_nombre or 'Sin nombre' }}</h3>
+      <div class="kpi-muted text-sm">{{ alumno.email or 'Sin email' }}{% if alumno.telefono %} · {{ alumno.telefono }}{% endif %}</div>
+    </div>
+    <div class="d-flex gap-2 align-self-start">
+      <a class="btn btn-outline-light rounded-3" href="{{ url_for('web.entrenador_alumno_detalle', cliente_id=cliente_id) }}">
+        Volver al alumno
+      </a>
+    </div>
+  </div>
+
+  <div class="row g-3 mb-4">
+    <div class="col-12 col-md-4">
+      <div class="kpi-card p-3 h-100">
+        <div class="kpi-muted text-uppercase small">Peso actual</div>
+        <div class="display-6 text-white fw-bold">{{ "%.1f"|format((kpi_latest.peso_kg if kpi_latest and kpi_latest.peso_kg is not none else 0)|float) }} <span class="fs-6 fw-normal">kg</span></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="kpi-card p-3 h-100">
+        <div class="kpi-muted text-uppercase small">% Grasa actual</div>
+        <div class="display-6 text-white fw-bold">{{ "%.1f"|format((kpi_latest.grasa_pct if kpi_latest and kpi_latest.grasa_pct is not none else 0)|float) }} <span class="fs-6 fw-normal">%</span></div>
+      </div>
+    </div>
+    <div class="col-12 col-md-4">
+      <div class="kpi-card p-3 h-100">
+        <div class="kpi-muted text-uppercase small">% Músculo actual</div>
+        <div class="display-6 text-white fw-bold">{{ "%.1f"|format((kpi_latest.musculo_pct if kpi_latest and kpi_latest.musculo_pct is not none else 0)|float) }} <span class="fs-6 fw-normal">%</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="kpi-card p-4 mt-4">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+      <h4 class="text-white mb-0">Historial completo</h4>
+      <span class="kpi-muted small">Editar o eliminar registros existentes</span>
+    </div>
+
+    {% if medidas %}
+      <div class="table-responsive kpi-history-scroll">
+        <table class="table table-dark table-hover align-middle kpi-table mb-0">
+          <thead>
+            <tr>
+              <th>Fecha</th>
+              <th>Peso</th>
+              <th>% Grasa</th>
+              <th>% Músculo</th>
+              <th class="text-end">Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for m in medidas %}
+              {% set modal_id = "modalEditarKpi" ~ loop.index %}
+              <tr>
+                <td>{{ (m.fecha or m.creado).strftime('%d/%m/%Y') if (m.fecha or m.creado) else '-' }}</td>
+                <td>{{ "%.1f"|format((m.peso_kg if m.peso_kg is not none else 0)|float) }} kg</td>
+                <td>{{ "%.1f"|format((m.grasa_pct if m.grasa_pct is not none else 0)|float) }}%</td>
+                <td>{{ "%.1f"|format((m.musculo_pct if m.musculo_pct is not none else 0)|float) }}%</td>
+                <td class="text-end">
+                  <button type="button" class="btn btn-sm kpi-action me-2" data-bs-toggle="modal" data-bs-target="#{{ modal_id }}">
+                    Editar
+                  </button>
+                  <form method="post" action="{{ url_for('web.entrenador_medidas_eliminar', cliente_id=cliente_id, medida_id=m._id) }}" class="d-inline" onsubmit="return confirm('¿Eliminar esta medición?');">
+                    <button type="submit" class="btn btn-sm kpi-danger">Eliminar</button>
+                  </form>
+                </td>
+              </tr>
+
+              <div class="modal fade" id="{{ modal_id }}" tabindex="-1" aria-hidden="true">
+                <div class="modal-dialog modal-dialog-centered">
+                  <div class="modal-content">
+                    <div class="modal-header border-white/10">
+                      <h5 class="modal-title text-white">Editar medición</h5>
+                      <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                    </div>
+                    <form method="post" action="{{ url_for('web.entrenador_medidas_editar', cliente_id=cliente_id, medida_id=m._id) }}">
+                      <div class="modal-body">
+                        <div class="row g-3">
+                          <div class="col-12">
+                            <label class="form-label text-white">Fecha</label>
+                            <input type="date" name="fecha" class="form-control kpi-input" value="{{ m.fecha.strftime('%Y-%m-%d') if m.fecha else '' }}">
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label text-white">Peso (kg)</label>
+                            <input type="number" name="peso_kg" step="0.1" min="1" max="400" class="form-control kpi-input" value="{{ m.peso_kg if m.peso_kg is not none else '' }}" required>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label text-white">% Grasa</label>
+                            <input type="number" name="grasa_pct" step="0.1" min="0" max="100" class="form-control kpi-input" value="{{ m.grasa_pct if m.grasa_pct is not none else '' }}" required>
+                          </div>
+                          <div class="col-12">
+                            <label class="form-label text-white">% Músculo</label>
+                            <input type="number" name="musculo_pct" step="0.1" min="0" max="100" class="form-control kpi-input" value="{{ m.musculo_pct if m.musculo_pct is not none else '' }}" required>
+                          </div>
+                        </div>
+                      </div>
+                      <div class="modal-footer border-white/10">
+                        <button type="button" class="btn btn-outline-light" data-bs-dismiss="modal">Cancelar</button>
+                        <button type="submit" class="btn kpi-action">Guardar cambios</button>
+                      </div>
+                    </form>
+                  </div>
+                </div>
+              </div>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <div class="alert alert-secondary mb-0">Aún no hay mediciones registradas para este alumno.</div>
+    {% endif %}
+  </div>
+  
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script>
+  (function () {
+    const payloadNode = document.getElementById("chartMedidasPayload");
+    const canvas = document.getElementById("chartMedidas");
+    if (!payloadNode || !canvas) return;
+
+    let payload = { labels: [], peso: [], grasa: [], musculo: [] };
+    try {
+      payload = JSON.parse(payloadNode.textContent || "{}");
+    } catch (_) {}
+
+    new Chart(canvas, {
+      type: "line",
+      data: {
+        labels: payload.labels || [],
+        datasets: [
+          { label: "Peso (kg)", data: payload.peso || [], borderColor: "#d4af37", backgroundColor: "rgba(212,175,55,.15)", tension: 0.3 },
+          { label: "% Grasa", data: payload.grasa || [], borderColor: "#60a5fa", backgroundColor: "rgba(96,165,250,.15)", tension: 0.3 },
+          { label: "% Músculo", data: payload.musculo || [], borderColor: "#34d399", backgroundColor: "rgba(52,211,153,.15)", tension: 0.3 },
+        ],
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: {
+            labels: { color: "rgba(255,255,255,.85)" }
+          }
+        },
+        scales: {
+          x: { ticks: { color: "rgba(255,255,255,.60)" }, grid: { color: "rgba(255,255,255,.08)" } },
+          y: { ticks: { color: "rgba(255,255,255,.60)" }, grid: { color: "rgba(255,255,255,.08)" } },
+        }
+      },
+    });
+  })();
+</script>
+{% endblock %}

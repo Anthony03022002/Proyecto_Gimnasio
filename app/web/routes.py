@@ -3015,6 +3015,70 @@ def entrenador_alumno_detalle(cliente_id):
         active="entrenador_alumnos",
     )
 
+def _redirect_kpi_view(cliente_oid: ObjectId):
+    next_view = (request.form.get("next") or request.args.get("next") or "").strip().lower()
+    if next_view == "historial":
+        return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+    return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
+
+def _obtener_contexto_medidas_entrenador(cliente_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no estÃ¡ inicializado.")
+
+    clientes_col = db["clientes"]
+    medidas_col = db["progreso_medidas"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+    except Exception:
+        flash("ID invÃ¡lido.", "danger")
+        return None
+
+    alumno = clientes_col.find_one(
+        {"_id": cliente_oid},
+        {"nombre": 1, "apellido": 1, "telefono": 1, "email": 1}
+    )
+    if not alumno:
+        flash("Alumno no encontrado.", "danger")
+        return None
+
+    return {
+        "cliente_oid": cliente_oid,
+        "entrenador_oid": entrenador_oid,
+        "medidas_col": medidas_col,
+        "alumno": alumno,
+    }
+
+@web_bp.get("/entrenador/alumno/<cliente_id>/medidas")
+@login_required(role="entrenador")
+def entrenador_medidas_historial(cliente_id):
+    ctx = _obtener_contexto_medidas_entrenador(cliente_id)
+    if ctx is None:
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
+
+    medidas = list(
+        ctx["medidas_col"].find(
+            {"cliente_id": ctx["cliente_oid"]},
+            projection={"fecha": 1, "peso_kg": 1, "grasa_pct": 1, "musculo_pct": 1, "creado": 1}
+        ).sort("fecha", -1)
+    )
+
+    medidas_chart = list(reversed(medidas))
+    latest, prev, chart_json = _build_kpi_and_chart(medidas_chart)
+
+    return render_template(
+        "entrenador_kpi_historial.html",
+        alumno=ctx["alumno"],
+        cliente_id=str(ctx["cliente_oid"]),
+        medidas=medidas,
+        kpi_latest=latest,
+        kpi_prev=prev,
+        chart_json=chart_json,
+        active="entrenador_alumnos",
+    )
+
 @web_bp.post("/entrenador/alumno/<cliente_id>/medidas")
 @login_required(role="entrenador")
 def entrenador_medidas_crear(cliente_id):
@@ -3046,27 +3110,175 @@ def entrenador_medidas_crear(cliente_id):
     else:
         fecha_dt = datetime.now(timezone.utc)
 
-    peso = _as_float_form(peso_raw, 20, 400)
-    grasa = _as_float_form(grasa_raw, 1, 80)
-    musculo = _as_float_form(musculo_raw, 1, 80)
+    peso = _as_float_form(peso_raw, 1, 400)
+    grasa = _as_float_form(grasa_raw, 0, 100)
+    musculo = _as_float_form(musculo_raw, 0, 100)
 
     if peso is None or grasa is None or musculo is None:
         flash("Valores inválidos. Revisa peso, %grasa y %músculo.", "danger")
         return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
-    medidas_col.insert_one({
-        "cliente_id": cliente_oid,
-        "entrenador_id": entrenador_oid,
-        "fecha": fecha_dt,
-        "peso_kg": float(peso),
-        "grasa_pct": float(grasa),
-        "musculo_pct": float(musculo),
-        "entrenador_id": entrenador_oid
-    })
+    try:
+        medidas_col.insert_one({
+            "cliente_id": cliente_oid,
+            "entrenador_id": entrenador_oid,
+            "fecha": fecha_dt,
+            "peso_kg": float(peso),
+            "grasa_pct": float(grasa),
+            "musculo_pct": float(musculo),
+            "creado": datetime.now(timezone.utc)
+        })
+    except Exception:
+        app.exception(
+            "No se pudo guardar la mediciÃ³n KPI",
+            extra={"cliente_id": str(cliente_oid), "entrenador_id": str(entrenador_oid)}
+        )
+        flash("No se pudo guardar la mediciÃ³n. Intenta nuevamente.", "danger")
+        return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
     flash("Medición guardada.", "success")
     return redirect(url_for("web.entrenador_alumno_detalle", cliente_id=str(cliente_oid)))
 
+
+@web_bp.post("/entrenador/alumno/<cliente_id>/medidas/historial")
+@login_required(role="entrenador")
+def entrenador_medidas_historial_crear(cliente_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no estÃ¡ inicializado.")
+
+    clientes_col = db["clientes"]
+    medidas_col = db["progreso_medidas"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+    except Exception:
+        flash("ID invÃ¡lido.", "danger")
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
+
+    if not clientes_col.find_one({"_id": cliente_oid}, {"_id": 1}):
+        flash("Alumno no encontrado.", "danger")
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
+
+    fecha_raw = (request.form.get("fecha") or "").strip()
+    if fecha_raw:
+        try:
+            fecha_dt = datetime.strptime(fecha_raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            flash("Fecha invÃ¡lida.", "danger")
+            return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+    else:
+        fecha_dt = datetime.now(timezone.utc)
+
+    peso = _as_float_form(request.form.get("peso_kg"), 1, 400)
+    grasa = _as_float_form(request.form.get("grasa_pct"), 0, 100)
+    musculo = _as_float_form(request.form.get("musculo_pct"), 0, 100)
+
+    if peso is None or grasa is None or musculo is None:
+        flash("Valores invÃ¡lidos. Revisa peso, %grasa y %mÃºsculo.", "danger")
+        return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+
+    try:
+        medidas_col.insert_one({
+            "cliente_id": cliente_oid,
+            "entrenador_id": entrenador_oid,
+            "fecha": fecha_dt,
+            "peso_kg": float(peso),
+            "grasa_pct": float(grasa),
+            "musculo_pct": float(musculo),
+            "creado": datetime.now(timezone.utc)
+        })
+    except Exception:
+        app.exception(
+            "No se pudo guardar la mediciÃ³n KPI desde historial",
+            extra={"cliente_id": str(cliente_oid), "entrenador_id": str(entrenador_oid)}
+        )
+        flash("No se pudo guardar la mediciÃ³n. Intenta nuevamente.", "danger")
+        return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+
+    flash("MediciÃ³n guardada.", "success")
+    return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+
+@web_bp.post("/entrenador/alumno/<cliente_id>/medidas/<medida_id>/editar")
+@login_required(role="entrenador")
+def entrenador_medidas_editar(cliente_id, medida_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no estÃ¡ inicializado.")
+
+    medidas_col = db["progreso_medidas"]
+
+    try:
+        entrenador_oid = ObjectId(session["user_id"])
+        cliente_oid = ObjectId(cliente_id)
+        medida_oid = ObjectId(medida_id)
+    except Exception:
+        flash("MediciÃ³n invÃ¡lida.", "danger")
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
+
+    fecha_raw = (request.form.get("fecha") or "").strip()
+    if fecha_raw:
+        try:
+            fecha_dt = datetime.strptime(fecha_raw, "%Y-%m-%d").replace(tzinfo=timezone.utc)
+        except ValueError:
+            flash("Fecha invÃ¡lida.", "danger")
+            return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+    else:
+        fecha_dt = datetime.now(timezone.utc)
+
+    peso = _as_float_form(request.form.get("peso_kg"), 1, 400)
+    grasa = _as_float_form(request.form.get("grasa_pct"), 0, 100)
+    musculo = _as_float_form(request.form.get("musculo_pct"), 0, 100)
+
+    if peso is None or grasa is None or musculo is None:
+        flash("Valores invÃ¡lidos. Revisa peso, %grasa y %mÃºsculo.", "danger")
+        return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+
+    res = medidas_col.update_one(
+        {"_id": medida_oid, "cliente_id": cliente_oid},
+        {
+            "$set": {
+                "fecha": fecha_dt,
+                "peso_kg": float(peso),
+                "grasa_pct": float(grasa),
+                "musculo_pct": float(musculo),
+                "entrenador_id": entrenador_oid,
+                "actualizado": datetime.now(timezone.utc),
+            }
+        }
+    )
+
+    if res.matched_count == 0:
+        flash("MediciÃ³n no encontrada.", "danger")
+    else:
+        flash("MediciÃ³n actualizada.", "success")
+
+    return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
+
+@web_bp.post("/entrenador/alumno/<cliente_id>/medidas/<medida_id>/eliminar")
+@login_required(role="entrenador")
+def entrenador_medidas_eliminar(cliente_id, medida_id):
+    db = extensions.mongo_db
+    if db is None:
+        raise RuntimeError("mongo_db no estÃ¡ inicializado.")
+
+    medidas_col = db["progreso_medidas"]
+
+    try:
+        cliente_oid = ObjectId(cliente_id)
+        medida_oid = ObjectId(medida_id)
+    except Exception:
+        flash("MediciÃ³n invÃ¡lida.", "danger")
+        return redirect(url_for("web.entrenador_alumnos", scope="mine"))
+
+    res = medidas_col.delete_one({"_id": medida_oid, "cliente_id": cliente_oid})
+    if res.deleted_count == 0:
+        flash("MediciÃ³n no encontrada.", "danger")
+    else:
+        flash("MediciÃ³n eliminada.", "success")
+
+    return redirect(url_for("web.entrenador_medidas_historial", cliente_id=str(cliente_oid)))
 
 @web_bp.get("/entrenador/alumno/<cliente_id>/progreso/foto/<foto_id>")
 @login_required(role="entrenador")
