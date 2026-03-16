@@ -6,7 +6,6 @@ import re
 import shutil
 from zoneinfo import ZoneInfo
 from bson import ObjectId
-from bson.errors import InvalidId
 from flask import abort, jsonify, render_template, redirect, send_file, url_for, request, session, flash
 from pymongo import ReturnDocument
 from flask import request, redirect, url_for, flash, current_app as app
@@ -166,6 +165,15 @@ def _to_oid(v):
         return ObjectId(str(v))
     except Exception:
         return None
+
+def _notification_id_candidates(noti_id):
+    candidates = []
+    oid = _to_oid(noti_id)
+    if oid is not None:
+        candidates.append(oid)
+    if noti_id not in candidates:
+        candidates.append(noti_id)
+    return candidates
     
 def _fecha_key(v):
     if not v:
@@ -341,16 +349,18 @@ def admin_noti_visto(tipo, noti_id):
     db = extensions.mongo_db
     noti_col = db["notificaciones"]
 
-    try:
-        _id = ObjectId(noti_id)
-    except (InvalidId, TypeError):
-        _id = noti_id
-
     now_ec = datetime.now(TZ_EC)
     admin_id = _to_oid(session.get("user_id"))
 
     res = noti_col.update_one(
-        {"_id": _id, "tipo": tipo, "para_rol": "admin"},
+        {
+            "_id": {"$in": _notification_id_candidates(noti_id)},
+            "tipo": tipo,
+            "$or": [
+                {"para_rol": "admin"},
+                {"tipo": "renovacion", "cliente_id": {"$exists": True}},
+            ],
+        },
         {"$set": {"visto": True, "visto_at": now_ec, "visto_por": admin_id}},
     )
 
@@ -2405,8 +2415,12 @@ def cajero_noti_visto(tipo, noti_id):
     cajero_id = _to_oid(session.get("user_id"))
 
     res = noti_col.update_one(
-        {"_id": oid, "para_rol": "cajero"},  
-        {"$set": {"visto": True, "visto_at": now_ec, "visto_por": cajero_id, "tipo": tipo}},
+        {
+            "_id": {"$in": _notification_id_candidates(noti_id)},
+            "para_rol": "cajero",
+            "tipo": tipo,
+        },
+        {"$set": {"visto": True, "visto_at": now_ec, "visto_por": cajero_id}},
     )
 
     if res.matched_count == 0:
