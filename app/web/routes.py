@@ -5151,13 +5151,11 @@ def cliente_cambiar_reserva(reserva_id):
     if db is None:
         raise RuntimeError("mongo_db no está inicializado.")
 
-    semanas_col  = db["horarios_dias"]
+    semanas_col = db["horarios_dias"]
     reservas_col = db["reservas"]
-    users_col    = db["users"]
+    users_col = db["users"]
 
-    # inputs
     slot_id_new = (request.form.get("slot_id") or "").strip()
-    entrenador_id_raw = (request.form.get("entrenador_id") or "").strip()
     fecha_ref = (request.form.get("fecha_ref") or "").strip()
 
     if not slot_id_new or "|" not in slot_id_new:
@@ -5171,7 +5169,6 @@ def cliente_cambiar_reserva(reserva_id):
         flash("Solicitud inválida.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_ref or None))
 
-    # reserva actual
     reserva = reservas_col.find_one({"_id": rid, "cliente_id": cliente_id, "estado": "confirmada"})
     if not reserva:
         flash("Reserva no encontrada o ya cancelada.", "warning")
@@ -5186,39 +5183,125 @@ def cliente_cambiar_reserva(reserva_id):
     fecha_new, key_new = slot_id_new.split("|", 1)
 
     if fecha_esta_cerrada(fecha_new):
-        flash("Ese dÃ­a estÃ¡ cerrado y no acepta cambios de reserva.", "warning")
+        flash("Ese día está cerrado y no acepta cambios de reserva.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # ✅ para “cambiar hora”, obliga mismo día
     if fecha_new != fecha_old:
         flash("Solo puedes cambiar a otra hora del mismo día.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    # ✅ regla 2 horas (se basa en la hora ORIGINAL)
-    TZ_EC = ZoneInfo("America/Guayaquil")
-    try:
-        inicio_old_local = datetime.strptime(f"{fecha_old} {key_old}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ_EC)
-    except Exception:
-        flash("No se pudo leer la hora de la reserva.", "danger")
+    if slot_id_new == slot_id_old:
+        flash("Ya tienes esa reserva.", "info")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
-    ahora_local = datetime.now(TZ_EC)
-    faltan = inicio_old_local - ahora_local
-    if faltan.total_seconds() <= 0:
-        flash("La clase ya inició o ya pasó. No puedes cambiar.", "warning")
+    try:
+        week_id = _week_id_from_date_str(fecha_old)
+    except Exception:
+        flash("Fecha inválida.", "danger")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
-    if faltan.total_seconds() < 2 * 3600:
-        mins = int(faltan.total_seconds() // 60)
-        flash(f"Solo puedes cambiar hasta 2 horas antes. Faltan {mins} minuto(s).", "warning")
+
+    doc_week = semanas_col.find_one({"_id": week_id}, {"days": 1})
+    if not doc_week:
+        flash("Semana no encontrada. Intenta recargar.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    day_doc = None
+    for dd in (doc_week.get("days") or []):
+        if dd.get("date") == fecha_new:
+            day_doc = dd
+            break
+    if not day_doc:
+        flash("Día no encontrado en el horario.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    slot_doc = None
+    for ss in (day_doc.get("slots") or []):
+        ini = ss.get("inicio")
+        slot_key = ss.get("key")
+        if not slot_key:
+            if hasattr(ini, "strftime"):
+                slot_key = ini.strftime("%H:%M")
+            else:
+                slot_key = str(ini) if ini else None
+        if slot_key == key_new:
+            slot_doc = ss
+            break
+    if not slot_doc:
+        flash("Ese horario no existe.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    ucli = users_col.find_one({"_id": cliente_id}, {"turno": 1})
+    turno_cliente = (ucli or {}).get("turno") or "full"
+    cfg = get_config_semanal() or {}
+
+    try:
+        slot_date_obj = datetime.strptime(fecha_new, "%Y-%m-%d").date()
+    except Exception:
+        flash("Fecha inválida.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    weekday_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+    b1, b2 = _get_blocks_for_date(cfg, slot_date_obj, weekday_map)
+
+    slot_start = slot_doc.get("inicio")
+    if not slot_start:
+        flash("Horario inválido (sin inicio).", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    if hasattr(slot_start, "tzinfo"):
+        if slot_start.tzinfo is None:
+            slot_start = slot_start.replace(tzinfo=TZ_EC)
+        else:
+            slot_start = slot_start.astimezone(TZ_EC)
+    else:
+        try:
+            hh, mm = str(slot_start).split(":")
+            slot_start = datetime(
+                slot_date_obj.year,
+                slot_date_obj.month,
+                slot_date_obj.day,
+                int(hh),
+                int(mm),
+                tzinfo=TZ_EC,
+            )
+        except Exception:
+            flash("Horario inválido (inicio mal formado).", "danger")
+            return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    block_num = _slot_block_num(slot_start, b1, b2)
+    if block_num is None:
+        flash("Este horario no está disponible para reservas.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    if not _turno_permite(turno_cliente, block_num):
+        flash("Tu turno no permite reservar este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    now_ec = datetime.now(TZ_EC)
+    open_dt = _open_time_for_block(cfg, slot_date_obj, block_num, weekday_map)
+    if open_dt is None:
+        flash("Aún no se habilitan reservas para este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    if getattr(open_dt, "tzinfo", None) is None:
+        open_dt = open_dt.replace(tzinfo=TZ_EC)
+    else:
+        open_dt = open_dt.astimezone(TZ_EC)
+
+    if now_ec < open_dt:
+        flash("Aún no se habilitan reservas para este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    if now_ec >= slot_start:
+        flash("Este horario ya inició. No puedes cambiarte a ese bloque.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
     entrenador_id = None
-
     ent_actual = reserva.get("entrenador_id")
     if ent_actual:
         ent_doc = users_col.find_one(
             {"_id": ent_actual, "role": "entrenador", "activo": True},
-            {"_id": 1}
+            {"_id": 1},
         )
         if ent_doc:
             entrenador_id = ent_actual
@@ -5226,7 +5309,7 @@ def cliente_cambiar_reserva(reserva_id):
     if entrenador_id is None:
         entrenadores = list(users_col.find(
             {"role": "entrenador", "activo": True},
-            {"_id": 1}
+            {"_id": 1},
         ))
         if not entrenadores:
             flash("No hay entrenadores activos disponibles.", "danger")
@@ -5244,17 +5327,7 @@ def cliente_cambiar_reserva(reserva_id):
             if mejor_count is None or c < mejor_count:
                 mejor_count = c
                 mejor_id = e["_id"]
-
         entrenador_id = mejor_id
-    if slot_id_new == slot_id_old:
-        flash("Ya tienes esa reserva.", "info")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
-
-    try:
-        week_id = _week_id_from_date_str(fecha_old)
-    except Exception:
-        flash("Fecha inválida.", "danger")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
     dec = semanas_col.update_one(
         {"_id": week_id},
@@ -5262,7 +5335,7 @@ def cliente_cambiar_reserva(reserva_id):
         array_filters=[
             {"d.date": fecha_new},
             {"s.key": key_new, "s.cupo_restante": {"$gt": 0}},
-        ]
+        ],
     )
     if dec.modified_count == 0:
         flash("Ese horario no existe o ya no tiene cupos.", "danger")
@@ -5274,7 +5347,7 @@ def cliente_cambiar_reserva(reserva_id):
         array_filters=[
             {"d.date": fecha_old},
             {"s.key": key_old},
-        ]
+        ],
     )
 
     _clamp_slot_restante(db, week_id, fecha_old, key_old)
@@ -5289,7 +5362,7 @@ def cliente_cambiar_reserva(reserva_id):
                 "entrenador_id": entrenador_id,
                 "cambiado_en": datetime.now(timezone.utc),
                 "slot_id_anterior": slot_id_old,
-            }}
+            }},
         )
     except Exception:
         semanas_col.update_one(
@@ -5321,12 +5394,11 @@ def cliente_membresia():
 
     ventas_col = db["ventas"]
     clientes_col = db["clientes"]
-    noti_col = db["notificaciones"]  # ✅ opcional pero recomendado
+    noti_col = db["notificaciones"]  
 
     cliente_id = ObjectId(session["user_id"])
     cliente = clientes_col.find_one({"_id": cliente_id})
 
-    # Tomamos la última venta como “membresía actual”
     venta = ventas_col.find_one({"cliente_id": cliente_id}, sort=[("fecha", -1)])
     membresia = (venta or {}).get("membresia")
 
@@ -5334,13 +5406,12 @@ def cliente_membresia():
 
     estado = "Sin membresía"
     dias_restantes = None
-    alertas = []  # mensajes para UI
+    alertas = []  
 
     if membresia and membresia.get("fecha_desde") and membresia.get("fecha_hasta"):
         fd = membresia["fecha_desde"]
         fh = membresia["fecha_hasta"]
 
-        # ✅ normalizar tz (por si viene naive)
         if fd.tzinfo is None:
             fd = fd.replace(tzinfo=timezone.utc)
         if fh.tzinfo is None:
