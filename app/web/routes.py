@@ -2481,7 +2481,7 @@ def staff_slot_reservas():
     rows = list(reservas_col.aggregate(pipeline))
 
     reservas = [{
-        "reserva_id": r.get("reserva_id"),
+        "reserva_id": str(r.get("_id") or ""),
         "cliente": (r.get("cliente_nombre") or "-").strip() or "-",
         "identificacion": (r.get("cliente_identificacion") or "").strip(),
         "entrenador": (r.get("entrenador_nombre") or "-").strip(),
