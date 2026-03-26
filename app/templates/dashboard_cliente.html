@@ -946,29 +946,7 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
           Cancelar
         </button>
       </form>
-      {% endif %} 
-     <form
-      id="frmNoAsistire"
-      method="post"
-      action="{{ url_for('web.cliente_no_podre_asistir_manana') }}"
-      data-locked="{{ 1 if ya_marco_no_asistire else 0 }}"
-    >
-      <button
-        id="btnNoAsistire"
-        type="submit"
-        class="btn btn-danger {% if ya_marco_no_asistire %}btn-disabled-fws{% endif %}"
-        {% if ya_marco_no_asistire %}disabled aria-disabled="true"{% endif %}
-      >
-        <span class="material-symbols-outlined btn-icon">event_busy</span>
-        {% if ya_marco_no_asistire %}
-          No podré asistir
-        {% else %}
-          No podré asistir
-        {% endif %}
-      </button>
-    </form>
-
-
+      {% endif %}
 
     </div>
   </section>
@@ -1120,38 +1098,6 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
     el.classList.remove("is-open");
     el.setAttribute("aria-hidden", "true");
   }
-
-  // ✅ No asistir mañana (anti doble submit + confirm)
-  (function () {
-    const frm = document.getElementById("frmNoAsistire");
-    if (!frm) return;
-
-    const btn = frm.querySelector("button[type='submit']");
-    const labelEl = btn ? btn.querySelector(".btn-label") : null;
-
-    frm.addEventListener("submit", function (e) {
-      const locked = frm.dataset.locked === "1";
-      if (locked) {
-        e.preventDefault();
-        return;
-      }
-
-      const ok = confirm("¿Seguro que no podrás asistir mañana?");
-      if (!ok) {
-        e.preventDefault();
-        return;
-      }
-
-      // ✅ Bloqueo inmediato (evita doble click)
-      frm.dataset.locked = "1";
-      if (btn) {
-        btn.disabled = true;
-        btn.setAttribute("aria-disabled", "true");
-        btn.classList.add("btn-disabled-fws");
-      }
-      if (labelEl) labelEl.textContent = "Ya marcado (mañana)";
-    });
-  })();
 
   document.addEventListener("click", (e) => {
     const btn = e.target.closest("[data-close]");
