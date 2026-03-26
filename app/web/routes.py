@@ -4577,7 +4577,7 @@ def horarios_publico():
                     if slot_start.tzinfo is None:
                         slot_start = slot_start.replace(tzinfo=TZ_EC)
 
-                    limite_reserva = slot_start - timedelta(hours=2)
+                    limite_reserva = slot_start - timedelta(minutes=30)
                     if (ot is None) or (now_ec < ot) or (now_ec > limite_reserva) or (now_ec >= slot_start):
                         reservable = False
 
@@ -5072,9 +5072,9 @@ def cliente_reservar():
         flash("Aún no se habilitan reservas para este bloque.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
-    limite_reserva = slot_start - timedelta(hours=2)
+    limite_reserva = slot_start - timedelta(minutes=30)
     if now_ec > limite_reserva:
-        flash("Solo puedes reservar hasta 2 horas antes del inicio.", "warning")
+        flash("Solo puedes reservar hasta 30 minutos antes del inicio.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     if now_ec >= slot_start:
