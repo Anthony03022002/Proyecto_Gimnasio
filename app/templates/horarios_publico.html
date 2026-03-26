@@ -911,7 +911,7 @@ title %}Horarios{% endblock %} {% block header %}
 <div class="cal-mobile">
   <div class="agenda-wrap">
     {% for d in week_dates %} {% set key = d.isoformat() %}
-    <div class="agenda-day">
+    <div class="agenda-day" {% if mobile_focus_key and key == mobile_focus_key %}data-mobile-focus="1"{% endif %}>
       <div
         class="agenda-dayhdr {% if d == (fecha.__class__.today()) %}agenda-today{% endif %}"
       >
@@ -1178,6 +1178,17 @@ title %}Horarios{% endblock %} {% block header %}
       inpNuevo.value = nuevoSlotId;
       form.action = urlTpl.replace("__RID__", encodeURIComponent(reservaId));
       form.submit();
+    });
+  })();
+</script>
+
+<script>
+  (function () {
+    if (window.innerWidth > 640) return;
+    const target = document.querySelector(".agenda-day[data-mobile-focus='1']");
+    if (!target) return;
+    window.requestAnimationFrame(() => {
+      target.scrollIntoView({ behavior: "auto", block: "start" });
     });
   })();
 </script>

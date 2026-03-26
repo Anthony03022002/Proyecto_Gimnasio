@@ -3707,7 +3707,7 @@ def cliente_dashboard():
     if prox_reserva and prox_reserva.get("dt"):
         # dt está en UTC (como tú lo armaste)
         ahora_utc = datetime.now(timezone.utc)
-        puede_cancelar_prox = (prox_reserva["dt"] - ahora_utc) >= timedelta(hours=2)
+        puede_cancelar_prox = prox_reserva["dt"] > ahora_utc
     
     clases_pas = sorted([c for c in clases if not c["es_proxima"]], key=lambda x: x["dt"] or ahora, reverse=True)
     
@@ -4274,7 +4274,8 @@ def cliente_progreso_eliminar_foto(foto_id):
 
 
 def regenerar_semana_actual(semanas_col, cfg, intervalo_minutos, cupo_maximo):
-    today_ec = datetime.now(TZ_EC).date()
+    now_ec = datetime.now(TZ_EC)
+    today_ec = now_ec.date()
     start = today_ec - timedelta(days=today_ec.weekday())  
     week_id = start.isoformat()
     week_dates = [start + timedelta(days=i) for i in range(7)]
@@ -4354,17 +4355,40 @@ def horarios_publico():
     view = request.args.get("view", "week")
     fecha_raw = request.args.get("fecha")
     
-    today_ec = datetime.now(TZ_EC).date()
+    now_ec = datetime.now(TZ_EC)
+    today_ec = now_ec.date()
     
-    manana_key = (datetime.now(TZ_EC).date() + timedelta(days=1)).isoformat()
+    manana_key = (today_ec + timedelta(days=1)).isoformat()
 
     tiene_reserva_manana = False
+    mobile_focus_key = None
     if session.get("user_role") == "cliente" and session.get("user_id"):
+        cliente_oid = ObjectId(session["user_id"])
         tiene_reserva_manana = reservas_col.count_documents({
-            "cliente_id": ObjectId(session["user_id"]),
+            "cliente_id": cliente_oid,
             "estado": "confirmada",
             "fecha": manana_key
         }) > 0
+        reserva_hoy = reservas_col.find_one(
+            {
+                "cliente_id": cliente_oid,
+                "estado": "confirmada",
+                "fecha": today_ec.isoformat(),
+                "cancelada": {"$ne": True},
+            },
+            {"slot_id": 1},
+        )
+        slot_id_hoy = str((reserva_hoy or {}).get("slot_id") or "")
+        if "|" in slot_id_hoy:
+            try:
+                _, slot_key_hoy = slot_id_hoy.split("|", 1)
+                inicio_hoy = datetime.strptime(
+                    f"{today_ec.isoformat()} {slot_key_hoy}", "%Y-%m-%d %H:%M"
+                ).replace(tzinfo=TZ_EC)
+                if now_ec >= inicio_hoy:
+                    mobile_focus_key = manana_key
+            except Exception:
+                mobile_focus_key = None
 
     try:
         d = datetime.strptime(fecha_raw, "%Y-%m-%d").date() if fecha_raw else today_ec
@@ -4398,7 +4422,6 @@ def horarios_publico():
         )
 
 
-    now_ec = datetime.now(TZ_EC)
     turno_cliente = "full"
     if session.get("user_role") == "cliente" and session.get("user_id"):
         try:
@@ -4632,6 +4655,7 @@ def horarios_publico():
         cierres_map=cierres_map,
         manana_key=manana_key,
         tiene_reserva_manana=tiene_reserva_manana,
+        mobile_focus_key=mobile_focus_key,
         solo_mis_reservas=solo_mis_reservas,
         turno_cliente=turno_cliente, 
         now_ec=now_ec,
@@ -5096,7 +5120,7 @@ def cliente_cancelar_reserva(reserva_id):
 
     fecha_key, slot_key = slot_id.split("|", 1)  # fecha_key="YYYY-MM-DD", slot_key="HH:MM"
 
-    # ✅ REGLA: el cliente solo puede cancelar hasta 2 horas antes del inicio
+    # ✅ REGLA: el cliente puede cancelar hasta antes de que inicie la clase
     TZ_EC = ZoneInfo("America/Guayaquil")
     try:
         inicio_local = datetime.strptime(f"{fecha_key} {slot_key}", "%Y-%m-%d %H:%M").replace(tzinfo=TZ_EC)
@@ -5109,11 +5133,6 @@ def cliente_cancelar_reserva(reserva_id):
 
     if faltan.total_seconds() <= 0:
         flash("La clase ya inició o ya pasó. No puedes cancelar.", "warning")
-        return redirect(url_for("web.cliente_dashboard"))
-
-    if faltan.total_seconds() < 2 * 3600:
-        mins = int(faltan.total_seconds() // 60)
-        flash(f"Solo puedes cancelar hasta 2 horas antes. Faltan {mins} minuto(s).", "warning")
         return redirect(url_for("web.cliente_dashboard"))
 
     # ✅ desde aquí sí puede cancelar
