@@ -1185,6 +1185,16 @@ title %}Horarios{% endblock %} {% block header %}
 <script>
   (function () {
     if (window.innerWidth > 640) return;
+    const redirectKey = "{{ mobile_focus_redirect_key or '' }}";
+    if (redirectKey) {
+      const url = new URL(window.location.href);
+      if (url.searchParams.get("fecha") !== redirectKey) {
+        url.searchParams.set("view", "week");
+        url.searchParams.set("fecha", redirectKey);
+        window.location.replace(url.toString());
+        return;
+      }
+    }
     const target = document.querySelector(".agenda-day[data-mobile-focus='1']");
     if (!target) return;
     window.requestAnimationFrame(() => {

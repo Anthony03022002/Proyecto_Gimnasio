@@ -4361,7 +4361,10 @@ def horarios_publico():
     manana_key = (today_ec + timedelta(days=1)).isoformat()
 
     tiene_reserva_manana = False
+    mobile_focus_from_date = today_ec
     mobile_focus_key = None
+    mobile_focus_redirect_key = None
+    mobile_focus_enabled = not fecha_raw
     if session.get("user_role") == "cliente" and session.get("user_id"):
         cliente_oid = ObjectId(session["user_id"])
         tiene_reserva_manana = reservas_col.count_documents({
@@ -4386,9 +4389,9 @@ def horarios_publico():
                     f"{today_ec.isoformat()} {slot_key_hoy}", "%Y-%m-%d %H:%M"
                 ).replace(tzinfo=TZ_EC)
                 if now_ec >= inicio_hoy:
-                    mobile_focus_key = manana_key
+                    mobile_focus_from_date = today_ec + timedelta(days=1)
             except Exception:
-                mobile_focus_key = None
+                mobile_focus_from_date = today_ec
 
     try:
         d = datetime.strptime(fecha_raw, "%Y-%m-%d").date() if fecha_raw else today_ec
@@ -4403,6 +4406,7 @@ def horarios_publico():
 
     start = week_start(d)  
     week_dates = [start + timedelta(days=i) for i in range(7)]
+    week_date_keys = {wd.isoformat() for wd in week_dates}
     prev_date = start - timedelta(days=7)
     next_date = start + timedelta(days=7)
     cierres_semana = obtener_cierres_especiales(desde=week_dates[0].isoformat(), hasta=week_dates[-1].isoformat())
@@ -4413,6 +4417,19 @@ def horarios_publico():
     cupo_maximo = int(cfg.get("cupo_maximo", 10))
 
     weekday_map = {0: "mon", 1: "tue", 2: "wed", 3: "thu", 4: "fri", 5: "sat", 6: "sun"}
+    if mobile_focus_enabled and session.get("user_role") == "cliente":
+        probe_date = mobile_focus_from_date
+        for _ in range(14):
+            probe_key = probe_date.isoformat()
+            day_key = weekday_map[probe_date.weekday()]
+            day_cfg = (cfg.get("dias") or {}).get(day_key, {"activo": False, "plantilla_id": None})
+            bloques = resolver_bloques_del_dia(day_cfg)
+            if bloques and not fecha_esta_cerrada(probe_key):
+                mobile_focus_key = probe_key
+                break
+            probe_date += timedelta(days=1)
+        if mobile_focus_key and mobile_focus_key not in week_date_keys:
+            mobile_focus_redirect_key = mobile_focus_key
 
     entrenadores = list(
             users_col.find(
@@ -4560,7 +4577,8 @@ def horarios_publico():
                     if slot_start.tzinfo is None:
                         slot_start = slot_start.replace(tzinfo=TZ_EC)
 
-                    if (ot is None) or (now_ec < ot) or (now_ec >= slot_start):
+                    limite_reserva = slot_start - timedelta(hours=2)
+                    if (ot is None) or (now_ec < ot) or (now_ec > limite_reserva) or (now_ec >= slot_start):
                         reservable = False
 
             slot_map[fecha_key][key] = {
@@ -4655,7 +4673,9 @@ def horarios_publico():
         cierres_map=cierres_map,
         manana_key=manana_key,
         tiene_reserva_manana=tiene_reserva_manana,
+        mobile_focus_enabled=mobile_focus_enabled,
         mobile_focus_key=mobile_focus_key,
+        mobile_focus_redirect_key=mobile_focus_redirect_key,
         solo_mis_reservas=solo_mis_reservas,
         turno_cliente=turno_cliente, 
         now_ec=now_ec,
@@ -5050,6 +5070,11 @@ def cliente_reservar():
 
     if now_ec < open_dt:
         flash("Aún no se habilitan reservas para este bloque.", "warning")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    limite_reserva = slot_start - timedelta(hours=2)
+    if now_ec > limite_reserva:
+        flash("Solo puedes reservar hasta 2 horas antes del inicio.", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     if now_ec >= slot_start:
