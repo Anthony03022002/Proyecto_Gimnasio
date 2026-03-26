@@ -914,7 +914,7 @@ membresía.\n" ~ "Cliente: " ~ nombre_cliente ~ "\n" ~ "Identificación: " ~ ide
       <div class="class-details">
         <h4>{{ prox.nombre_clase or prox.clase or 'Clase' }}</h4>
         <p>
-          {{ prox.dt.strftime('%d/%m/%Y') if prox.dt else prox.fecha_txt }} · {{
+          {{ prox.fecha_local_txt or prox.fecha_txt }} · {{
           prox.hora }} {% if prox.entrenador %} · {{ prox.entrenador }}{% endif
           %}
         </p>

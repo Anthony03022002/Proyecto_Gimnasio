@@ -3693,6 +3693,7 @@ def cliente_dashboard():
             "_id": str(r["_id"]),
             "slot_id": slot_id,
             "fecha_txt": fecha_txt,
+            "fecha_local_txt": fecha_txt,
             "hora": hhmm,
             "dt": dt_slot,
             "entrenador": entrenador_nombre,  
