@@ -24,6 +24,9 @@ import app.extensions as extensions
 from app.services.horarios_semanales import (
     TZ_EC,
     cerrar_dia_especial,
+    cierre_afecta_slot,
+    cierre_es_todo_el_dia,
+    describir_cierre_especial,
     eliminar_plantilla,
     fecha_esta_cerrada,
     get_config_semanal,
@@ -4425,7 +4428,8 @@ def horarios_publico():
             day_key = weekday_map[probe_date.weekday()]
             day_cfg = (cfg.get("dias") or {}).get(day_key, {"activo": False, "plantilla_id": None})
             bloques = resolver_bloques_del_dia(day_cfg)
-            if bloques and not fecha_esta_cerrada(probe_key):
+            cierre_probe = fecha_esta_cerrada(probe_key)
+            if bloques and not cierre_es_todo_el_dia(cierre_probe):
                 mobile_focus_key = probe_key
                 break
             probe_date += timedelta(days=1)
@@ -4591,8 +4595,8 @@ def horarios_publico():
                 "bloque": block_num,         
                 "reservable": reservable,     
                 "turno_cliente": turno_cliente,  
-                "cerrado_especial": fecha_key in cierres_map,
-                "msg_reserva": (cierres_map.get(fecha_key) or {}).get("motivo") or "",
+                "cerrado_especial": False,
+                "msg_reserva": "",
             }
 
             all_slots.append({"inicio": s["inicio"], "fin": s["fin"]})
@@ -4623,11 +4627,24 @@ def horarios_publico():
 
         keys_a_borrar = []
         for k, slot in m.items():
+            if not cierre_afecta_slot(cierre, slot.get("inicio"), slot.get("fin")):
+                continue
             usados = int(slot.get("cupo_usado") or 0)
             slot["cerrado_especial"] = True
             slot["reservable"] = False
-            slot["msg_reserva"] = cierre.get("motivo") or "Dia cerrado por administración."
-            if usados <= 0:
+            detalle_cierre = describir_cierre_especial(cierre)
+            motivo_cierre = (cierre.get("motivo") or "").strip()
+            if motivo_cierre and detalle_cierre:
+                slot["msg_reserva"] = f"{motivo_cierre} ({detalle_cierre})"
+            elif motivo_cierre:
+                slot["msg_reserva"] = motivo_cierre
+            else:
+                slot["msg_reserva"] = (
+                    "Dia cerrado por administracion."
+                    if cierre_es_todo_el_dia(cierre)
+                    else f"No disponible de {detalle_cierre}."
+                )
+            if usados <= 0 and cierre_es_todo_el_dia(cierre):
                 keys_a_borrar.append(k)
 
         for k in keys_a_borrar:
@@ -4714,6 +4731,9 @@ def admin_horarios():
 def admin_horarios_cerrar_dia():
     fecha = (request.form.get("fecha_cierre") or "").strip()
     motivo = (request.form.get("motivo_cierre") or "").strip()
+    todo_el_dia = (request.form.get("todo_el_dia") or "").strip() == "1"
+    hora_desde = (request.form.get("hora_desde_cierre") or "").strip()
+    hora_hasta = (request.form.get("hora_hasta_cierre") or "").strip()
 
     try:
         fecha_dt = datetime.strptime(fecha, "%Y-%m-%d").date()
@@ -4726,12 +4746,22 @@ def admin_horarios_cerrar_dia():
         return redirect(url_for("web.admin_horarios"))
 
     try:
-        cerrar_dia_especial(fecha_dt.isoformat(), motivo=motivo, creado_por=session.get("username"))
+        cerrar_dia_especial(
+            fecha_dt.isoformat(),
+            motivo=motivo,
+            creado_por=session.get("username"),
+            todo_el_dia=todo_el_dia,
+            hora_desde=hora_desde,
+            hora_hasta=hora_hasta,
+        )
     except ValueError as e:
         flash(str(e), "danger")
         return redirect(url_for("web.admin_horarios"))
 
-    flash("DÃ­a cerrado correctamente para esa fecha.", "success")
+    if todo_el_dia:
+        flash("Día cerrado correctamente para esa fecha.", "success")
+    else:
+        flash(f"Cierre parcial guardado para {hora_desde} a {hora_hasta}.", "success")
     return redirect(url_for("web.admin_horarios"))
 
 
@@ -4901,9 +4931,6 @@ def cliente_reservar():
     fecha_key, slot_key = slot_id.split("|", 1)
 
     cierre = fecha_esta_cerrada(fecha_key)
-    if cierre:
-        flash("Ese dÃ­a estÃ¡ cerrado y no acepta nuevas reservas.", "warning")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     entrenador_id = None
     entrenador_doc = None
@@ -5010,6 +5037,14 @@ def cliente_reservar():
 
     if not slot_doc:
         flash("Ese horario no existe.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
+
+    if cierre_afecta_slot(cierre, slot_doc.get("inicio"), slot_doc.get("fin")):
+        detalle_cierre = describir_cierre_especial(cierre)
+        if cierre_es_todo_el_dia(cierre):
+            flash("Ese día está cerrado y no acepta nuevas reservas.", "warning")
+        else:
+            flash(f"Ese horario no está disponible por cierre parcial ({detalle_cierre}).", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_key))
 
     cfg = get_config_semanal() or {}
@@ -5227,9 +5262,7 @@ def cliente_cambiar_reserva(reserva_id):
     fecha_old, key_old = slot_id_old.split("|", 1)
     fecha_new, key_new = slot_id_new.split("|", 1)
 
-    if fecha_esta_cerrada(fecha_new):
-        flash("Ese día está cerrado y no acepta cambios de reserva.", "warning")
-        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+    cierre_new = fecha_esta_cerrada(fecha_new)
 
     if fecha_new != fecha_old:
         flash("Solo puedes cambiar a otra hora del mismo día.", "warning")
@@ -5273,6 +5306,14 @@ def cliente_cambiar_reserva(reserva_id):
             break
     if not slot_doc:
         flash("Ese horario no existe.", "danger")
+        return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
+
+    if cierre_afecta_slot(cierre_new, slot_doc.get("inicio"), slot_doc.get("fin")):
+        detalle_cierre = describir_cierre_especial(cierre_new)
+        if cierre_es_todo_el_dia(cierre_new):
+            flash("Ese día está cerrado y no acepta cambios de reserva.", "warning")
+        else:
+            flash(f"Ese horario no está disponible por cierre parcial ({detalle_cierre}).", "warning")
         return redirect(url_for("web.horarios_publico", view="week", fecha=fecha_old))
 
     ucli = users_col.find_one({"_id": cliente_id}, {"turno": 1})

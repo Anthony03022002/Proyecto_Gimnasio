@@ -745,7 +745,10 @@ title %}Horarios{% endblock %} {% block header %}
           </div>
           <div class="dom">{{ d.strftime('%d/%m') }}</div>
           {% if cierres_map is defined and cierres_map.get(d.isoformat()) %}
-            <div class="text-[10px] uppercase tracking-wider text-red-300 mt-1">Cerrado</div>
+            {% set cierre_dia = cierres_map.get(d.isoformat()) %}
+            <div class="text-[10px] uppercase tracking-wider text-red-300 mt-1">
+              {{ "Cerrado" if (cierre_dia.todo_el_dia if cierre_dia.todo_el_dia is defined else true) else "Parcial" }}
+            </div>
           {% endif %}
         </div>
       {% endfor %}

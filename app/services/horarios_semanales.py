@@ -223,7 +223,71 @@ def get_cierres_especiales_collection():
     return db["horarios_cierres_especiales"]
 
 
-def cerrar_dia_especial(fecha: str, motivo: str = "", creado_por: str = ""):
+def _hora_a_minutos(valor):
+    if valor is None:
+        return None
+    if isinstance(valor, datetime):
+        valor = valor.timetz().replace(tzinfo=None)
+    if isinstance(valor, time):
+        return (valor.hour * 60) + valor.minute
+    if isinstance(valor, str):
+        valor = valor.strip()
+        if not valor:
+            return None
+        try:
+            hh, mm = [int(x) for x in valor.split(":", 1)]
+        except Exception:
+            return None
+        return (hh * 60) + mm
+    return None
+
+
+def cierre_es_todo_el_dia(cierre: dict):
+    if not cierre:
+        return False
+    return bool(cierre.get("todo_el_dia", True))
+
+
+def describir_cierre_especial(cierre: dict):
+    if not cierre:
+        return ""
+    if cierre_es_todo_el_dia(cierre):
+        return "Todo el dia"
+
+    hora_desde = (cierre.get("hora_desde") or "").strip()
+    hora_hasta = (cierre.get("hora_hasta") or "").strip()
+    if hora_desde and hora_hasta:
+        return f"{hora_desde} a {hora_hasta}"
+    return "Horario parcial"
+
+
+def cierre_afecta_slot(cierre: dict, slot_inicio, slot_fin=None):
+    if not cierre:
+        return False
+    if cierre_es_todo_el_dia(cierre):
+        return True
+
+    cierre_desde = _hora_a_minutos(cierre.get("hora_desde"))
+    cierre_hasta = _hora_a_minutos(cierre.get("hora_hasta"))
+    inicio = _hora_a_minutos(slot_inicio)
+    fin = _hora_a_minutos(slot_fin)
+
+    if None in (cierre_desde, cierre_hasta, inicio):
+        return False
+    if fin is None:
+        fin = inicio + 1
+
+    return inicio < cierre_hasta and fin > cierre_desde
+
+
+def cerrar_dia_especial(
+    fecha: str,
+    motivo: str = "",
+    creado_por: str = "",
+    todo_el_dia: bool = True,
+    hora_desde: str = "",
+    hora_hasta: str = "",
+):
     col = get_cierres_especiales_collection()
     fecha = (fecha or "").strip()
     if not fecha:
@@ -234,12 +298,33 @@ def cerrar_dia_especial(fecha: str, motivo: str = "", creado_por: str = ""):
     except Exception:
         raise ValueError("La fecha es invÃ¡lida.")
 
+    todo_el_dia = bool(todo_el_dia)
+    hora_desde = (hora_desde or "").strip()
+    hora_hasta = (hora_hasta or "").strip()
+
+    if not todo_el_dia:
+        if not hora_desde or not hora_hasta:
+            raise ValueError("Debes indicar la hora desde y hasta.")
+        try:
+            t_desde = _parse_hhmm(hora_desde)
+            t_hasta = _parse_hhmm(hora_hasta)
+        except Exception:
+            raise ValueError("Las horas del cierre son invalidas.")
+        if t_desde >= t_hasta:
+            raise ValueError("La hora inicial debe ser menor que la hora final.")
+    else:
+        hora_desde = ""
+        hora_hasta = ""
+
     col.update_one(
         {"_id": fecha},
         {"$set": {
             "fecha": fecha,
             "motivo": (motivo or "").strip(),
             "activo": True,
+            "todo_el_dia": todo_el_dia,
+            "hora_desde": hora_desde,
+            "hora_hasta": hora_hasta,
             "actualizado_en": datetime.now(timezone.utc),
             "creado_por": creado_por or None,
         }},

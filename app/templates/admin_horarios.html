@@ -343,6 +343,41 @@
             />
           </div>
 
+          <label class="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 px-4 py-3 cursor-pointer">
+            <input
+              type="checkbox"
+              name="todo_el_dia"
+              value="1"
+              checked
+              class="h-4 w-4 rounded border-white/20 bg-black/20 text-red-400 focus:ring-red-400/30"
+              data-close-all-day
+            />
+            <div>
+              <div class="text-sm font-semibold text-white">Cerrar todo el día</div>
+              <div class="text-xs text-secondary">Si lo desmarcas, podrás elegir un rango horario solo para esa fecha.</div>
+            </div>
+          </label>
+
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 hidden" data-close-hours>
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Desde</label>
+              <input
+                type="time"
+                name="hora_desde_cierre"
+                class="w-full px-4 py-3 rounded-2xl bg-black/10 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-400/20 focus:border-red-400/20"
+              />
+            </div>
+
+            <div>
+              <label class="block text-sm font-semibold text-white mb-2">Hasta</label>
+              <input
+                type="time"
+                name="hora_hasta_cierre"
+                class="w-full px-4 py-3 rounded-2xl bg-black/10 border border-white/10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-red-400/20 focus:border-red-400/20"
+              />
+            </div>
+          </div>
+
           <div>
             <label class="block text-sm font-semibold text-white mb-2">Motivo opcional</label>
             <input
@@ -387,6 +422,13 @@
                     </span>
                     <div class="text-white font-semibold tracking-wide">{{ c.fecha }}</div>
                   </div>
+                  <div class="text-[11px] uppercase tracking-wider text-red-300/90">
+                    {% if c.todo_el_dia is defined and not c.todo_el_dia %}
+                      {{ c.hora_desde }} a {{ c.hora_hasta }}
+                    {% else %}
+                      Todo el día
+                    {% endif %}
+                  </div>
                   <div class="text-xs text-secondary mt-1 leading-relaxed">{{ c.motivo or 'Sin motivo registrado' }}</div>
                 </div>
                 <form method="post" action="{{ url_for('web.admin_horarios_reabrir_dia', fecha=c.fecha) }}" onsubmit="return confirm('¿Reabrir este día?');">
@@ -409,5 +451,27 @@
     </div>
   </div>
 </div>
+
+<script>
+  (function () {
+    const check = document.querySelector("[data-close-all-day]");
+    const wrap = document.querySelector("[data-close-hours]");
+    if (!check || !wrap) return;
+
+    const inputs = wrap.querySelectorAll("input");
+
+    function syncCloseHours() {
+      const showHours = !check.checked;
+      wrap.classList.toggle("hidden", !showHours);
+      inputs.forEach((input) => {
+        input.required = showHours;
+        if (!showHours) input.value = "";
+      });
+    }
+
+    check.addEventListener("change", syncCloseHours);
+    syncCloseHours();
+  })();
+</script>
 
 {% endblock %}
