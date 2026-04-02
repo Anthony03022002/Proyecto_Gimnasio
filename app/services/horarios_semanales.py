@@ -242,8 +242,66 @@ def _hora_a_minutos(valor):
     return None
 
 
+def _normalizar_intervalos_cierre(cierre: dict):
+    if not cierre:
+        return []
+
+    intervalos = []
+    raw_intervalos = cierre.get("intervalos") or []
+    if isinstance(raw_intervalos, list):
+        for item in raw_intervalos:
+            if not isinstance(item, dict):
+                continue
+            desde = (item.get("hora_desde") or "").strip()
+            hasta = (item.get("hora_hasta") or "").strip()
+            if desde and hasta:
+                intervalos.append({"hora_desde": desde, "hora_hasta": hasta})
+
+    if intervalos:
+        return intervalos
+
+    if bool(cierre.get("todo_el_dia", True)):
+        return []
+
+    hora_desde = (cierre.get("hora_desde") or "").strip()
+    hora_hasta = (cierre.get("hora_hasta") or "").strip()
+    if hora_desde and hora_hasta:
+        return [{"hora_desde": hora_desde, "hora_hasta": hora_hasta}]
+    return []
+
+
+def _fusionar_intervalos(intervalos):
+    rangos = []
+    for item in intervalos or []:
+        desde = (item.get("hora_desde") or "").strip()
+        hasta = (item.get("hora_hasta") or "").strip()
+        min_desde = _hora_a_minutos(desde)
+        min_hasta = _hora_a_minutos(hasta)
+        if None in (min_desde, min_hasta) or min_desde >= min_hasta:
+            continue
+        rangos.append((min_desde, min_hasta))
+
+    rangos.sort()
+    fusionados = []
+    for desde, hasta in rangos:
+        if not fusionados or desde > fusionados[-1][1]:
+            fusionados.append([desde, hasta])
+        else:
+            fusionados[-1][1] = max(fusionados[-1][1], hasta)
+
+    return [
+        {
+            "hora_desde": f"{desde // 60:02d}:{desde % 60:02d}",
+            "hora_hasta": f"{hasta // 60:02d}:{hasta % 60:02d}",
+        }
+        for desde, hasta in fusionados
+    ]
+
+
 def cierre_es_todo_el_dia(cierre: dict):
     if not cierre:
+        return False
+    if _normalizar_intervalos_cierre(cierre):
         return False
     return bool(cierre.get("todo_el_dia", True))
 
@@ -254,10 +312,9 @@ def describir_cierre_especial(cierre: dict):
     if cierre_es_todo_el_dia(cierre):
         return "Todo el dia"
 
-    hora_desde = (cierre.get("hora_desde") or "").strip()
-    hora_hasta = (cierre.get("hora_hasta") or "").strip()
-    if hora_desde and hora_hasta:
-        return f"{hora_desde} a {hora_hasta}"
+    intervalos = _normalizar_intervalos_cierre(cierre)
+    if intervalos:
+        return ", ".join(f'{item["hora_desde"]} a {item["hora_hasta"]}' for item in intervalos)
     return "Horario parcial"
 
 
@@ -267,17 +324,22 @@ def cierre_afecta_slot(cierre: dict, slot_inicio, slot_fin=None):
     if cierre_es_todo_el_dia(cierre):
         return True
 
-    cierre_desde = _hora_a_minutos(cierre.get("hora_desde"))
-    cierre_hasta = _hora_a_minutos(cierre.get("hora_hasta"))
     inicio = _hora_a_minutos(slot_inicio)
     fin = _hora_a_minutos(slot_fin)
 
-    if None in (cierre_desde, cierre_hasta, inicio):
+    if inicio is None:
         return False
     if fin is None:
         fin = inicio + 1
 
-    return inicio < cierre_hasta and fin > cierre_desde
+    for item in _normalizar_intervalos_cierre(cierre):
+        cierre_desde = _hora_a_minutos(item.get("hora_desde"))
+        cierre_hasta = _hora_a_minutos(item.get("hora_hasta"))
+        if None in (cierre_desde, cierre_hasta):
+            continue
+        if inicio < cierre_hasta and fin > cierre_desde:
+            return True
+    return False
 
 
 def cerrar_dia_especial(
@@ -316,20 +378,40 @@ def cerrar_dia_especial(
         hora_desde = ""
         hora_hasta = ""
 
-    col.update_one(
-        {"_id": fecha},
-        {"$set": {
+    ahora = datetime.now(timezone.utc)
+    cierre_actual = col.find_one({"_id": fecha}) or {}
+    motivo_final = (motivo or "").strip() or (cierre_actual.get("motivo") or "").strip()
+
+    if todo_el_dia:
+        doc = {
             "fecha": fecha,
-            "motivo": (motivo or "").strip(),
+            "motivo": motivo_final,
             "activo": True,
-            "todo_el_dia": todo_el_dia,
-            "hora_desde": hora_desde,
-            "hora_hasta": hora_hasta,
-            "actualizado_en": datetime.now(timezone.utc),
-            "creado_por": creado_por or None,
-        }},
-        upsert=True
-    )
+            "todo_el_dia": True,
+            "hora_desde": "",
+            "hora_hasta": "",
+            "intervalos": [],
+            "actualizado_en": ahora,
+            "creado_por": creado_por or cierre_actual.get("creado_por") or None,
+        }
+    else:
+        intervalos = _normalizar_intervalos_cierre(cierre_actual)
+        intervalos.append({"hora_desde": hora_desde, "hora_hasta": hora_hasta})
+        intervalos = _fusionar_intervalos(intervalos)
+        primer_intervalo = intervalos[0] if intervalos else {"hora_desde": "", "hora_hasta": ""}
+        doc = {
+            "fecha": fecha,
+            "motivo": motivo_final,
+            "activo": True,
+            "todo_el_dia": False,
+            "hora_desde": primer_intervalo.get("hora_desde", ""),
+            "hora_hasta": primer_intervalo.get("hora_hasta", ""),
+            "intervalos": intervalos,
+            "actualizado_en": ahora,
+            "creado_por": creado_por or cierre_actual.get("creado_por") or None,
+        }
+
+    col.update_one({"_id": fecha}, {"$set": doc}, upsert=True)
 
 
 def reabrir_dia_especial(fecha: str):

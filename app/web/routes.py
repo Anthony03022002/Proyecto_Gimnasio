@@ -4770,9 +4770,9 @@ def admin_horarios_cerrar_dia():
 def admin_horarios_reabrir_dia(fecha):
     res = reabrir_dia_especial(fecha)
     if res.deleted_count:
-        flash("DÃ­a reabierto correctamente.", "success")
+        flash("Día reabierto correctamente.", "success")
     else:
-        flash("No se encontrÃ³ el cierre seleccionado.", "warning")
+        flash("No se encontró el cierre seleccionado.", "warning")
     return redirect(url_for("web.admin_horarios"))
 
 

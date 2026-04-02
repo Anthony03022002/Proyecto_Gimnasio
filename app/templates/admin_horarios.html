@@ -424,7 +424,13 @@
                   </div>
                   <div class="text-[11px] uppercase tracking-wider text-red-300/90">
                     {% if c.todo_el_dia is defined and not c.todo_el_dia %}
-                      {{ c.hora_desde }} a {{ c.hora_hasta }}
+                      {% if c.intervalos %}
+                        {% for rango in c.intervalos %}
+                          {{ rango.hora_desde }} a {{ rango.hora_hasta }}{% if not loop.last %} | {% endif %}
+                        {% endfor %}
+                      {% else %}
+                        {{ c.hora_desde }} a {{ c.hora_hasta }}
+                      {% endif %}
                     {% else %}
                       Todo el día
                     {% endif %}
