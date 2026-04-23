@@ -1701,6 +1701,7 @@ def admin_publicidad_subir():
         "rel_path": rel_path,
         "bytes": int(file_size),
         "activo": False,
+        "activation_version": 0,
         "creado": datetime.now(timezone.utc),
     })
 
@@ -1737,7 +1738,16 @@ def admin_publicidad_toggle(pub_id):
         flash("Publicidad desactivada.", "success")
     else:
         pub_col.update_many({}, {"$set": {"activo": False}})
-        pub_col.update_one({"_id": pid}, {"$set": {"activo": True}})
+        pub_col.update_one(
+            {"_id": pid},
+            {
+                "$set": {
+                    "activo": True,
+                    "activado": datetime.now(timezone.utc),
+                },
+                "$inc": {"activation_version": 1},
+            },
+        )
         flash("Publicidad activada.", "success")
 
     return redirect(url_for("web.admin_publicidad"))

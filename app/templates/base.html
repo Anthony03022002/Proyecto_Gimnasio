@@ -137,7 +137,8 @@
     <script>
       (function () {
         const pubId = "{{ publicidad_activa._id }}";
-        const key = "pub_seen_" + pubId;
+        const activationVersion = "{{ publicidad_activa.activation_version or 0 }}";
+        const key = "pub_seen_" + pubId + "_" + activationVersion;
 
         if (localStorage.getItem(key) === "1") return;
 

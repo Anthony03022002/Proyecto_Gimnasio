@@ -648,7 +648,8 @@
         const pubId = "{{ _pub._id }}"; // ObjectId -> "..." en string
         if (!pubId) return;
 
-        const key = "pub_seen_" + pubId;
+        const activationVersion = "{{ _pub.activation_version or 0 }}";
+        const key = "pub_seen_" + pubId + "_" + activationVersion;
 
         // ✅ si ya lo marcaste como visto, no lo muestres
         if (localStorage.getItem(key) === "1") return;
