@@ -650,6 +650,14 @@
 
         const activationVersion = "{{ _pub.activation_version or 0 }}";
         const key = "pub_seen_" + pubId + "_" + activationVersion;
+        const keyPrefix = "pub_seen_" + pubId + "_";
+
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const storedKey = localStorage.key(i);
+          if (storedKey && storedKey.startsWith(keyPrefix) && storedKey !== key) {
+            localStorage.removeItem(storedKey);
+          }
+        }
 
         // ✅ si ya lo marcaste como visto, no lo muestres
         if (localStorage.getItem(key) === "1") return;
