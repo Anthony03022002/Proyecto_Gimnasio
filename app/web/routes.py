@@ -9,7 +9,11 @@ from bson import ObjectId
 from flask import abort, jsonify, render_template, redirect, send_file, url_for, request, session, flash
 from pymongo import ReturnDocument
 from flask import request, redirect, url_for, flash, current_app as app
-from app.services.alertas_clientes import obtener_clientes_por_vencer
+from app.services.alertas_clientes import (
+    cerrar_alertas_vencimiento_cliente,
+    limpiar_alertas_renovacion_obsoletas,
+    obtener_clientes_por_vencer,
+)
 from app.services.bloques import _get_blocks_for_date, _open_time_for_block, _slot_block_num, _turno_permite
 from app.services.cumple_cliente import es_cumple_hoy, generar_notificaciones_cumple
 from app.services.indicadores import _as_float_form, _build_kpi_and_chart
@@ -293,6 +297,8 @@ def admin_dashboard():
         if not doc.get("visto", False):
             c["noti_id"] = str(doc["_id"])   
             clientes_por_vencer.append(c)
+
+    limpiar_alertas_renovacion_obsoletas(db)
 
     ahora = datetime.now(timezone.utc)
     inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1848,6 +1854,8 @@ def cajero_dashboard():
             return_document=ReturnDocument.AFTER,
         )
 
+    limpiar_alertas_renovacion_obsoletas(db, {"para_rol": "cajero"})
+
     notificaciones = list(
         noti_col.find({"para_rol": "cajero", "visto": False})
                 .sort([("creado_at", -1)])
@@ -2386,6 +2394,8 @@ def cajero_renovar_post():
         {"_id": oid},
         {"$set": {"activo": True}}
     )
+
+    cerrar_alertas_vencimiento_cliente(db, oid, motivo="membresia_renovada")
 
 
 
@@ -3577,7 +3587,7 @@ def cliente_dashboard():
                 {
                     "cliente_id": cliente_id,
                     "estado": "activa",
-                    "tipo": {"$in": ["membresia_5_dias", "membresia_3_dias"]},
+                    "tipo": {"$in": ["membresia_5_dias", "membresia_3_dias", "membresia_2_dias", "membresia_1_dia"]},
                 },
                 {"$set": {"estado": "cerrada", "cerrada": ahora_utc}}
             )
@@ -3633,6 +3643,7 @@ def cliente_dashboard():
                     "cliente_id": cliente_id,
                     "estado": "activa",
                     "tipo": {"$in": ["membresia_5_dias", "membresia_3_dias"]},
+                    "fecha_hasta": fh,
                 },
                 {"mensaje": 1}
             ).sort("creado", -1).limit(3)
