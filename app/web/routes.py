@@ -11,7 +11,6 @@ from pymongo import ReturnDocument
 from flask import request, redirect, url_for, flash, current_app as app
 from app.services.alertas_clientes import (
     cerrar_alertas_vencimiento_cliente,
-    limpiar_alertas_renovacion_obsoletas,
     obtener_clientes_por_vencer,
 )
 from app.services.bloques import _get_blocks_for_date, _open_time_for_block, _slot_block_num, _turno_permite
@@ -297,8 +296,6 @@ def admin_dashboard():
         if not doc.get("visto", False):
             c["noti_id"] = str(doc["_id"])   
             clientes_por_vencer.append(c)
-
-    limpiar_alertas_renovacion_obsoletas(db)
 
     ahora = datetime.now(timezone.utc)
     inicio = ahora.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -1853,8 +1850,6 @@ def cajero_dashboard():
             upsert=True,
             return_document=ReturnDocument.AFTER,
         )
-
-    limpiar_alertas_renovacion_obsoletas(db, {"para_rol": "cajero"})
 
     notificaciones = list(
         noti_col.find({"para_rol": "cajero", "visto": False})

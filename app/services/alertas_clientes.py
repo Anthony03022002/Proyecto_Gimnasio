@@ -39,21 +39,13 @@ def _ultima_fecha_hasta(db, cliente_id):
 
 
 def cerrar_alertas_vencimiento_cliente(db, cliente_id, *, motivo="renovacion"):
-    """Cierra alertas de vencimiento que quedaron asociadas a una membresia anterior."""
+    """Cierra solo alertas de vencimiento del cliente.
+
+    Las notificaciones de tipo "renovacion" son usadas por administrador y
+    cajero, asi que no deben marcarse como vistas desde el flujo del cliente.
+    """
     ahora = datetime.now(timezone.utc)
     noti_col = db["notificaciones"]
-
-    noti_col.update_many(
-        {"tipo": "renovacion", "cliente_id": cliente_id, "visto": False},
-        {
-            "$set": {
-                "visto": True,
-                "visto_at": ahora,
-                "cerrada_por_sistema": True,
-                "motivo_cierre": motivo,
-            }
-        },
-    )
 
     noti_col.update_many(
         {
