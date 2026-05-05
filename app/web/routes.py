@@ -2314,6 +2314,8 @@ def cajero_renovar_post():
 
     cliente_id = (request.form.get("cliente_id") or "").strip()
     meses_raw = (request.form.get("meses") or "").strip()
+    fecha_inicio_raw = (request.form.get("fecha_inicio") or "").strip()
+    fecha_fin_raw = (request.form.get("fecha_fin") or "").strip()
     concepto = (request.form.get("concepto") or "").strip()
 
 
@@ -2359,6 +2361,14 @@ def cajero_renovar_post():
             return x
         return None
 
+    def parse_form_date(value):
+        if not value:
+            return None
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except Exception:
+            return None
+
     hoy = date.today()
 
     f_desde = hoy
@@ -2367,8 +2377,25 @@ def cajero_renovar_post():
         if fh and fh >= hoy:
             f_desde = fh  
 
+    fecha_inicio_form = parse_form_date(fecha_inicio_raw)
+    fecha_fin_form = parse_form_date(fecha_fin_raw)
 
-    f_hasta = add_months(f_desde, meses)
+    if fecha_inicio_raw and not fecha_inicio_form:
+        flash("Fecha de inicio invalida.", "danger")
+        return redirect(url_for("web.cajero_renovar", cliente_id=cliente_id))
+
+    if fecha_fin_raw and not fecha_fin_form:
+        flash("Fecha de fin invalida.", "danger")
+        return redirect(url_for("web.cajero_renovar", cliente_id=cliente_id))
+
+    if fecha_inicio_form:
+        f_desde = fecha_inicio_form
+
+    f_hasta = fecha_fin_form or add_months(f_desde, meses)
+
+    if f_hasta < f_desde:
+        flash("La fecha fin no puede ser anterior a la fecha inicio.", "danger")
+        return redirect(url_for("web.cajero_renovar", cliente_id=cliente_id))
 
     doc = {
         "fecha": datetime.utcnow(),
