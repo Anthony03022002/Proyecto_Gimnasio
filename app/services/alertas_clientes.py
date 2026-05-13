@@ -9,7 +9,7 @@ def _to_ec_date(value):
         return None
 
     if isinstance(value, datetime):
-        dt = value
+        return value.date()
     elif isinstance(value, date):
         return value
     elif isinstance(value, str):
@@ -23,10 +23,7 @@ def _to_ec_date(value):
     else:
         return None
 
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=timezone.utc)
-
-    return dt.astimezone(TZ_EC).date()
+    return dt.date()
 
 
 def _ultima_fecha_hasta(db, cliente_id):
@@ -143,12 +140,8 @@ def obtener_clientes_por_vencer(db, dias_objetivo=(2, 1, 0), limitar=50):
         if not fh:
             continue
 
-        if isinstance(fh, datetime) and fh.tzinfo is None:
-            fh = fh.replace(tzinfo=timezone.utc)
-
-        try:
-            fh_ec = fh.astimezone(TZ_EC).date()
-        except Exception:
+        fh_ec = _to_ec_date(fh)
+        if not fh_ec:
             continue
 
         dias_restantes = (fh_ec - hoy_ec).days  
