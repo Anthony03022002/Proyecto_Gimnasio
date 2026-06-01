@@ -3673,17 +3673,28 @@ def cliente_dashboard():
         alertas_membresia = [n.get("mensaje") for n in docs_noti if n.get("mensaje")]
 
 
+    hoy_key = datetime.now(TZ_EC).date().isoformat()
     reservas = list(
         reservas_col.find(
-            {"cliente_id": cliente_id, "estado": "confirmada"},
+            {
+                "cliente_id": cliente_id,
+                "estado": "confirmada",
+                "$or": [
+                    {"fecha": {"$gte": hoy_key}},
+                    {"fecha": {"$exists": False}},
+                    {"fecha": None},
+                    {"fecha": ""},
+                ],
+            },
             {
                 "slot_id": 1,
-                "entrenador_id": 1,  
-                "entrenador": 1,     
-                "entrenador_username": 1,  
-                "creado": 1
+                "fecha": 1,
+                "entrenador_id": 1,
+                "entrenador": 1,
+                "entrenador_username": 1,
+                "creado": 1,
             }
-        ).sort("slot_id", 1).limit(30)
+        ).sort([("fecha", 1), ("slot_id", 1)])
     )
 
     entrenador_ids = []
