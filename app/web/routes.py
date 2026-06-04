@@ -3587,21 +3587,21 @@ def cliente_dashboard():
     hoy_ec = ahora_utc.astimezone(TZ_EC).date()
 
     fh = None
-    fh_ec_date = None
+    fh_date = None
 
     if membresia and membresia.get("fecha_hasta"):
         fh = membresia.get("fecha_hasta")
 
-        if isinstance(fh, datetime) and fh.tzinfo is None:
-            fh = fh.replace(tzinfo=timezone.utc)
+        if isinstance(fh, datetime):
+            fh_date = fh.date()
+        elif isinstance(fh, date):
+            fh_date = fh
 
-        fh_ec_date = fh.astimezone(TZ_EC).date()
+        dias_restantes = (fh_date - hoy_ec).days if fh_date else None
 
-        dias_restantes = (fh_ec_date - hoy_ec).days
-
-        if dias_restantes >= 0:
+        if dias_restantes is not None and dias_restantes >= 0:
             estado_membresia = "Activa"
-        else:
+        elif dias_restantes is not None:
             estado_membresia = "Vencida"
             dias_restantes = None  
 
@@ -3657,8 +3657,23 @@ def cliente_dashboard():
                 "⚠️ Tu membresía vence en 3 días. Si no renuevas, se desactivará automáticamente.",
                 fh
             )
+        elif dias_restantes > 5:
+            noti_col.update_many(
+                {
+                    "cliente_id": cliente_id,
+                    "estado": "activa",
+                    "tipo": {"$in": ["membresia_5_dias", "membresia_3_dias", "membresia_2_dias", "membresia_1_dia"]},
+                    "fecha_hasta": fh,
+                },
+                {"$set": {"estado": "cerrada", "cerrada": ahora_utc}}
+            )
 
-    if estado_membresia == "Activa" and not alertas_membresia:
+    if (
+        estado_membresia == "Activa"
+        and dias_restantes is not None
+        and 0 <= dias_restantes <= 5
+        and not alertas_membresia
+    ):
         docs_noti = list(
             noti_col.find(
                 {
@@ -5617,17 +5632,20 @@ def _membresia_estado_para_cliente(db, cliente_id: ObjectId):
 
     if membresia and membresia.get("fecha_hasta"):
         fh = membresia["fecha_hasta"]
-        if isinstance(fh, datetime) and fh.tzinfo is None:
-            fh = fh.replace(tzinfo=timezone.utc)
+        if isinstance(fh, datetime):
+            fh_date = fh.date()
+        elif isinstance(fh, date):
+            fh_date = fh
+        else:
+            fh_date = None
 
         hoy_ec = datetime.now(timezone.utc).astimezone(TZ_EC).date()
-        fh_ec = fh.astimezone(TZ_EC).date()
-        diff = (fh_ec - hoy_ec).days
+        diff = (fh_date - hoy_ec).days if fh_date else None
 
-        if diff >= 0:
+        if diff is not None and diff >= 0:
             estado = "Activa"
             dias_restantes = diff
-        else:
+        elif diff is not None:
             estado = "Vencida"
             dias_restantes = None
 
